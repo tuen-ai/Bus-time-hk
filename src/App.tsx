@@ -81,7 +81,12 @@ export default function App() {
 
       <main className="content">
         {selected ? (
-          <RouteStopsView route={selected} onBack={() => setSelected(null)} />
+          <RouteStopsView
+            route={selected}
+            variants={routes.filter((r) => r.route === selected.route)}
+            onSwitch={setSelected}
+            onBack={() => setSelected(null)}
+          />
         ) : tab === 'nearby' ? (
           <NearbyView />
         ) : (

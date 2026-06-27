@@ -14,10 +14,12 @@ interface StopRow {
 
 interface Props {
   route: Route
+  variants: Route[]
+  onSwitch: (r: Route) => void
   onBack: () => void
 }
 
-export default function RouteStopsView({ route, onBack }: Props) {
+export default function RouteStopsView({ route, variants, onSwitch, onBack }: Props) {
   const [stops, setStops] = useState<StopRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -58,6 +60,15 @@ export default function RouteStopsView({ route, onBack }: Props) {
     }
   }, [route])
 
+  const sortedVariants = useMemo(
+    () =>
+      [...variants].sort(
+        (a, b) =>
+          a.bound.localeCompare(b.bound) || a.service_type.localeCompare(b.service_type),
+      ),
+    [variants],
+  )
+
   const mapStops = useMemo<MapStop[]>(
     () =>
       stops
@@ -94,6 +105,24 @@ export default function RouteStopsView({ route, onBack }: Props) {
           <div className="muted small">由 {route.orig_tc}</div>
         </div>
       </div>
+
+      {sortedVariants.length > 1 && (
+        <div className="variant-bar">
+          {sortedVariants.map((v) => {
+            const active = v.bound === route.bound && v.service_type === route.service_type
+            return (
+              <button
+                key={`${v.bound}|${v.service_type}`}
+                className={`variant-chip ${active ? 'on' : ''}`}
+                onClick={() => !active && onSwitch(v)}
+              >
+                往 {v.dest_tc}
+                {v.service_type !== '1' && <span className="small"> ·特{v.service_type}</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {loading && <div className="muted pad">載入車站…</div>}
       {error && <div className="error pad">⚠️ {error}</div>}

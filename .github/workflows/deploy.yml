@@ -27,6 +27,12 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # 預先抓取路線幾何到 public/geom(same-origin);失敗不致命
+      - name: Bake route geometry
+        run: node scripts/fetch-geometry.mjs
+        continue-on-error: true
+
       - run: npm run build
 
       # 自動啟用 Pages(若尚未啟用)

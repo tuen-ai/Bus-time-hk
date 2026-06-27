@@ -11,3 +11,6 @@ yarn-error.log*
 
 # build info
 tsconfig.tsbuildinfo
+
+# CI-baked route geometry (downloaded at build time)
+public/geom

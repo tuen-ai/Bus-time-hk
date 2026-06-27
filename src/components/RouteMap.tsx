@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Polyline, CircleMarker, Marker, useMap } from 
 import type { LatLngBoundsExpression } from 'leaflet'
 import type { Feature, LineString } from 'geojson'
 import { fetchRouteEta } from '../api/kmb'
-import { loadRouteLine, lineFromStops } from '../lib/geometry'
+import { loadRouteLine, lineFromOsrm, lineFromStops } from '../lib/geometry'
 import { snapStops, predictBuses, type SnappedStop, type PredictedBus } from '../lib/busPredict'
 import { busIcon } from '../lib/mapIcons'
 import { TILE_URL, TILE_ATTRIB } from '../lib/mapConfig'
@@ -36,7 +36,7 @@ function FitBounds({ bounds }: { bounds: LatLngBoundsExpression | null }) {
 
 export default function RouteMap({ route, bound, serviceType, stops }: Props) {
   const [line, setLine] = useState<Feature<LineString> | null>(null)
-  const [isReal, setIsReal] = useState(false)
+  const [source, setSource] = useState<'real' | 'osrm' | 'straight'>('real')
   const [buses, setBuses] = useState<PredictedBus[]>([])
   const snappedRef = useRef<SnappedStop[]>([])
   const etaRef = useRef<Map<number, number>>(new Map())
@@ -45,14 +45,22 @@ export default function RouteMap({ route, bound, serviceType, stops }: Props) {
   useEffect(() => {
     let alive = true
     ;(async () => {
+      // 三層後備:真實幾何 → OSRM 道路 snap → 站對站直線
       const real = await loadRouteLine(route, bound, serviceType)
       if (!alive) return
       if (real) {
         setLine(real)
-        setIsReal(true)
+        setSource('real')
+        return
+      }
+      const osrm = await lineFromOsrm(stops)
+      if (!alive) return
+      if (osrm) {
+        setLine(osrm)
+        setSource('osrm')
       } else {
         setLine(lineFromStops(stops))
-        setIsReal(false)
+        setSource('straight')
       }
     })()
     return () => {
@@ -128,12 +136,13 @@ export default function RouteMap({ route, bound, serviceType, stops }: Props) {
           />
         ))}
         {buses.map((b, i) => (
-          <Marker key={i} position={[b.lat, b.lng]} icon={busIcon(`${b.minsToNext}分`)} />
+          <Marker key={i} position={[b.lat, b.lng]} icon={busIcon(`${b.minsToNext}分`, i === 0)} />
         ))}
       </MapContainer>
       <div className="map-disclaimer">
         🚌 預測巴士位置 · 僅供參考(此 API 無 GPS,位置由到站時間推算)
-        {!isReal && ' · 路線用站點直線(未有行車幾何)'}
+        {source === 'osrm' && ' · 路線為道路推算(OSRM)'}
+        {source === 'straight' && ' · 路線用站點直線(未有行車幾何)'}
       </div>
     </div>
   )

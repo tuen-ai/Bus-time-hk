@@ -175,8 +175,34 @@ body {
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
   transition: transform 1s linear;
 }
+/* ---- Variant (direction / service type) selector ---- */
+.variant-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.variant-chip {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.variant-chip.on {
+  background: var(--red);
+  color: #fff;
+  border-color: var(--red);
+  font-weight: 700;
+}
+
 .route-map-wrap {
   margin-bottom: 12px;
+}
+.map-icon-bus.secondary .bus {
+  opacity: 0.5;
 }
 .map-disclaimer {
   font-size: 0.72rem;

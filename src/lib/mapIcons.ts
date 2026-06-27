@@ -23,9 +23,9 @@ export const stopIconActive = L.divIcon({
   iconAnchor: [9, 9],
 })
 
-export function busIcon(label: string): L.DivIcon {
+export function busIcon(label: string, primary = true): L.DivIcon {
   return L.divIcon({
-    className: 'map-icon-bus',
+    className: `map-icon-bus ${primary ? '' : 'secondary'}`,
     html: `<div class="bus">🚌<span class="bus-label">${label}</span></div>`,
     iconSize: [30, 30],
     iconAnchor: [15, 15],
