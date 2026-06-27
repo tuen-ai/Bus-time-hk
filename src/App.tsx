@@ -189,7 +189,9 @@ export default function App() {
         </a>{' '}
         (GPL-2.0) · 地圖 © OpenStreetMap contributors
         <br />
-        天氣:香港天文台 (HKO) · 港鐵下一班列車:© 港鐵公司 MTR · data.gov.hk
+        天氣:香港天文台 (HKO) · 港鐵/輕鐵:© 港鐵公司 MTR
+        <br />
+        嶼巴 · 特別交通消息:運輸署 · 全部經 data.gov.hk
       </footer>
     </div>
   )

@@ -5,6 +5,7 @@ import EtaPanel from './EtaPanel'
 import RouteMap, { type MapStop } from './RouteMap'
 import { routeBadges } from '../lib/routeMeta'
 import { getFares, fmtFare } from '../lib/fares'
+import TrafficAlert from './TrafficAlert'
 
 interface StopRow {
   seq: string
@@ -150,6 +151,8 @@ export default function RouteStopsView({
 
       {loading && <div className="muted pad">載入車站…</div>}
       {error && <div className="error pad">⚠️ {error}</div>}
+
+      {!loading && mapStops.length > 0 && <TrafficAlert stops={mapStops} />}
 
       {!loading && mapStops.length > 1 && (
         <RouteMap route={route} stops={mapStops} focusStopId={openStop ?? undefined} />

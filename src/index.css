@@ -484,6 +484,56 @@ input:focus-visible {
   font-weight: 700;
 }
 
+/* ---- Traffic alert ---- */
+.traffic-alert {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+:root[data-theme='dark'] .traffic-alert {
+  background: #2a1d0e;
+  border-color: #5a3d18;
+}
+.ta-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--soon);
+  font-weight: 700;
+  font-size: 0.88rem;
+  text-align: left;
+  padding: 11px 14px;
+  cursor: pointer;
+}
+.ta-head .chev {
+  margin-left: auto;
+}
+.ta-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ta-item {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+.ta-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.ta-detail {
+  font-size: 0.86rem;
+  margin: 2px 0;
+}
+
 /* ---- Fares ---- */
 .fare-badge {
   margin-left: auto;
