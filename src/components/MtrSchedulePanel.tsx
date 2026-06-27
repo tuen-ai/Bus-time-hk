@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { fetchSchedule, type StationSchedule, type TrainArrival } from '../api/mtr'
 import { stationNameTc } from '../lib/mtrData'
 
@@ -9,20 +9,19 @@ function ttntLabel(t: number): string {
   return `${t} 分鐘`
 }
 
-function Direction({ title, trains, color }: { title: string; trains: TrainArrival[]; color: string }) {
+function Direction({ trains, color }: { trains: TrainArrival[]; color: string }) {
   if (trains.length === 0) return null
   const dest = stationNameTc[trains[0].dest] ?? trains[0].dest
   return (
     <div className="mtr-dir">
       <div className="mtr-dir-head" style={{ borderColor: color }}>
-        {title} <span className="mtr-dest">往 {dest}</span>
+        往 <span className="mtr-dest-name">{dest}</span>
       </div>
       <ul className="mtr-trains">
         {trains.slice(0, 4).map((t, i) => (
-          <li key={i} className="mtr-train">
+          <li key={`${t.dest}-${t.ttnt}-${t.plat}-${i}`} className="mtr-train">
             <span className={`mtr-mins ${t.ttnt <= 1 ? 'soon' : ''}`}>{ttntLabel(t.ttnt)}</span>
             {t.plat && <span className="mtr-plat">月台 {t.plat}</span>}
-            {stationNameTc[t.dest] && i > 0 && <span className="muted small">往 {stationNameTc[t.dest]}</span>}
           </li>
         ))}
       </ul>
@@ -43,23 +42,33 @@ export default function MtrSchedulePanel({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const load = useCallback(async () => {
-    try {
-      setError(null)
-      setSched(await fetchSchedule(line, station))
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '載入失敗')
-    } finally {
-      setLoading(false)
-    }
-  }, [line, station])
-
   useEffect(() => {
+    let alive = true
+    const ctrl = new AbortController()
+    const load = async () => {
+      try {
+        const s = await fetchSchedule(line, station, ctrl.signal)
+        if (alive) {
+          setSched(s)
+          setError(null)
+        }
+      } catch (e) {
+        if (alive && (e as Error)?.name !== 'AbortError') {
+          setError(e instanceof Error ? e.message : '載入失敗')
+        }
+      } finally {
+        if (alive) setLoading(false)
+      }
+    }
     setLoading(true)
     load()
     const id = setInterval(load, REFRESH_MS)
-    return () => clearInterval(id)
-  }, [load])
+    return () => {
+      alive = false
+      ctrl.abort()
+      clearInterval(id)
+    }
+  }, [line, station])
 
   if (loading) return <div className="muted pad">載入班次…</div>
   if (error) return <div className="error pad">⚠️ {error}</div>
@@ -68,7 +77,15 @@ export default function MtrSchedulePanel({
   if (sched.special) {
     return (
       <div className="mtr-special">
-        ⚠️ {sched.message || '車務有特別安排,暫無實時班次。請留意港鐵公佈。'}
+        ⚠️ {sched.message || '車務有特別安排,暫無實時班次。'}
+        {sched.url && (
+          <>
+            {' '}
+            <a href={sched.url} target="_blank" rel="noreferrer">
+              查看車務通告 ›
+            </a>
+          </>
+        )}
       </div>
     )
   }
@@ -78,8 +95,8 @@ export default function MtrSchedulePanel({
     <div className="mtr-sched">
       {sched.isDelay && <div className="mtr-delay">⚠️ 服務延誤</div>}
       {empty && <div className="muted pad">此站暫無班次(可能為總站方向)</div>}
-      <Direction title="↑" trains={sched.up} color={color} />
-      <Direction title="↓" trains={sched.down} color={color} />
+      <Direction trains={sched.up} color={color} />
+      <Direction trains={sched.down} color={color} />
       <div className="eta-updated muted">每 15 秒自動刷新 · 資料 © 港鐵公司 / data.gov.hk</div>
     </div>
   )

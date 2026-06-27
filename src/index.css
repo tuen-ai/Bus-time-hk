@@ -53,11 +53,28 @@ body {
   flex-direction: column;
 }
 
+/* 鍵盤焦點可見(WCAG 2.4.7) */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* 數字等寬,ETA 唔會跳 */
+.eta-mins,
+.mtr-mins,
+.eta-clock {
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---- Top bar ---- */
 .topbar {
   background: linear-gradient(135deg, var(--red), var(--red-dark));
   color: #fff;
   padding: 14px 18px;
+  padding-top: max(14px, env(safe-area-inset-top));
   position: sticky;
   top: 0;
   z-index: 10;
@@ -94,10 +111,16 @@ body {
   border: 1.5px solid;
   background: var(--card);
   border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 0.85rem;
+  padding: 8px 14px;
+  min-height: 40px;
+  font-size: 0.88rem;
   font-weight: 700;
   cursor: pointer;
+}
+.mtr-dest-name {
+  font-weight: 800;
+  color: var(--text);
+  font-size: 1.02rem;
 }
 .mtr-dot {
   width: 12px;
@@ -129,7 +152,8 @@ body {
   margin-bottom: 10px;
 }
 .mtr-dir-head {
-  font-weight: 700;
+  font-weight: 400;
+  color: var(--muted);
   border-left: 4px solid;
   padding-left: 8px;
 }
@@ -279,35 +303,6 @@ body {
   border-bottom-color: var(--red);
   font-weight: 700;
 }
-.nearby-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-/* ---- Nearby CTA ---- */
-.nearby-cta {
-  text-align: center;
-  padding: 40px 20px;
-}
-.cta-emoji {
-  font-size: 3rem;
-}
-.primary-btn {
-  background: var(--red);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius);
-  padding: 14px 28px;
-  font-size: 1.05rem;
-  font-weight: 700;
-  cursor: pointer;
-  margin-top: 8px;
-}
-.primary-btn:active {
-  background: var(--red-dark);
-}
-
 /* ---- Map ---- */
 .map {
   height: 300px;
@@ -316,33 +311,6 @@ body {
   margin-bottom: 12px;
   z-index: 0;
   box-shadow: var(--shadow-sm);
-}
-.map-icon-user .pulse {
-  width: 18px;
-  height: 18px;
-  background: #2563eb;
-  border: 3px solid #fff;
-  border-radius: 50%;
-  box-shadow: 0 0 0 rgba(37, 99, 235, 0.5);
-  animation: pulse 1.8s infinite;
-}
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.5); }
-  70% { box-shadow: 0 0 0 14px rgba(37, 99, 235, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
-}
-.map-icon-stop .dot {
-  width: 14px;
-  height: 14px;
-  background: var(--red);
-  border: 2px solid #fff;
-  border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-}
-.map-icon-stop.active .dot {
-  width: 18px;
-  height: 18px;
-  background: #f59e0b;
 }
 .map-icon-bus .bus {
   display: flex;
@@ -623,43 +591,6 @@ body {
   cursor: pointer;
 }
 
-/* ---- Stop ETA panel (附近 / 一站多線) ---- */
-.stop-eta-panel {
-  padding: 2px 4px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.stop-eta-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.stop-eta-info {
-  flex: 1;
-}
-.stop-eta-dest {
-  font-size: 0.9rem;
-}
-.stop-eta-times {
-  display: flex;
-  gap: 6px;
-  margin-top: 3px;
-  flex-wrap: wrap;
-}
-.pill {
-  font-size: 0.78rem;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--line);
-  color: var(--muted);
-}
-.pill.first {
-  background: var(--green);
-  color: #fff;
-  font-weight: 600;
-}
-
 /* ---- Favorites ---- */
 .favs {
   margin-bottom: 18px;
@@ -749,8 +680,9 @@ body {
 
 .footer {
   padding: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
   text-align: center;
-  font-size: 0.74rem;
+  font-size: 0.76rem;
   color: var(--muted);
 }
 .footer a {

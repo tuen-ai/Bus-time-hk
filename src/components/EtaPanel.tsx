@@ -48,7 +48,7 @@ export default function EtaPanel({ route, stopId }: Props) {
       {hasAny && (
         <ul className="eta-list">
           {etas.map((e, i) => (
-            <li key={i} className="eta-row">
+            <li key={`${e.eta ?? 'na'}-${e.eta_seq}-${i}`} className="eta-row">
               <span className={`eta-mins ${etaIsSoon(e.eta) ? 'soon' : ''}`}>
                 {etaLabel(e.eta)}
               </span>

@@ -20,6 +20,7 @@ export interface StationSchedule {
   /** status=0:特別車務安排 / 暫無實時數據 */
   special: boolean
   message: string | null
+  url: string | null // 特別安排時嘅車務通告連結
 }
 
 interface RawTrain {
@@ -33,6 +34,7 @@ interface RawTrain {
 interface RawResp {
   status?: number
   message?: string
+  url?: string
   curr_time?: string
   sys_time?: string
   isdelay?: string // 'Y' | 'N'
@@ -52,17 +54,38 @@ function mapTrains(list: RawTrain[] | undefined): TrainArrival[] {
 }
 
 /** 取得指定線 + 站嘅上行/下行下一班列車 */
-export async function fetchSchedule(line: string, station: string): Promise<StationSchedule> {
-  const res = await fetch(`${BASE}?line=${line}&sta=${station}&lang=tc`)
+export async function fetchSchedule(
+  line: string,
+  station: string,
+  signal?: AbortSignal,
+): Promise<StationSchedule> {
+  const res = await fetch(
+    `${BASE}?line=${encodeURIComponent(line)}&sta=${encodeURIComponent(station)}&lang=tc`,
+    { signal },
+  )
   if (!res.ok) throw new Error(`MTR ${res.status}`)
   const json = (await res.json()) as RawResp
+  // status: 1=正常, 0=特別車務安排, 其他(負/undefined)=錯誤
+  if (json.status === 0) {
+    return {
+      up: [],
+      down: [],
+      sysTime: json.sys_time ?? null,
+      isDelay: json.isdelay === 'Y',
+      special: true,
+      message: json.message ?? null,
+      url: json.url ?? null,
+    }
+  }
   const node = json.data?.[`${line}-${station}`]
+  if (json.status !== 1 && !node) throw new Error(json.message || '港鐵資料格式異常')
   return {
     up: mapTrains(node?.UP),
     down: mapTrains(node?.DOWN),
     sysTime: json.sys_time ?? null,
     isDelay: json.isdelay === 'Y',
-    special: json.status === 0,
-    message: json.message ?? null,
+    special: false,
+    message: null,
+    url: null,
   }
 }

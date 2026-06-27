@@ -32,7 +32,7 @@ export default function RouteStopsView({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [openStop, setOpenStop] = useState<string | null>(initialOpenStop ?? null)
-  const [favTick, setFavTick] = useState(0) // 用嚟強制重繪收藏星
+  const [, setFavTick] = useState(0) // 撳收藏星後強制重繪(更新星標狀態)
 
   useEffect(() => {
     let alive = true
@@ -151,6 +151,7 @@ export default function RouteStopsView({
               <div className="stop-head">
                 <button
                   className="stop-main"
+                  aria-expanded={open}
                   onClick={() => setOpenStop(open ? null : row.stopId)}
                 >
                   <span className="stop-seq">{row.seq}</span>
@@ -159,7 +160,8 @@ export default function RouteStopsView({
                 </button>
                 <button
                   className={`star ${faved ? 'on' : ''}`}
-                  aria-label="收藏"
+                  aria-label={faved ? '取消收藏' : '收藏'}
+                  aria-pressed={faved}
                   onClick={() => {
                     toggleFavorite(fav)
                     setFavTick((t) => t + 1)
@@ -168,7 +170,7 @@ export default function RouteStopsView({
                   {faved ? '★' : '☆'}
                 </button>
               </div>
-              {open && <EtaPanel key={favTick} route={route} stopId={row.stopId} />}
+              {open && <EtaPanel route={route} stopId={row.stopId} />}
             </li>
           )
         })}

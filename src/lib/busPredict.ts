@@ -33,6 +33,7 @@ export interface PredictedBus {
   lat: number
   lng: number
   minsToNext: number
+  seq: number // 下一站 seq,做穩定 React key
 }
 
 const DEFAULT_SEG_MS = 90_000
@@ -54,11 +55,12 @@ export function predictBuses(
     .map((s) => ({ ...s, t: etaBySeq.get(s.seq) }))
     .filter((s): s is SnappedStop & { t: number } => s.t != null && s.t > now)
 
-  // 分鏈
+  // 分鏈:時間「非遞減」當同一架車(相等 ETA 分鐘係正常,唔應斷鏈);
+  // 只有時間倒退先當另一架車。
   const chains: (SnappedStop & { t: number })[][] = []
   let cur: (SnappedStop & { t: number })[] = []
   for (const p of pts) {
-    if (cur.length === 0 || p.t > cur[cur.length - 1].t) {
+    if (cur.length === 0 || p.t >= cur[cur.length - 1].t) {
       cur.push(p)
     } else {
       chains.push(cur)
@@ -71,16 +73,31 @@ export function predictBuses(
   for (const chain of chains.slice(0, MAX_BUSES)) {
     const first = chain[0]
     const prev = lastBefore(snapped, first.seq)
-    const segDur = chain.length >= 2 ? chain[1].t - chain[0].t : DEFAULT_SEG_MS
     const prevDist = prev ? prev.dist : Math.max(0, first.dist - 0.3)
+    const segLen = Math.max(0.05, first.dist - prevDist)
+    // 用整條鏈嘅平均速度估算 prev→first 行車時間,較借用下一段時間準確
+    const segDur = estimateSegMs(chain, segLen)
     const departPrev = first.t - segDur
     const frac = clamp((now - departPrev) / segDur, 0, 1)
-    const busDist = prevDist + frac * (first.dist - prevDist)
+    const busDist = prevDist + frac * segLen
     const pos = along(line, busDist)
     const [lng, lat] = pos.geometry.coordinates
-    buses.push({ lat, lng, minsToNext: Math.round((first.t - now) / 60_000) })
+    buses.push({ lat, lng, minsToNext: Math.round((first.t - now) / 60_000), seq: first.seq })
   }
   return buses
+}
+
+/** 由鏈嘅總距離/總時間估平均速度,再乘 prev→first 段長 */
+function estimateSegMs(chain: { dist: number; t: number }[], segLen: number): number {
+  if (chain.length >= 2) {
+    const totalDist = chain[chain.length - 1].dist - chain[0].dist
+    const totalMs = chain[chain.length - 1].t - chain[0].t
+    if (totalDist > 0.01 && totalMs > 0) {
+      const speed = totalDist / totalMs // km per ms
+      return Math.min(10 * 60_000, Math.max(20_000, segLen / speed))
+    }
+  }
+  return DEFAULT_SEG_MS
 }
 
 function lastBefore(stops: SnappedStop[], seq: number): SnappedStop | null {

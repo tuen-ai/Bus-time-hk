@@ -24,7 +24,7 @@ export default function MtrView() {
   const [lineCode, setLineCode] = useState('TWL')
   const [station, setStation] = useState<string | null>(null)
 
-  const line = getLine(lineCode)!
+  const line = getLine(lineCode) ?? MTR_LINES[0]
   const color = line.color
 
   const geoStops = useMemo(
@@ -97,6 +97,7 @@ export default function MtrView() {
             <li key={s.code} className={`stop-item ${open ? 'open' : ''}`}>
               <button
                 className="stop-main"
+                aria-expanded={open}
                 onClick={() => setStation(open ? null : s.code)}
               >
                 <span className="mtr-dot" style={{ background: color }} />

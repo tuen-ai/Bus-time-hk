@@ -43,7 +43,9 @@ export default function App() {
     localStorage.setItem('kmb.theme', dark ? 'dark' : 'light')
   }, [dark])
 
-  useEffect(() => {
+  const loadRoutes = () => {
+    setLoading(true)
+    setError(null)
     ;(async () => {
       try {
         setRoutes(await getAllRoutes())
@@ -53,7 +55,9 @@ export default function App() {
         setLoading(false)
       }
     })()
-  }, [])
+  }
+
+  useEffect(loadRoutes, [])
 
   const matches = useMemo(() => {
     const q = query.trim().toUpperCase()
@@ -108,7 +112,7 @@ export default function App() {
         {selected ? (
           <RouteStopsView
             route={selected}
-            variants={routes.filter((r) => r.route === selected.route)}
+            variants={routes.filter((r) => r.route === selected.route && r.co === selected.co)}
             initialOpenStop={initialStop}
             onSwitch={(r) => openRoute(r)}
             onBack={() => setSelected(null)}
@@ -120,7 +124,6 @@ export default function App() {
             <div className="search">
               <input
                 inputMode="text"
-                autoFocus
                 placeholder="輸入路線號碼,例如 1A、269D、N269"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -133,7 +136,14 @@ export default function App() {
             </div>
 
             {loading && <div className="muted pad">載入路線資料…</div>}
-            {error && <div className="error pad">⚠️ {error}</div>}
+            {error && (
+              <div className="error pad">
+                ⚠️ {error}{' '}
+                <button className="refresh-btn" onClick={loadRoutes}>
+                  重試
+                </button>
+              </div>
+            )}
 
             {!query && !loading && <Favorites onOpen={openFavorite} />}
 

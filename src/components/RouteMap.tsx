@@ -47,7 +47,7 @@ export default function RouteMap({ route, stops, focusStopId }: Props) {
   const [line, setLine] = useState<Feature<LineString> | null>(null)
   const [source, setSource] = useState<'real' | 'osrm' | 'straight'>('real')
   const [buses, setBuses] = useState<PredictedBus[]>([])
-  const snappedRef = useRef<SnappedStop[]>([])
+  const [snapped, setSnapped] = useState<SnappedStop[]>([])
   const etaRef = useRef<Map<number, number>>(new Map())
 
   // 載入路線幾何(真實 → fallback 直線)
@@ -79,7 +79,7 @@ export default function RouteMap({ route, stops, focusStopId }: Props) {
 
   // 線一準備好就 snap 各站(只計一次)
   useEffect(() => {
-    snappedRef.current = line ? snapStops(line, stops) : []
+    setSnapped(line ? snapStops(line, stops) : [])
   }, [line, stops])
 
   // 每 30 秒 fetch route-eta → 建立 seq→到站時間
@@ -113,15 +113,15 @@ export default function RouteMap({ route, stops, focusStopId }: Props) {
 
   // 每秒按 wall-clock 重算巴士位置
   useEffect(() => {
-    const tick = () => {
-      if (line && snappedRef.current.length) {
-        setBuses(predictBuses(line, snappedRef.current, etaRef.current, Date.now()))
-      }
+    if (!line || snapped.length === 0) {
+      setBuses([])
+      return
     }
+    const tick = () => setBuses(predictBuses(line, snapped, etaRef.current, Date.now()))
     tick()
     const id = setInterval(tick, ANIM_MS)
     return () => clearInterval(id)
-  }, [line])
+  }, [line, snapped])
 
   const positions = useMemo<[number, number][]>(
     () => (line ? line.geometry.coordinates.map((c) => [c[1], c[0]] as [number, number]) : []),
@@ -186,7 +186,7 @@ export default function RouteMap({ route, stops, focusStopId }: Props) {
           )
         })}
         {buses.map((b, i) => (
-          <Marker key={i} position={[b.lat, b.lng]} icon={busIcon(`${b.minsToNext}分`, i === 0)} />
+          <Marker key={b.seq} position={[b.lat, b.lng]} icon={busIcon(`${b.minsToNext}分`, i === 0)} />
         ))}
       </MapContainer>
         {rain && (

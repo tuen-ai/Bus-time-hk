@@ -44,6 +44,15 @@ export interface RouteStopInfo {
 
 export const coLabel = (co: Co): string => (co === 'ctb' ? '城巴' : '九巴')
 
+/** 分批並行 map(每批 size 個),避免一次過開太多連線 */
+async function batchMap<T, R>(items: T[], size: number, fn: (x: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = []
+  for (let i = 0; i < items.length; i += size) {
+    out.push(...(await Promise.all(items.slice(i, i + size).map(fn))))
+  }
+  return out
+}
+
 // ---- 路線清單(KMB + CTB 合併,每日緩存)----
 const DAY = 24 * 60 * 60 * 1000
 let routeMem: Route[] | null = null
@@ -79,6 +88,8 @@ export async function getAllRoutes(): Promise<Route[]> {
     ctb.fetchCtbRoutes().catch(() => [] as Route[]),
   ])
   const all = [...k, ...c]
+  // 兩邊都失敗(離線/CORS)→ 唔好快取空陣列毒化一日,直接拋錯俾 App 顯示重試
+  if (all.length === 0) throw new Error('路線資料載入失敗,請稍後重試')
   routeMem = all
   try {
     localStorage.setItem('bus.routes', JSON.stringify({ ts: Date.now(), data: all }))
@@ -108,9 +119,9 @@ export async function getRouteStops(r: Route): Promise<RouteStopInfo[]> {
         }
       })
   }
-  // CTB:逐個站 fetch(並行,有 cache)
+  // CTB:逐個站 fetch(分批並行避免一次過幾十個連線,有 cache)
   const rs = await ctb.fetchCtbRouteStops(r.route, r.bound)
-  const infos = await Promise.all(rs.map((s) => ctb.fetchCtbStop(s.stop)))
+  const infos = await batchMap(rs, 16, (s) => ctb.fetchCtbStop(s.stop))
   return rs
     .map((s, i) => {
       const info = infos[i]

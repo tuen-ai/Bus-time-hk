@@ -28,5 +28,3 @@ for (const line of MTR_LINES) {
 
 export const getLine = (code: string): MtrLine | undefined =>
   MTR_LINES.find((l) => l.code === code)
-
-export const lineColor = (code: string): string => getLine(code)?.color ?? '#666'
