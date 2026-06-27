@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet'
 import { getStopMap } from '../lib/store'
 import { distanceMeters, formatDistance, getPosition, describeGeoError } from '../lib/geo'
@@ -16,10 +16,12 @@ interface NearStop {
 
 type Status = 'idle' | 'locating' | 'ready' | 'error'
 
-// 地圖中心跟住用戶位置移動
-function Recenter({ lat, lng }: { lat: number; lng: number }) {
+// 揀咗站就 zoom 去該站(只喺 focus 改變時行,唔阻用戶自己拖)
+function Focus({ focus }: { focus: [number, number] | null }) {
   const map = useMap()
-  map.setView([lat, lng])
+  useEffect(() => {
+    if (focus) map.flyTo(focus, 17, { duration: 0.6 })
+  }, [focus, map])
   return null
 }
 
@@ -55,6 +57,11 @@ export default function NearbyView() {
       setStatus('error')
     }
   }
+
+  const focusPos = useMemo<[number, number] | null>(() => {
+    const s = stops.find((x) => x.stopId === openStop)
+    return s ? [s.lat, s.lng] : null
+  }, [openStop, stops])
 
   // 未定位:顯示一個大掣(用戶 gesture 觸發,手機先彈到權限)
   if (status === 'idle' || status === 'error') {
@@ -94,7 +101,7 @@ export default function NearbyView() {
           scrollWheelZoom
         >
           <TileLayer url={TILE_URL} attribution={TILE_ATTRIB} />
-          <Recenter lat={me.lat} lng={me.lng} />
+          <Focus focus={focusPos} />
           <Marker position={[me.lat, me.lng]} icon={userIcon} />
           {stops.map((s) => (
             <Marker

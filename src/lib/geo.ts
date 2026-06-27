@@ -20,19 +20,29 @@ export function formatDistance(m: number): string {
   return `${(m / 1000).toFixed(1)} 公里`
 }
 
-/** 取得目前位置(Promise 包裝 Geolocation API) */
-export function getPosition(): Promise<GeolocationPosition> {
+function once(opts: PositionOptions): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
-    if (!('geolocation' in navigator)) {
-      reject(new Error('此裝置不支援定位'))
-      return
-    }
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 60000,
-    })
+    navigator.geolocation.getCurrentPosition(resolve, reject, opts)
   })
+}
+
+/**
+ * 取得目前位置。兩段式:
+ *  1. 先快速、低精度、接受 2 分鐘內快取(室內/弱訊號都易成功)
+ *  2. 失敗先試高精度、長 timeout
+ * 大幅減少「定位超時」。
+ */
+export async function getPosition(): Promise<GeolocationPosition> {
+  if (!('geolocation' in navigator)) throw new Error('此裝置不支援定位')
+  try {
+    return await once({ enableHighAccuracy: false, timeout: 10000, maximumAge: 120000 })
+  } catch (e) {
+    // 權限被拒就唔使再試
+    if (typeof e === 'object' && e !== null && (e as GeolocationPositionError).code === 1) {
+      throw e
+    }
+    return await once({ enableHighAccuracy: true, timeout: 27000, maximumAge: 120000 })
+  }
 }
 
 /** 將 Geolocation 錯誤轉成可讀、可行動嘅中文訊息 */

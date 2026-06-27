@@ -137,7 +137,9 @@ export default function RouteStopsView({
       {loading && <div className="muted pad">載入車站…</div>}
       {error && <div className="error pad">⚠️ {error}</div>}
 
-      {!loading && mapStops.length > 1 && <RouteMap route={route} stops={mapStops} />}
+      {!loading && mapStops.length > 1 && (
+        <RouteMap route={route} stops={mapStops} focusStopId={openStop ?? undefined} />
+      )}
 
       <ol className="stop-list">
         {stops.map((row) => {

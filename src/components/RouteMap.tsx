@@ -19,20 +19,29 @@ export interface MapStop {
 interface Props {
   route: Route
   stops: MapStop[]
+  focusStopId?: string
 }
 
 const ETA_REFRESH_MS = 30_000
 const ANIM_MS = 1_000
 
-function FitBounds({ bounds }: { bounds: LatLngBoundsExpression | null }) {
+// 揀咗站就 zoom 去該站;否則 fit 成條路線
+function MapFocus({
+  bounds,
+  focus,
+}: {
+  bounds: LatLngBoundsExpression | null
+  focus: [number, number] | null
+}) {
   const map = useMap()
   useEffect(() => {
-    if (bounds) map.fitBounds(bounds, { padding: [24, 24] })
-  }, [bounds, map])
+    if (focus) map.flyTo(focus, 17, { duration: 0.6 })
+    else if (bounds) map.fitBounds(bounds, { padding: [24, 24] })
+  }, [bounds, focus, map])
   return null
 }
 
-export default function RouteMap({ route, stops }: Props) {
+export default function RouteMap({ route, stops, focusStopId }: Props) {
   const [line, setLine] = useState<Feature<LineString> | null>(null)
   const [source, setSource] = useState<'real' | 'osrm' | 'straight'>('real')
   const [buses, setBuses] = useState<PredictedBus[]>([])
@@ -120,6 +129,11 @@ export default function RouteMap({ route, stops }: Props) {
     () => (positions.length ? positions : null),
     [positions],
   )
+  const focus = useMemo<[number, number] | null>(() => {
+    if (!focusStopId) return null
+    const s = stops.find((x) => x.stopId === focusStopId)
+    return s ? [s.lat, s.lng] : null
+  }, [focusStopId, stops])
 
   if (!line) return <div className="muted pad">載入路線地圖…</div>
 
@@ -127,16 +141,24 @@ export default function RouteMap({ route, stops }: Props) {
     <div className="route-map-wrap">
       <MapContainer className="map" center={positions[0]} zoom={14} scrollWheelZoom>
         <TileLayer url={TILE_URL} attribution={TILE_ATTRIB} />
-        <FitBounds bounds={bounds} />
+        <MapFocus bounds={bounds} focus={focus} />
         <Polyline positions={positions} pathOptions={{ color: '#b91c1c', weight: 5, opacity: 0.85 }} />
-        {stops.map((s) => (
-          <CircleMarker
-            key={s.stopId}
-            center={[s.lat, s.lng]}
-            radius={4}
-            pathOptions={{ color: '#fff', weight: 2, fillColor: '#b91c1c', fillOpacity: 1 }}
-          />
-        ))}
+        {stops.map((s) => {
+          const on = s.stopId === focusStopId
+          return (
+            <CircleMarker
+              key={s.stopId}
+              center={[s.lat, s.lng]}
+              radius={on ? 7 : 4}
+              pathOptions={{
+                color: '#fff',
+                weight: 2,
+                fillColor: on ? '#f59e0b' : '#b91c1c',
+                fillOpacity: 1,
+              }}
+            />
+          )
+        })}
         {buses.map((b, i) => (
           <Marker key={i} position={[b.lat, b.lng]} icon={busIcon(`${b.minsToNext}分`, i === 0)} />
         ))}
