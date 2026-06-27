@@ -3,11 +3,13 @@ import { getAllRoutes, coLabel, coClass, CO_COLOR, SEARCH_OPERATORS, type Route,
 import Favorites from './components/Favorites'
 import RouteStopsView from './components/RouteStopsView'
 import MtrView from './components/MtrView'
+import NearbyView from './components/NearbyView'
 import WeatherBanner from './components/WeatherBanner'
+import type { NearbyRow } from './lib/nearby'
 import { routeBadges } from './lib/routeMeta'
 import type { Favorite } from './lib/store'
 
-type Tab = 'search' | 'mtr'
+type Tab = 'search' | 'nearby' | 'mtr'
 
 export default function App() {
   const [routes, setRoutes] = useState<Route[]>([])
@@ -23,6 +25,20 @@ export default function App() {
   const openRoute = (r: Route, stopId?: string) => {
     setInitialStop(stopId)
     setSelected(r)
+  }
+
+  const openNearby = (row: NearbyRow) => {
+    const r = routes.find(
+      (x) =>
+        x.co === row.co &&
+        x.route === row.route &&
+        x.bound === row.dir &&
+        x.service_type === row.serviceType,
+    )
+    if (r) {
+      setTab('search')
+      openRoute(r, row.stopId)
+    }
   }
 
   const openFavorite = (f: Favorite) => {
@@ -102,6 +118,12 @@ export default function App() {
             🔍 搜尋路線
           </button>
           <button
+            className={tab === 'nearby' ? 'tab on' : 'tab'}
+            onClick={() => setTab('nearby')}
+          >
+            📍 附近
+          </button>
+          <button
             className={tab === 'mtr' ? 'tab on' : 'tab'}
             onClick={() => setTab('mtr')}
           >
@@ -119,6 +141,8 @@ export default function App() {
             onSwitch={(r) => openRoute(r)}
             onBack={() => setSelected(null)}
           />
+        ) : tab === 'nearby' ? (
+          <NearbyView onOpen={openNearby} />
         ) : tab === 'mtr' ? (
           <MtrView />
         ) : (

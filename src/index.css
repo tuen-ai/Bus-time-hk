@@ -263,6 +263,19 @@ input:focus-visible {
     transform: translateY(60px);
   }
 }
+.map-incident-chip {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 500;
+  background: rgba(217, 119, 6, 0.95);
+  color: #fff;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  pointer-events: none;
+}
 .rain-chip {
   position: absolute;
   top: 8px;
@@ -303,6 +316,77 @@ input:focus-visible {
   border-bottom-color: var(--red);
   font-weight: 700;
 }
+/* ---- Nearby buses ---- */
+.nearby-cta {
+  text-align: center;
+  padding: 40px 20px;
+}
+.cta-emoji {
+  font-size: 3rem;
+}
+.primary-btn {
+  background: var(--red);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  padding: 14px 28px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.nearby-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nearby-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.nearby-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 11px 14px;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  text-align: left;
+}
+.nearby-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.nearby-dest {
+  font-weight: 700;
+}
+.nearby-eta {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.nearby-min {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--green);
+  font-variant-numeric: tabular-nums;
+}
+.nearby-min.soon {
+  color: var(--soon);
+}
+
 /* ---- Map ---- */
 .map {
   height: 300px;

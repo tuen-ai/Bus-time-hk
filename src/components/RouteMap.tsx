@@ -9,6 +9,8 @@ import { busIcon } from '../lib/mapIcons'
 import { TILE_URL, TILE_ATTRIB } from '../lib/mapConfig'
 import { getWeather } from '../api/weather'
 import { nearestDistrict, rainLevel, rainLabel, type RainLevel } from '../lib/weather'
+import { fetchTrafficNews } from '../api/stn'
+import { routeDistricts, relevantNotices } from '../lib/stnMatch'
 
 export interface MapStop {
   seq: number
@@ -161,6 +163,18 @@ export default function RouteMap({ route, stops, focusStopId }: Props) {
     }
   }, [focusStopId, stops])
 
+  // 此路線途經地區有冇交通消息(地圖角落 chip)
+  const [incidents, setIncidents] = useState(0)
+  useEffect(() => {
+    let alive = true
+    fetchTrafficNews()
+      .then((n) => alive && setIncidents(relevantNotices(n, routeDistricts(stops)).length))
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [stops])
+
   if (!line) return <div className="muted pad">載入路線地圖…</div>
 
   return (
@@ -190,6 +204,9 @@ export default function RouteMap({ route, stops, focusStopId }: Props) {
           <Marker key={b.seq} position={[b.lat, b.lng]} icon={busIcon(`${b.minsToNext}分`, i === 0)} />
         ))}
       </MapContainer>
+        {incidents > 0 && (
+          <div className="map-incident-chip">🚧 沿途 {incidents} 則交通消息</div>
+        )}
         {rain && (
           <div className={`rain-overlay rain-${rain.level}`} aria-hidden="true">
             <div className="rain-chip">
