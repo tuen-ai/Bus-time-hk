@@ -50,6 +50,7 @@ export async function getStopMap(): Promise<Map<string, Stop>> {
 // ---- 收藏(路線 + 方向 + 班次 + 站)----
 
 export interface Favorite {
+  co: 'kmb' | 'ctb'
   route: string
   bound: 'I' | 'O'
   serviceType: string
@@ -60,12 +61,14 @@ export interface Favorite {
 
 const FAV_KEY = 'kmb.favorites'
 
-export const favKey = (f: Pick<Favorite, 'route' | 'bound' | 'serviceType' | 'stopId'>) =>
-  `${f.route}|${f.bound}|${f.serviceType}|${f.stopId}`
+export const favKey = (f: Pick<Favorite, 'co' | 'route' | 'bound' | 'serviceType' | 'stopId'>) =>
+  `${f.co}|${f.route}|${f.bound}|${f.serviceType}|${f.stopId}`
 
 export function getFavorites(): Favorite[] {
   try {
-    return JSON.parse(localStorage.getItem(FAV_KEY) || '[]') as Favorite[]
+    const list = JSON.parse(localStorage.getItem(FAV_KEY) || '[]') as Favorite[]
+    // 舊資料無 co,預設 kmb
+    return list.map((f) => ({ ...f, co: f.co ?? 'kmb' }))
   } catch {
     return []
   }

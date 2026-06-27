@@ -11,13 +11,16 @@ const OUT = join(ROOT, 'public', 'geom')
 const SRC = 'https://hkbus.github.io/route-waypoints'
 const CONCURRENCY = 32
 
-const map = JSON.parse(readFileSync(join(ROOT, 'src', 'data', 'kmbGtfs.json'), 'utf8'))
+const kmbMap = JSON.parse(readFileSync(join(ROOT, 'src', 'data', 'kmbGtfs.json'), 'utf8'))
+const ctbMap = JSON.parse(readFileSync(join(ROOT, 'src', 'data', 'ctbGtfs.json'), 'utf8'))
 
-// 收集 unique {gtfsId}-{bound}
+// 收集 unique {gtfsId}-{bound}(KMB + CTB)
 const keys = new Set()
-for (const k of Object.keys(map)) {
-  const [, bound] = k.split('|') // route|bound|serviceType
-  keys.add(`${map[k]}-${bound}`)
+for (const map of [kmbMap, ctbMap]) {
+  for (const k of Object.keys(map)) {
+    const [, bound] = k.split('|') // route|bound|serviceType
+    keys.add(`${map[k]}-${bound}`)
+  }
 }
 const list = [...keys]
 mkdirSync(OUT, { recursive: true })

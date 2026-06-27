@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
-import { fetchEta, type Eta } from '../api/kmb'
+import { getEta, type Eta, type Route } from '../api/bus'
 import { clockLabel, etaLabel } from '../lib/time'
 
 const REFRESH_MS = 5_000
 
 interface Props {
+  route: Route
   stopId: string
-  route: string
-  serviceType: string
 }
 
-export default function EtaPanel({ stopId, route, serviceType }: Props) {
+export default function EtaPanel({ route, stopId }: Props) {
   const [etas, setEtas] = useState<Eta[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -19,8 +18,8 @@ export default function EtaPanel({ stopId, route, serviceType }: Props) {
   const load = useCallback(async () => {
     try {
       setError(null)
-      const data = await fetchEta(stopId, route, serviceType)
-      // 只保留同方向、未來班次,按 eta_seq 排序
+      const data = await getEta(route, stopId)
+      // 按 eta_seq 排序,取未來 3 班
       const sorted = [...data].sort((a, b) => a.eta_seq - b.eta_seq).slice(0, 3)
       setEtas(sorted)
       setUpdatedAt(Date.now())
@@ -29,7 +28,7 @@ export default function EtaPanel({ stopId, route, serviceType }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [stopId, route, serviceType])
+  }, [route, stopId])
 
   useEffect(() => {
     setLoading(true)

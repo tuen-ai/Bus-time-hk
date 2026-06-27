@@ -4,7 +4,9 @@
 // Fallback:站對站直線(用 route-stop 各站坐標)
 import { lineString } from '@turf/helpers'
 import type { Feature, LineString } from 'geojson'
-import gtfsMap from '../data/kmbGtfs.json'
+import kmbMap from '../data/kmbGtfs.json'
+import ctbMap from '../data/ctbGtfs.json'
+import type { Co } from '../api/bus'
 
 // 三層幾何來源:
 //   1. same-origin baked(CI 預先抓入 dist/geom,徹底免 runtime 第三方依賴)
@@ -15,15 +17,19 @@ const BAKED_BASE = `${import.meta.env.BASE_URL}geom`
 const WAYPOINT_BASE = 'https://hkbus.github.io/route-waypoints'
 const OSRM_BASE = 'https://router.project-osrm.org/route/v1/driving'
 
-const map = gtfsMap as Record<string, string>
+const maps: Record<Co, Record<string, string>> = {
+  kmb: kmbMap as Record<string, string>,
+  ctb: ctbMap as Record<string, string>,
+}
 
-/** KMB (route, bound, serviceType) → gtfsId(用 build-time 精簡映射表) */
+/** (co, route, bound, serviceType) → gtfsId(用 build-time 精簡映射表) */
 export function gtfsIdFor(
+  co: Co,
   route: string,
   bound: 'I' | 'O',
   serviceType: string,
 ): string | null {
-  return map[`${route}|${bound}|${serviceType}`] ?? null
+  return maps[co][`${route}|${bound}|${serviceType}`] ?? null
 }
 
 const cache = new Map<string, Feature<LineString> | null>()
@@ -33,11 +39,12 @@ const cache = new Map<string, Feature<LineString> | null>()
  * 將 MultiLineString 各段順序串接成一條連續線。失敗回傳 null。
  */
 export async function loadRouteLine(
+  co: Co,
   route: string,
   bound: 'I' | 'O',
   serviceType: string,
 ): Promise<Feature<LineString> | null> {
-  const gtfsId = gtfsIdFor(route, bound, serviceType)
+  const gtfsId = gtfsIdFor(co, route, bound, serviceType)
   if (!gtfsId) return null
   const key = `${gtfsId}-${bound === 'O' ? 'O' : 'I'}`
   if (cache.has(key)) return cache.get(key)!

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Polyline, CircleMarker, Marker, useMap } from 'react-leaflet'
 import type { LatLngBoundsExpression } from 'leaflet'
 import type { Feature, LineString } from 'geojson'
-import { fetchRouteEta } from '../api/kmb'
+import { getRouteEta, type Route } from '../api/bus'
 import { loadRouteLine, lineFromOsrm, lineFromStops } from '../lib/geometry'
 import { snapStops, predictBuses, type SnappedStop, type PredictedBus } from '../lib/busPredict'
 import { busIcon } from '../lib/mapIcons'
@@ -17,9 +17,7 @@ export interface MapStop {
 }
 
 interface Props {
-  route: string
-  bound: 'I' | 'O'
-  serviceType: string
+  route: Route
   stops: MapStop[]
 }
 
@@ -34,7 +32,7 @@ function FitBounds({ bounds }: { bounds: LatLngBoundsExpression | null }) {
   return null
 }
 
-export default function RouteMap({ route, bound, serviceType, stops }: Props) {
+export default function RouteMap({ route, stops }: Props) {
   const [line, setLine] = useState<Feature<LineString> | null>(null)
   const [source, setSource] = useState<'real' | 'osrm' | 'straight'>('real')
   const [buses, setBuses] = useState<PredictedBus[]>([])
@@ -46,7 +44,7 @@ export default function RouteMap({ route, bound, serviceType, stops }: Props) {
     let alive = true
     ;(async () => {
       // 三層後備:真實幾何 → OSRM 道路 snap → 站對站直線
-      const real = await loadRouteLine(route, bound, serviceType)
+      const real = await loadRouteLine(route.co, route.route, route.bound, route.service_type)
       if (!alive) return
       if (real) {
         setLine(real)
@@ -66,7 +64,7 @@ export default function RouteMap({ route, bound, serviceType, stops }: Props) {
     return () => {
       alive = false
     }
-  }, [route, bound, serviceType, stops])
+  }, [route, stops])
 
   // 線一準備好就 snap 各站(只計一次)
   useEffect(() => {
@@ -78,11 +76,15 @@ export default function RouteMap({ route, bound, serviceType, stops }: Props) {
     let alive = true
     const load = async () => {
       try {
-        const data = await fetchRouteEta(route, serviceType)
+        const data = await getRouteEta(route)
         if (!alive) return
+        if (!data) {
+          etaRef.current = new Map() // CTB 無全線 ETA → 唔顯示預測巴士
+          return
+        }
         const m = new Map<number, number>()
         for (const e of data) {
-          if (e.dir !== bound || e.eta_seq !== 1 || !e.eta) continue
+          if (e.dir !== route.bound || e.eta_seq !== 1 || !e.eta) continue
           m.set(e.seq, new Date(e.eta).getTime())
         }
         etaRef.current = m
@@ -96,7 +98,7 @@ export default function RouteMap({ route, bound, serviceType, stops }: Props) {
       alive = false
       clearInterval(id)
     }
-  }, [route, bound, serviceType])
+  }, [route])
 
   // 每秒按 wall-clock 重算巴士位置
   useEffect(() => {
@@ -140,7 +142,9 @@ export default function RouteMap({ route, bound, serviceType, stops }: Props) {
         ))}
       </MapContainer>
       <div className="map-disclaimer">
-        🚌 預測巴士位置 · 僅供參考(此 API 無 GPS,位置由到站時間推算)
+        {route.co === 'kmb'
+          ? '🚌 預測巴士位置 · 僅供參考(此 API 無 GPS,位置由到站時間推算)'
+          : '🚌 城巴暫無預測巴士(API 未提供全線到站,只顯示路線同車站)'}
         {source === 'osrm' && ' · 路線為道路推算(OSRM)'}
         {source === 'straight' && ' · 路線用站點直線(未有行車幾何)'}
       </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fetchRouteStops, type Route } from '../api/kmb'
-import { getStopMap, isFavorite, toggleFavorite, type Favorite } from '../lib/store'
+import { getRouteStops, coLabel, type Route } from '../api/bus'
+import { isFavorite, toggleFavorite, type Favorite } from '../lib/store'
 import EtaPanel from './EtaPanel'
 import RouteMap, { type MapStop } from './RouteMap'
 import { routeBadges } from '../lib/routeMeta'
@@ -39,23 +39,15 @@ export default function RouteStopsView({
     setLoading(true)
     ;(async () => {
       try {
-        const [rs, stopMap] = await Promise.all([
-          fetchRouteStops(route.route, route.bound, route.service_type),
-          getStopMap(),
-        ])
+        const rs = await getRouteStops(route)
         if (!alive) return
-        const rows = rs
-          .sort((a, b) => Number(a.seq) - Number(b.seq))
-          .map((s) => {
-            const info = stopMap.get(s.stop)
-            return {
-              seq: s.seq,
-              stopId: s.stop,
-              name: info?.name_tc ?? s.stop,
-              lat: Number(info?.lat ?? 0),
-              lng: Number(info?.long ?? 0),
-            }
-          })
+        const rows = rs.map((s) => ({
+          seq: String(s.seq),
+          stopId: s.stopId,
+          name: s.name,
+          lat: s.lat,
+          lng: s.lng,
+        }))
         setStops(rows)
       } catch (e) {
         if (alive) setError(e instanceof Error ? e.message : '載入失敗')
@@ -92,6 +84,7 @@ export default function RouteStopsView({
   )
 
   const makeFav = (row: StopRow): Favorite => ({
+    co: route.co,
     route: route.route,
     bound: route.bound,
     serviceType: route.service_type,
@@ -106,9 +99,11 @@ export default function RouteStopsView({
         ‹ 返回
       </button>
       <div className="route-head">
-        <span className="route-badge">{route.route}</span>
+        <span className={`route-badge ${route.co === 'ctb' ? 'co-ctb' : ''}`}>{route.route}</span>
         <div className="route-dest">
-          <div className="muted small">往</div>
+          <div className="muted small">
+            <span className={`tag tag-co tag-${route.co}`}>{coLabel(route.co)}</span> 往
+          </div>
           <div className="dest-name">
             {route.dest_tc}
             {routeBadges(route.route, route.service_type).map((b) => (
@@ -142,14 +137,7 @@ export default function RouteStopsView({
       {loading && <div className="muted pad">載入車站…</div>}
       {error && <div className="error pad">⚠️ {error}</div>}
 
-      {!loading && mapStops.length > 1 && (
-        <RouteMap
-          route={route.route}
-          bound={route.bound}
-          serviceType={route.service_type}
-          stops={mapStops}
-        />
-      )}
+      {!loading && mapStops.length > 1 && <RouteMap route={route} stops={mapStops} />}
 
       <ol className="stop-list">
         {stops.map((row) => {
@@ -178,14 +166,7 @@ export default function RouteStopsView({
                   {faved ? '★' : '☆'}
                 </button>
               </div>
-              {open && (
-                <EtaPanel
-                  key={favTick}
-                  stopId={row.stopId}
-                  route={route.route}
-                  serviceType={route.service_type}
-                />
-              )}
+              {open && <EtaPanel key={favTick} route={route} stopId={row.stopId} />}
             </li>
           )
         })}

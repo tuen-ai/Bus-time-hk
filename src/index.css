@@ -530,6 +530,19 @@ body {
   background: #fef3c7;
   color: #92400e;
 }
+.tag-co {
+  color: #fff;
+}
+.tag-kmb {
+  background: #b91c1c;
+}
+.tag-ctb {
+  background: #0e7490;
+}
+/* CTB 路線號用青色作區分 */
+.route-badge.co-ctb {
+  background: #0e7490;
+}
 
 /* ---- utility ---- */
 .muted {

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Route } from './api/kmb'
-import { getRoutes } from './lib/store'
+import { getAllRoutes, coLabel, type Route } from './api/bus'
 import Favorites from './components/Favorites'
 import RouteStopsView from './components/RouteStopsView'
 import NearbyView from './components/NearbyView'
@@ -26,7 +25,11 @@ export default function App() {
 
   const openFavorite = (f: Favorite) => {
     const r = routes.find(
-      (x) => x.route === f.route && x.bound === f.bound && x.service_type === f.serviceType,
+      (x) =>
+        x.co === f.co &&
+        x.route === f.route &&
+        x.bound === f.bound &&
+        x.service_type === f.serviceType,
     )
     if (r) {
       setTab('search')
@@ -42,7 +45,7 @@ export default function App() {
   useEffect(() => {
     ;(async () => {
       try {
-        setRoutes(await getRoutes())
+        setRoutes(await getAllRoutes())
       } catch (e) {
         setError(e instanceof Error ? e.message : '無法載入路線資料')
       } finally {
@@ -58,17 +61,18 @@ export default function App() {
       .filter((r) => r.route.toUpperCase().startsWith(q))
       .sort((a, b) =>
         a.route.localeCompare(b.route, undefined, { numeric: true }) ||
+        a.co.localeCompare(b.co) ||
         a.bound.localeCompare(b.bound) ||
         a.service_type.localeCompare(b.service_type),
       )
-      .slice(0, 60)
+      .slice(0, 80)
   }, [routes, query])
 
   return (
     <div className="app">
       <header className="topbar">
         <div className="topbar-row">
-          <h1 onClick={() => { setSelected(null); setTab('search') }}>🚌 九巴到站時間</h1>
+          <h1 onClick={() => { setSelected(null); setTab('search') }}>🚌 香港巴士到站</h1>
           <button
             className="theme-toggle"
             onClick={() => setDark((d) => !d)}
@@ -77,7 +81,7 @@ export default function App() {
             {dark ? '☀️' : '🌙'}
           </button>
         </div>
-        <span className="topbar-sub">KMB · LWB 實時 ETA</span>
+        <span className="topbar-sub">九巴 · 龍運 · 城巴 實時 ETA</span>
       </header>
 
       {!selected && (
@@ -137,13 +141,14 @@ export default function App() {
             <div className="route-results">
               {matches.map((r) => (
                 <button
-                  key={`${r.route}|${r.bound}|${r.service_type}`}
+                  key={`${r.co}|${r.route}|${r.bound}|${r.service_type}`}
                   className="route-card"
                   onClick={() => openRoute(r)}
                 >
-                  <span className="route-badge">{r.route}</span>
+                  <span className={`route-badge ${r.co === 'ctb' ? 'co-ctb' : ''}`}>{r.route}</span>
                   <span className="route-line">
-                    <span className="muted small">往</span> {r.dest_tc}
+                    <span className={`tag tag-co tag-${r.co}`}>{coLabel(r.co)}</span>
+                    <span className="muted small"> 往</span> {r.dest_tc}
                     <span className="muted small ml"> 由 {r.orig_tc}</span>
                     {routeBadges(r.route, r.service_type).map((b) => (
                       <span key={b.kind} className={`tag tag-${b.kind}`}>
