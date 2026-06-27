@@ -1,0 +1,120 @@
+import { useEffect, useState } from 'react'
+import { fetchRouteStops, type Route } from '../api/kmb'
+import { getStopMap, isFavorite, toggleFavorite, type Favorite } from '../lib/store'
+import EtaPanel from './EtaPanel'
+
+interface StopRow {
+  seq: string
+  stopId: string
+  name: string
+}
+
+interface Props {
+  route: Route
+  onBack: () => void
+}
+
+export default function RouteStopsView({ route, onBack }: Props) {
+  const [stops, setStops] = useState<StopRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [openStop, setOpenStop] = useState<string | null>(null)
+  const [favTick, setFavTick] = useState(0) // 用嚟強制重繪收藏星
+
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    ;(async () => {
+      try {
+        const [rs, stopMap] = await Promise.all([
+          fetchRouteStops(route.route, route.bound, route.service_type),
+          getStopMap(),
+        ])
+        if (!alive) return
+        const rows = rs
+          .sort((a, b) => Number(a.seq) - Number(b.seq))
+          .map((s) => ({
+            seq: s.seq,
+            stopId: s.stop,
+            name: stopMap.get(s.stop)?.name_tc ?? s.stop,
+          }))
+        setStops(rows)
+      } catch (e) {
+        if (alive) setError(e instanceof Error ? e.message : '載入失敗')
+      } finally {
+        if (alive) setLoading(false)
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [route])
+
+  const makeFav = (row: StopRow): Favorite => ({
+    route: route.route,
+    bound: route.bound,
+    serviceType: route.service_type,
+    stopId: row.stopId,
+    stopName: row.name,
+    dest: route.dest_tc,
+  })
+
+  return (
+    <div>
+      <button className="back-btn" onClick={onBack}>
+        ‹ 返回
+      </button>
+      <div className="route-head">
+        <span className="route-badge">{route.route}</span>
+        <div className="route-dest">
+          <div className="muted small">往</div>
+          <div className="dest-name">{route.dest_tc}</div>
+          <div className="muted small">由 {route.orig_tc}</div>
+        </div>
+      </div>
+
+      {loading && <div className="muted pad">載入車站…</div>}
+      {error && <div className="error pad">⚠️ {error}</div>}
+
+      <ol className="stop-list">
+        {stops.map((row) => {
+          const fav = makeFav(row)
+          const faved = isFavorite(fav)
+          const open = openStop === row.stopId
+          return (
+            <li key={row.stopId} className={`stop-item ${open ? 'open' : ''}`}>
+              <div className="stop-head">
+                <button
+                  className="stop-main"
+                  onClick={() => setOpenStop(open ? null : row.stopId)}
+                >
+                  <span className="stop-seq">{row.seq}</span>
+                  <span className="stop-name">{row.name}</span>
+                  <span className="chev">{open ? '▾' : '▸'}</span>
+                </button>
+                <button
+                  className={`star ${faved ? 'on' : ''}`}
+                  aria-label="收藏"
+                  onClick={() => {
+                    toggleFavorite(fav)
+                    setFavTick((t) => t + 1)
+                  }}
+                >
+                  {faved ? '★' : '☆'}
+                </button>
+              </div>
+              {open && (
+                <EtaPanel
+                  key={favTick}
+                  stopId={row.stopId}
+                  route={route.route}
+                  serviceType={route.service_type}
+                />
+              )}
+            </li>
+          )
+        })}
+      </ol>
+    </div>
+  )
+}

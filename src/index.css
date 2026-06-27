@@ -1,0 +1,311 @@
+:root {
+  --red: #b91c1c;
+  --red-dark: #991b1b;
+  --bg: #f4f4f5;
+  --card: #ffffff;
+  --text: #18181b;
+  --muted: #71717a;
+  --line: #e4e4e7;
+  --green: #16a34a;
+  --soon: #ea580c;
+  --radius: 14px;
+  font-family: system-ui, -apple-system, 'PingFang HK', 'Microsoft JhengHei',
+    'Noto Sans CJK HK', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  max-width: 560px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Top bar ---- */
+.topbar {
+  background: var(--red);
+  color: #fff;
+  padding: 14px 18px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+.topbar h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+.topbar-sub {
+  font-size: 0.72rem;
+  opacity: 0.85;
+  letter-spacing: 0.5px;
+}
+
+.content {
+  flex: 1;
+  padding: 14px;
+}
+
+/* ---- Search ---- */
+.search {
+  position: relative;
+  margin-bottom: 14px;
+}
+.search input {
+  width: 100%;
+  padding: 14px 40px 14px 16px;
+  font-size: 1.05rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  outline: none;
+}
+.search input:focus {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.12);
+}
+.search .clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: var(--line);
+  color: var(--muted);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* ---- Route cards ---- */
+.route-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.route-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+.route-card:active {
+  background: #fafafa;
+}
+.route-line {
+  flex: 1;
+}
+.route-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+  padding: 6px 8px;
+  background: var(--red);
+  color: #fff;
+  font-weight: 700;
+  border-radius: 10px;
+  font-size: 1.05rem;
+}
+.route-badge.sm {
+  min-width: 46px;
+  font-size: 0.95rem;
+  padding: 5px 7px;
+}
+
+/* ---- Route detail head ---- */
+.back-btn {
+  border: none;
+  background: none;
+  color: var(--red);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-bottom: 8px;
+}
+.route-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 2px 14px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 8px;
+}
+.route-dest .dest-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+/* ---- Stop list ---- */
+.stop-list,
+.route-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.stop-item {
+  border-bottom: 1px solid var(--line);
+}
+.stop-head {
+  display: flex;
+  align-items: center;
+}
+.stop-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: none;
+  padding: 13px 4px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--text);
+}
+.stop-seq {
+  min-width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--line);
+  color: var(--muted);
+  border-radius: 50%;
+  font-size: 0.8rem;
+}
+.stop-name {
+  flex: 1;
+}
+.chev {
+  color: var(--muted);
+}
+.star {
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 8px;
+}
+.star.on {
+  color: #f59e0b;
+}
+
+/* ---- ETA panel ---- */
+.eta-panel {
+  padding: 4px 4px 14px 42px;
+}
+.eta-list {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.eta-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.eta-mins {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--green);
+  min-width: 92px;
+}
+.eta-mins.soon {
+  color: var(--soon);
+}
+.eta-clock {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.eta-rmk {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.eta-updated {
+  font-size: 0.72rem;
+  margin-top: 4px;
+}
+
+/* ---- Favorites ---- */
+.favs {
+  margin-bottom: 18px;
+}
+.section-title {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 6px 2px 10px;
+}
+.fav-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.fav-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fav-info {
+  flex: 1;
+}
+
+/* ---- utility ---- */
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 0.8rem;
+}
+.ml {
+  margin-left: 6px;
+}
+.pad {
+  padding: 18px 4px;
+}
+.error {
+  color: var(--red-dark);
+}
+
+.footer {
+  padding: 16px;
+  text-align: center;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+.footer a {
+  color: var(--red);
+}
