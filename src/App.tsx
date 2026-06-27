@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getAllRoutes, coLabel, type Route } from './api/bus'
+import { getAllRoutes, coLabel, coClass, type Route } from './api/bus'
 import Favorites from './components/Favorites'
 import RouteStopsView from './components/RouteStopsView'
 import MtrView from './components/MtrView'
@@ -158,7 +158,7 @@ export default function App() {
                   className="route-card"
                   onClick={() => openRoute(r)}
                 >
-                  <span className={`route-badge ${r.co === 'ctb' ? 'co-ctb' : ''}`}>{r.route}</span>
+                  <span className={`route-badge ${coClass(r.co)}`}>{r.route}</span>
                   <span className="route-line">
                     <span className={`tag tag-co tag-${r.co}`}>{coLabel(r.co)}</span>
                     <span className="muted small"> 往</span> {r.dest_tc}

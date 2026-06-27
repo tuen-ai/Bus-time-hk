@@ -1,9 +1,11 @@
 // 統一營辦商層:KMB + CTB。components 一律用呢度,唔直接 call 個別營辦商。
 import * as kmb from './kmb'
 import * as ctb from './ctb'
+import { fetchLrtSchedule } from './lrt'
+import { lrRoutes, lrRouteStops } from '../lib/lrData'
 import { getStopMap } from '../lib/store'
 
-export type Co = 'kmb' | 'ctb'
+export type Co = 'kmb' | 'ctb' | 'lrt'
 
 export interface Route {
   co: Co
@@ -42,7 +44,11 @@ export interface RouteStopInfo {
   lng: number
 }
 
-export const coLabel = (co: Co): string => (co === 'ctb' ? '城巴' : '九巴')
+export const coLabel = (co: Co): string =>
+  co === 'ctb' ? '城巴' : co === 'lrt' ? '輕鐵' : '九巴'
+
+export const coClass = (co: Co): string =>
+  co === 'ctb' ? 'co-ctb' : co === 'lrt' ? 'co-lrt' : ''
 
 /** 分批並行 map(每批 size 個),避免一次過開太多連線 */
 async function batchMap<T, R>(items: T[], size: number, fn: (x: T) => Promise<R>): Promise<R[]> {
@@ -87,7 +93,13 @@ export async function getAllRoutes(): Promise<Route[]> {
       .catch(() => [] as Route[]),
     ctb.fetchCtbRoutes().catch(() => [] as Route[]),
   ])
-  const all = [...k, ...c]
+  let lr: Route[] = []
+  try {
+    lr = lrRoutes()
+  } catch {
+    lr = []
+  }
+  const all = [...k, ...c, ...lr]
   // 兩邊都失敗(離線/CORS)→ 唔好快取空陣列毒化一日,直接拋錯俾 App 顯示重試
   if (all.length === 0) throw new Error('路線資料載入失敗,請稍後重試')
   routeMem = all
@@ -101,6 +113,9 @@ export async function getAllRoutes(): Promise<Route[]> {
 
 // ---- 路線站序 + 站名/座標 ----
 export async function getRouteStops(r: Route): Promise<RouteStopInfo[]> {
+  if (r.co === 'lrt') {
+    return lrRouteStops(r.route, r.bound, r.service_type)
+  }
   if (r.co === 'kmb') {
     const [rs, stopMap] = await Promise.all([
       kmb.fetchRouteStops(r.route, r.bound, r.service_type),
@@ -142,7 +157,26 @@ export async function getEta(r: Route, stopId: string): Promise<Eta[]> {
     const data = await kmb.fetchEta(stopId, r.route, r.service_type)
     return data.map((e) => ({ ...e, co: 'kmb' }))
   }
-  return ctb.fetchCtbEta(stopId, r.route, r.bound)
+  if (r.co === 'ctb') {
+    return ctb.fetchCtbEta(stopId, r.route, r.bound)
+  }
+  // 輕鐵:由站取所有路綫下一班,filter 出本路綫,轉成統一 Eta
+  const trains = await fetchLrtSchedule(Number(stopId.slice(2)))
+  const now = Date.now()
+  return trains
+    .filter((t) => t.route === r.route)
+    .map((t, i) => ({
+      co: 'lrt' as const,
+      route: r.route,
+      dir: r.bound,
+      service_type: 1,
+      seq: 0,
+      dest_tc: t.destTc || r.dest_tc,
+      eta_seq: i + 1,
+      eta: new Date(now + t.mins * 60_000).toISOString(),
+      rmk_tc: t.platform ? `月台 ${t.platform}` : '',
+      data_timestamp: '',
+    }))
 }
 
 /** 全線一次過 ETA(供地圖預測用)。CTB 無此 endpoint → 回傳 null。 */

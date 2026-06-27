@@ -20,6 +20,7 @@ const OSRM_BASE = 'https://router.project-osrm.org/route/v1/driving'
 const maps: Record<Co, Record<string, string>> = {
   kmb: kmbMap as Record<string, string>,
   ctb: ctbMap as Record<string, string>,
+  lrt: {}, // 輕鐵無 waypoint 幾何 → 用站對站直線
 }
 
 /** (co, route, bound, serviceType) → gtfsId(用 build-time 精簡映射表) */

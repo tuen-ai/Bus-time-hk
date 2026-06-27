@@ -680,6 +680,12 @@ input:focus-visible {
 .tag-ctb {
   background: #0e7490;
 }
+.tag-lrt {
+  background: #7d3c98;
+}
+.route-badge.co-lrt {
+  background: linear-gradient(135deg, #9b59b6, #7d3c98);
+}
 /* CTB 路線號用青色作區分 */
 .route-badge.co-ctb {
   background: linear-gradient(135deg, #0e9aa7, #0e7490);

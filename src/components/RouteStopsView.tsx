@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getRouteStops, coLabel, type Route } from '../api/bus'
+import { getRouteStops, coLabel, coClass, type Route } from '../api/bus'
 import { isFavorite, toggleFavorite, type Favorite } from '../lib/store'
 import EtaPanel from './EtaPanel'
 import RouteMap, { type MapStop } from './RouteMap'
@@ -108,7 +108,7 @@ export default function RouteStopsView({
         ‹ 返回
       </button>
       <div className="route-head">
-        <span className={`route-badge ${route.co === 'ctb' ? 'co-ctb' : ''}`}>{route.route}</span>
+        <span className={`route-badge ${coClass(route.co)}`}>{route.route}</span>
         <div className="route-dest">
           <div className="muted small">
             <span className={`tag tag-co tag-${route.co}`}>{coLabel(route.co)}</span> 往

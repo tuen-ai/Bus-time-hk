@@ -62,7 +62,8 @@ export default function RouteMap({ route, stops, focusStopId }: Props) {
         setSource('real')
         return
       }
-      const osrm = await lineFromOsrm(stops)
+      // 輕鐵唔好用 OSRM(行車道路)snap,直接站對站直線
+      const osrm = route.co === 'lrt' ? null : await lineFromOsrm(stops)
       if (!alive) return
       if (osrm) {
         setLine(osrm)
@@ -200,9 +201,11 @@ export default function RouteMap({ route, stops, focusStopId }: Props) {
       <div className="map-disclaimer">
         {route.co === 'kmb'
           ? '🚌 預測巴士位置 · 僅供參考(此 API 無 GPS,位置由到站時間推算)'
-          : '🚌 城巴暫無預測巴士(API 未提供全線到站,只顯示路線同車站)'}
+          : route.co === 'lrt'
+            ? '🚊 輕鐵路綫示意(站對站連線)'
+            : '🚌 城巴暫無預測巴士(API 未提供全線到站,只顯示路線同車站)'}
         {source === 'osrm' && ' · 路線為道路推算(OSRM)'}
-        {source === 'straight' && ' · 路線用站點直線(未有行車幾何)'}
+        {route.co !== 'lrt' && source === 'straight' && ' · 路線用站點直線(未有行車幾何)'}
       </div>
     </div>
   )
