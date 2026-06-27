@@ -2,13 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { getAllRoutes, coLabel, type Route } from './api/bus'
 import Favorites from './components/Favorites'
 import RouteStopsView from './components/RouteStopsView'
-import NearbyView from './components/NearbyView'
 import MtrView from './components/MtrView'
 import WeatherBanner from './components/WeatherBanner'
 import { routeBadges } from './lib/routeMeta'
 import type { Favorite } from './lib/store'
 
-type Tab = 'search' | 'nearby' | 'mtr'
+type Tab = 'search' | 'mtr'
 
 export default function App() {
   const [routes, setRoutes] = useState<Route[]>([])
@@ -97,12 +96,6 @@ export default function App() {
             🔍 搜尋路線
           </button>
           <button
-            className={tab === 'nearby' ? 'tab on' : 'tab'}
-            onClick={() => setTab('nearby')}
-          >
-            📍 附近
-          </button>
-          <button
             className={tab === 'mtr' ? 'tab on' : 'tab'}
             onClick={() => setTab('mtr')}
           >
@@ -120,8 +113,6 @@ export default function App() {
             onSwitch={(r) => openRoute(r)}
             onBack={() => setSelected(null)}
           />
-        ) : tab === 'nearby' ? (
-          <NearbyView />
         ) : tab === 'mtr' ? (
           <MtrView />
         ) : (

@@ -1,25 +1,30 @@
 :root {
-  --red: #b91c1c;
+  --red: #c8102e;
   --red-dark: #991b1b;
-  --bg: #f4f4f5;
+  --bg: #f1f2f4;
   --card: #ffffff;
   --text: #18181b;
-  --muted: #71717a;
-  --line: #e4e4e7;
-  --green: #16a34a;
+  --muted: #6b7280;
+  --line: #e7e7ea;
+  --green: #15a34a;
   --soon: #ea580c;
-  --radius: 14px;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.06), 0 1px 3px rgba(17, 24, 39, 0.08);
+  --shadow: 0 4px 16px rgba(17, 24, 39, 0.08);
   font-family: system-ui, -apple-system, 'PingFang HK', 'Microsoft JhengHei',
     'Noto Sans CJK HK', sans-serif;
 }
 
 :root[data-theme='dark'] {
-  --bg: #0f0f12;
-  --card: #1c1c21;
+  --bg: #0d0d10;
+  --card: #1a1a1f;
   --text: #f4f4f5;
-  --muted: #a1a1aa;
-  --line: #2e2e35;
-  --red: #ef4444;
+  --muted: #9ca3af;
+  --line: #2a2a31;
+  --red: #f1496a;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
 }
 
 * {
@@ -50,13 +55,13 @@ body {
 
 /* ---- Top bar ---- */
 .topbar {
-  background: var(--red);
+  background: linear-gradient(135deg, var(--red), var(--red-dark));
   color: #fff;
   padding: 14px 18px;
   position: sticky;
   top: 0;
   z-index: 10;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow);
 }
 .topbar-row {
   display: flex;
@@ -310,6 +315,7 @@ body {
   border-radius: var(--radius);
   margin-bottom: 12px;
   z-index: 0;
+  box-shadow: var(--shadow-sm);
 }
 .map-icon-user .pulse {
   width: 18px;
@@ -410,16 +416,18 @@ body {
 }
 .search input {
   width: 100%;
-  padding: 14px 40px 14px 16px;
+  padding: 15px 40px 15px 16px;
   font-size: 1.05rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--card);
   outline: none;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 .search input:focus {
   border-color: var(--red);
-  box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.12);
+  box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.15);
 }
 .search .clear {
   position: absolute;
@@ -453,9 +461,14 @@ body {
   padding: 12px 14px;
   cursor: pointer;
   font-size: 1rem;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.route-card:hover {
+  box-shadow: var(--shadow);
 }
 .route-card:active {
-  background: #fafafa;
+  transform: scale(0.985);
 }
 .route-line {
   flex: 1;
@@ -464,13 +477,15 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 56px;
-  padding: 6px 8px;
-  background: var(--red);
+  min-width: 58px;
+  padding: 7px 9px;
+  background: linear-gradient(135deg, var(--red), var(--red-dark));
   color: #fff;
-  font-weight: 700;
-  border-radius: 10px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  border-radius: var(--radius-sm);
   font-size: 1.05rem;
+  box-shadow: var(--shadow-sm);
 }
 .route-badge.sm {
   min-width: 46px;
@@ -660,6 +675,7 @@ body {
   border-radius: var(--radius);
   padding: 12px;
   margin-bottom: 10px;
+  box-shadow: var(--shadow-sm);
 }
 .fav-head {
   display: flex;
@@ -711,7 +727,7 @@ body {
 }
 /* CTB 路線號用青色作區分 */
 .route-badge.co-ctb {
-  background: #0e7490;
+  background: linear-gradient(135deg, #0e9aa7, #0e7490);
 }
 
 /* ---- utility ---- */
