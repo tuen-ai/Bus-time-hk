@@ -13,6 +13,15 @@
     'Noto Sans CJK HK', sans-serif;
 }
 
+:root[data-theme='dark'] {
+  --bg: #0f0f12;
+  --card: #1c1c21;
+  --text: #f4f4f5;
+  --muted: #a1a1aa;
+  --line: #2e2e35;
+  --red: #ef4444;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -49,10 +58,56 @@ body {
   z-index: 10;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
+.topbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 .topbar h1 {
   margin: 0;
   font-size: 1.25rem;
   cursor: pointer;
+}
+.theme-toggle {
+  background: rgba(255, 255, 255, 0.18);
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+/* ---- Tabs ---- */
+.tabs {
+  display: flex;
+  gap: 6px;
+  padding: 10px 14px 0;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 64px;
+  z-index: 9;
+}
+.tab {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 0.95rem;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+}
+.tab.on {
+  color: var(--red);
+  border-bottom-color: var(--red);
+  font-weight: 700;
+}
+.nearby-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 .topbar-sub {
   font-size: 0.72rem;
@@ -256,6 +311,55 @@ body {
 .eta-updated {
   font-size: 0.72rem;
   margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.refresh-btn {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+/* ---- Stop ETA panel (附近 / 一站多線) ---- */
+.stop-eta-panel {
+  padding: 2px 4px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.stop-eta-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.stop-eta-info {
+  flex: 1;
+}
+.stop-eta-dest {
+  font-size: 0.9rem;
+}
+.stop-eta-times {
+  display: flex;
+  gap: 6px;
+  margin-top: 3px;
+  flex-wrap: wrap;
+}
+.pill {
+  font-size: 0.78rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--line);
+  color: var(--muted);
+}
+.pill.first {
+  background: var(--green);
+  color: #fff;
+  font-weight: 600;
 }
 
 /* ---- Favorites ---- */

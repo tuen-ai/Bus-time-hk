@@ -3,6 +3,9 @@ import type { Route } from './api/kmb'
 import { getRoutes } from './lib/store'
 import Favorites from './components/Favorites'
 import RouteStopsView from './components/RouteStopsView'
+import NearbyView from './components/NearbyView'
+
+type Tab = 'search' | 'nearby'
 
 export default function App() {
   const [routes, setRoutes] = useState<Route[]>([])
@@ -10,6 +13,13 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<Route | null>(null)
+  const [tab, setTab] = useState<Tab>('search')
+  const [dark, setDark] = useState(() => localStorage.getItem('kmb.theme') === 'dark')
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+    localStorage.setItem('kmb.theme', dark ? 'dark' : 'light')
+  }, [dark])
 
   useEffect(() => {
     ;(async () => {
@@ -39,13 +49,41 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <h1 onClick={() => setSelected(null)}>🚌 九巴到站時間</h1>
+        <div className="topbar-row">
+          <h1 onClick={() => { setSelected(null); setTab('search') }}>🚌 九巴到站時間</h1>
+          <button
+            className="theme-toggle"
+            onClick={() => setDark((d) => !d)}
+            aria-label="切換深色模式"
+          >
+            {dark ? '☀️' : '🌙'}
+          </button>
+        </div>
         <span className="topbar-sub">KMB · LWB 實時 ETA</span>
       </header>
+
+      {!selected && (
+        <nav className="tabs">
+          <button
+            className={tab === 'search' ? 'tab on' : 'tab'}
+            onClick={() => setTab('search')}
+          >
+            🔍 搜尋路線
+          </button>
+          <button
+            className={tab === 'nearby' ? 'tab on' : 'tab'}
+            onClick={() => setTab('nearby')}
+          >
+            📍 附近車站
+          </button>
+        </nav>
+      )}
 
       <main className="content">
         {selected ? (
           <RouteStopsView route={selected} onBack={() => setSelected(null)} />
+        ) : tab === 'nearby' ? (
+          <NearbyView />
         ) : (
           <>
             <div className="search">

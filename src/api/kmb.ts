@@ -101,3 +101,8 @@ export async function fetchEta(
 ): Promise<Eta[]> {
   return (await get<Eta[]>(`/eta/${stopId}/${route}/${serviceType}`)).data
 }
+
+/** 一個站所有路線嘅到站時間 */
+export async function fetchStopEta(stopId: string): Promise<Eta[]> {
+  return (await get<Eta[]>(`/stop-eta/${stopId}`)).data
+}

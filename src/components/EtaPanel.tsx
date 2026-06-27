@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { fetchEta, type Eta } from '../api/kmb'
 import { clockLabel, etaLabel } from '../lib/time'
 
-const REFRESH_MS = 30_000
+const REFRESH_MS = 5_000
 
 interface Props {
   stopId: string
@@ -61,7 +61,10 @@ export default function EtaPanel({ stopId, route, serviceType }: Props) {
       )}
       {updatedAt && (
         <div className="eta-updated muted">
-          最後更新 {clockLabel(new Date(updatedAt).toISOString())} · 每 30 秒自動刷新
+          最後更新 {clockLabel(new Date(updatedAt).toISOString())} · 每 5 秒自動刷新
+          <button className="refresh-btn" onClick={load} aria-label="立即刷新">
+            ↻ 刷新
+          </button>
         </div>
       )}
     </div>

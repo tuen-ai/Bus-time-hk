@@ -1,0 +1,19 @@
+{
+  "name": "九巴到站時間 · HK Bus ETA",
+  "short_name": "九巴ETA",
+  "description": "香港九巴 / 龍運巴士實時到站時間查詢",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#b91c1c",
+  "theme_color": "#b91c1c",
+  "lang": "zh-Hant-HK",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
