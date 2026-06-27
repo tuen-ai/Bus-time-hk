@@ -131,10 +131,16 @@ export default function App() {
       </main>
 
       <footer className="footer">
-        資料來源:運輸署 / 九巴 ·{' '}
+        到站資料:運輸署 / 九巴 ·{' '}
         <a href="https://data.gov.hk/tc-data/dataset/hk-td-tis_21-etakmb" target="_blank" rel="noreferrer">
           data.gov.hk
         </a>
+        <br />
+        路線形狀:{' '}
+        <a href="https://github.com/hkbus/hk-bus-crawling" target="_blank" rel="noreferrer">
+          HK Bus Crawling
+        </a>{' '}
+        (GPL-2.0) · 地圖 © OpenStreetMap contributors
       </footer>
     </div>
   )

@@ -175,6 +175,18 @@ body {
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
   transition: transform 1s linear;
 }
+.route-map-wrap {
+  margin-bottom: 12px;
+}
+.map-disclaimer {
+  font-size: 0.72rem;
+  color: var(--muted);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-top: -6px;
+}
 .map-icon-bus .bus-label {
   background: var(--red);
   color: #fff;

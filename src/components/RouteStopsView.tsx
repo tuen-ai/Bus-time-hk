@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { fetchRouteStops, type Route } from '../api/kmb'
 import { getStopMap, isFavorite, toggleFavorite, type Favorite } from '../lib/store'
 import EtaPanel from './EtaPanel'
+import RouteMap, { type MapStop } from './RouteMap'
 
 interface StopRow {
   seq: string
   stopId: string
   name: string
+  lat: number
+  lng: number
 }
 
 interface Props {
@@ -33,11 +36,16 @@ export default function RouteStopsView({ route, onBack }: Props) {
         if (!alive) return
         const rows = rs
           .sort((a, b) => Number(a.seq) - Number(b.seq))
-          .map((s) => ({
-            seq: s.seq,
-            stopId: s.stop,
-            name: stopMap.get(s.stop)?.name_tc ?? s.stop,
-          }))
+          .map((s) => {
+            const info = stopMap.get(s.stop)
+            return {
+              seq: s.seq,
+              stopId: s.stop,
+              name: info?.name_tc ?? s.stop,
+              lat: Number(info?.lat ?? 0),
+              lng: Number(info?.long ?? 0),
+            }
+          })
         setStops(rows)
       } catch (e) {
         if (alive) setError(e instanceof Error ? e.message : '載入失敗')
@@ -49,6 +57,20 @@ export default function RouteStopsView({ route, onBack }: Props) {
       alive = false
     }
   }, [route])
+
+  const mapStops = useMemo<MapStop[]>(
+    () =>
+      stops
+        .filter((s) => s.lat && s.lng)
+        .map((s) => ({
+          seq: Number(s.seq),
+          stopId: s.stopId,
+          name: s.name,
+          lat: s.lat,
+          lng: s.lng,
+        })),
+    [stops],
+  )
 
   const makeFav = (row: StopRow): Favorite => ({
     route: route.route,
@@ -75,6 +97,15 @@ export default function RouteStopsView({ route, onBack }: Props) {
 
       {loading && <div className="muted pad">載入車站…</div>}
       {error && <div className="error pad">⚠️ {error}</div>}
+
+      {!loading && mapStops.length > 1 && (
+        <RouteMap
+          route={route.route}
+          bound={route.bound}
+          serviceType={route.service_type}
+          stops={mapStops}
+        />
+      )}
 
       <ol className="stop-list">
         {stops.map((row) => {
