@@ -71,6 +71,17 @@ export const coClass = (co: Co): string =>
           ? 'co-gmb'
           : ''
 
+export const CO_COLOR: Record<Co, string> = {
+  kmb: '#c8102e',
+  ctb: '#0e7490',
+  nlb: '#00857c',
+  gmb: '#167a3a',
+  lrt: '#7d3c98',
+}
+
+// 搜尋頁車種選擇:全部 + 五個營辦商(港鐵喺獨立「鐵路」分頁)
+export const SEARCH_OPERATORS: Co[] = ['kmb', 'ctb', 'nlb', 'gmb', 'lrt']
+
 /** 分批並行 map(每批 size 個),避免一次過開太多連線 */
 async function batchMap<T, R>(items: T[], size: number, fn: (x: T) => Promise<R>): Promise<R[]> {
   const out: R[] = []

@@ -377,6 +377,34 @@ input:focus-visible {
   padding: 14px;
 }
 
+/* ---- Operator filter ---- */
+.co-filter {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 2px 2px 10px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.co-filter::-webkit-scrollbar {
+  display: none;
+}
+.co-chip {
+  flex: 0 0 auto;
+  border: 1.5px solid;
+  background: var(--card);
+  border-radius: 999px;
+  padding: 7px 14px;
+  min-height: 38px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.co-chip.on {
+  color: #fff;
+}
+
 /* ---- Search ---- */
 .search {
   position: relative;

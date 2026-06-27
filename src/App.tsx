@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getAllRoutes, coLabel, coClass, type Route } from './api/bus'
+import { getAllRoutes, coLabel, coClass, CO_COLOR, SEARCH_OPERATORS, type Route, type Co } from './api/bus'
 import Favorites from './components/Favorites'
 import RouteStopsView from './components/RouteStopsView'
 import MtrView from './components/MtrView'
@@ -16,6 +16,7 @@ export default function App() {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<Route | null>(null)
   const [tab, setTab] = useState<Tab>('search')
+  const [coFilter, setCoFilter] = useState<Co | 'all'>('all')
   const [initialStop, setInitialStop] = useState<string | undefined>()
   const [dark, setDark] = useState(() => localStorage.getItem('kmb.theme') === 'dark')
 
@@ -64,6 +65,7 @@ export default function App() {
     if (!q) return []
     return routes
       .filter((r) => r.route.toUpperCase().startsWith(q))
+      .filter((r) => coFilter === 'all' || r.co === coFilter)
       .sort((a, b) =>
         a.route.localeCompare(b.route, undefined, { numeric: true }) ||
         a.co.localeCompare(b.co) ||
@@ -71,7 +73,7 @@ export default function App() {
         a.service_type.localeCompare(b.service_type),
       )
       .slice(0, 80)
-  }, [routes, query])
+  }, [routes, query, coFilter])
 
   return (
     <div className="app">
@@ -121,6 +123,23 @@ export default function App() {
           <MtrView />
         ) : (
           <>
+            <div className="co-filter">
+              {(['all', ...SEARCH_OPERATORS] as (Co | 'all')[]).map((c) => {
+                const active = coFilter === c
+                const color = c === 'all' ? '#374151' : CO_COLOR[c]
+                return (
+                  <button
+                    key={c}
+                    className={`co-chip ${active ? 'on' : ''}`}
+                    style={active ? { background: color, borderColor: color } : { color, borderColor: color }}
+                    onClick={() => setCoFilter(c)}
+                  >
+                    {c === 'all' ? '全部' : coLabel(c)}
+                  </button>
+                )
+              })}
+            </div>
+
             <div className="search">
               <input
                 inputMode="text"
