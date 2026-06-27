@@ -4,6 +4,8 @@ import { getRoutes } from './lib/store'
 import Favorites from './components/Favorites'
 import RouteStopsView from './components/RouteStopsView'
 import NearbyView from './components/NearbyView'
+import { routeBadges } from './lib/routeMeta'
+import type { Favorite } from './lib/store'
 
 type Tab = 'search' | 'nearby'
 
@@ -14,7 +16,23 @@ export default function App() {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<Route | null>(null)
   const [tab, setTab] = useState<Tab>('search')
+  const [initialStop, setInitialStop] = useState<string | undefined>()
   const [dark, setDark] = useState(() => localStorage.getItem('kmb.theme') === 'dark')
+
+  const openRoute = (r: Route, stopId?: string) => {
+    setInitialStop(stopId)
+    setSelected(r)
+  }
+
+  const openFavorite = (f: Favorite) => {
+    const r = routes.find(
+      (x) => x.route === f.route && x.bound === f.bound && x.service_type === f.serviceType,
+    )
+    if (r) {
+      setTab('search')
+      openRoute(r, f.stopId)
+    }
+  }
 
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? 'dark' : 'light'
@@ -84,7 +102,8 @@ export default function App() {
           <RouteStopsView
             route={selected}
             variants={routes.filter((r) => r.route === selected.route)}
-            onSwitch={setSelected}
+            initialOpenStop={initialStop}
+            onSwitch={(r) => openRoute(r)}
             onBack={() => setSelected(null)}
           />
         ) : tab === 'nearby' ? (
@@ -109,7 +128,7 @@ export default function App() {
             {loading && <div className="muted pad">載入路線資料…</div>}
             {error && <div className="error pad">⚠️ {error}</div>}
 
-            {!query && !loading && <Favorites />}
+            {!query && !loading && <Favorites onOpen={openFavorite} />}
 
             {query && matches.length === 0 && !loading && (
               <div className="muted pad">搵唔到路線「{query}」</div>
@@ -120,12 +139,17 @@ export default function App() {
                 <button
                   key={`${r.route}|${r.bound}|${r.service_type}`}
                   className="route-card"
-                  onClick={() => setSelected(r)}
+                  onClick={() => openRoute(r)}
                 >
                   <span className="route-badge">{r.route}</span>
                   <span className="route-line">
                     <span className="muted small">往</span> {r.dest_tc}
                     <span className="muted small ml"> 由 {r.orig_tc}</span>
+                    {routeBadges(r.route, r.service_type).map((b) => (
+                      <span key={b.kind} className={`tag tag-${b.kind}`}>
+                        {b.label}
+                      </span>
+                    ))}
                   </span>
                   <span className="chev">›</span>
                 </button>

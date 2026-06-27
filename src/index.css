@@ -499,6 +499,37 @@ body {
 .fav-info {
   flex: 1;
 }
+.fav-open {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+  color: var(--text);
+}
+
+/* ---- Route tags (night / special) ---- */
+.tag {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.tag-night {
+  background: #1e293b;
+  color: #c7d2fe;
+}
+.tag-special {
+  background: #fef3c7;
+  color: #92400e;
+}
 
 /* ---- utility ---- */
 .muted {

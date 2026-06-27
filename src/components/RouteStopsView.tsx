@@ -3,6 +3,7 @@ import { fetchRouteStops, type Route } from '../api/kmb'
 import { getStopMap, isFavorite, toggleFavorite, type Favorite } from '../lib/store'
 import EtaPanel from './EtaPanel'
 import RouteMap, { type MapStop } from './RouteMap'
+import { routeBadges } from '../lib/routeMeta'
 
 interface StopRow {
   seq: string
@@ -15,15 +16,22 @@ interface StopRow {
 interface Props {
   route: Route
   variants: Route[]
+  initialOpenStop?: string
   onSwitch: (r: Route) => void
   onBack: () => void
 }
 
-export default function RouteStopsView({ route, variants, onSwitch, onBack }: Props) {
+export default function RouteStopsView({
+  route,
+  variants,
+  initialOpenStop,
+  onSwitch,
+  onBack,
+}: Props) {
   const [stops, setStops] = useState<StopRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [openStop, setOpenStop] = useState<string | null>(null)
+  const [openStop, setOpenStop] = useState<string | null>(initialOpenStop ?? null)
   const [favTick, setFavTick] = useState(0) // 用嚟強制重繪收藏星
 
   useEffect(() => {
@@ -101,7 +109,14 @@ export default function RouteStopsView({ route, variants, onSwitch, onBack }: Pr
         <span className="route-badge">{route.route}</span>
         <div className="route-dest">
           <div className="muted small">往</div>
-          <div className="dest-name">{route.dest_tc}</div>
+          <div className="dest-name">
+            {route.dest_tc}
+            {routeBadges(route.route, route.service_type).map((b) => (
+              <span key={b.kind} className={`tag tag-${b.kind}`}>
+                {b.label}
+              </span>
+            ))}
+          </div>
           <div className="muted small">由 {route.orig_tc}</div>
         </div>
       </div>
