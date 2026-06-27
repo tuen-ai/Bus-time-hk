@@ -7,6 +7,8 @@ import { loadRouteLine, lineFromOsrm, lineFromStops } from '../lib/geometry'
 import { snapStops, predictBuses, type SnappedStop, type PredictedBus } from '../lib/busPredict'
 import { busIcon } from '../lib/mapIcons'
 import { TILE_URL, TILE_ATTRIB } from '../lib/mapConfig'
+import { getWeather } from '../api/weather'
+import { nearestDistrict, rainLevel, rainLabel, type RainLevel } from '../lib/weather'
 
 export interface MapStop {
   seq: number
@@ -135,10 +137,34 @@ export default function RouteMap({ route, stops, focusStopId }: Props) {
     return s ? [s.lat, s.lng] : null
   }, [focusStopId, stops])
 
+  // 揀站 → 該區天氣;落雨就喺地圖該位置顯示雨特效
+  const [rain, setRain] = useState<{ level: RainLevel; mm: number; district: string } | null>(null)
+  useEffect(() => {
+    let alive = true
+    const s = stops.find((x) => x.stopId === focusStopId)
+    if (!s) {
+      setRain(null)
+      return
+    }
+    getWeather()
+      .then((w) => {
+        if (!alive) return
+        const district = nearestDistrict(s.lat, s.lng)
+        const mm = w.rainfall[district] ?? 0
+        const level = rainLevel(mm)
+        setRain(level === 'none' ? null : { level, mm, district })
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [focusStopId, stops])
+
   if (!line) return <div className="muted pad">載入路線地圖…</div>
 
   return (
     <div className="route-map-wrap">
+      <div className="map-stage">
       <MapContainer className="map" center={positions[0]} zoom={14} scrollWheelZoom>
         <TileLayer url={TILE_URL} attribution={TILE_ATTRIB} />
         <MapFocus bounds={bounds} focus={focus} />
@@ -163,6 +189,14 @@ export default function RouteMap({ route, stops, focusStopId }: Props) {
           <Marker key={i} position={[b.lat, b.lng]} icon={busIcon(`${b.minsToNext}分`, i === 0)} />
         ))}
       </MapContainer>
+        {rain && (
+          <div className={`rain-overlay rain-${rain.level}`} aria-hidden="true">
+            <div className="rain-chip">
+              🌧 {rain.district} {rainLabel[rain.level]} · 過去1小時 {rain.mm}mm
+            </div>
+          </div>
+        )}
+      </div>
       <div className="map-disclaimer">
         {route.co === 'kmb'
           ? '🚌 預測巴士位置 · 僅供參考(此 API 無 GPS,位置由到站時間推算)'

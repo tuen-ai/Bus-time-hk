@@ -3,6 +3,7 @@ import { getAllRoutes, coLabel, type Route } from './api/bus'
 import Favorites from './components/Favorites'
 import RouteStopsView from './components/RouteStopsView'
 import NearbyView from './components/NearbyView'
+import WeatherBanner from './components/WeatherBanner'
 import { routeBadges } from './lib/routeMeta'
 import type { Favorite } from './lib/store'
 
@@ -83,6 +84,8 @@ export default function App() {
         </div>
         <span className="topbar-sub">九巴 · 龍運 · 城巴 實時 ETA</span>
       </header>
+
+      <WeatherBanner />
 
       {!selected && (
         <nav className="tabs">
@@ -175,6 +178,8 @@ export default function App() {
           HK Bus Crawling
         </a>{' '}
         (GPL-2.0) · 地圖 © OpenStreetMap contributors
+        <br />
+        天氣:香港天文台 (HKO) data.gov.hk
       </footer>
     </div>
   )

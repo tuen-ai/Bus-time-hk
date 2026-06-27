@@ -78,6 +78,95 @@ body {
   cursor: pointer;
 }
 
+/* ---- Weather bar ---- */
+.weather-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 14px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  font-size: 0.82rem;
+}
+.weather-bar.has-warn {
+  background: #fff7ed;
+}
+:root[data-theme='dark'] .weather-bar.has-warn {
+  background: #2a1d0e;
+}
+.wx-temp {
+  font-weight: 700;
+}
+.wx-warn {
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 999px;
+  color: #fff;
+}
+.wx-warn.w-amber {
+  background: #d97706;
+}
+.wx-warn.w-red {
+  background: #dc2626;
+}
+.wx-warn.w-black {
+  background: #111827;
+}
+
+/* ---- Rain effect on map ---- */
+.map-stage {
+  position: relative;
+}
+.rain-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: var(--radius);
+  z-index: 450;
+}
+.rain-overlay::before {
+  content: '';
+  position: absolute;
+  inset: -40%;
+  background-image: repeating-linear-gradient(
+    102deg,
+    transparent 0 7px,
+    rgba(120, 160, 220, 0.5) 7px 8px
+  );
+  animation: rainfall 0.55s linear infinite;
+}
+.rain-light::before {
+  opacity: 0.3;
+  animation-duration: 0.8s;
+}
+.rain-moderate::before {
+  opacity: 0.5;
+}
+.rain-heavy::before {
+  opacity: 0.78;
+  animation-duration: 0.4s;
+}
+@keyframes rainfall {
+  to {
+    transform: translateY(60px);
+  }
+}
+.rain-chip {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(17, 24, 39, 0.82);
+  color: #fff;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
 /* ---- Tabs ---- */
 .tabs {
   display: flex;
