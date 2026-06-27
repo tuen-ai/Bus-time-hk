@@ -4,6 +4,7 @@ import { isFavorite, toggleFavorite, type Favorite } from '../lib/store'
 import EtaPanel from './EtaPanel'
 import RouteMap, { type MapStop } from './RouteMap'
 import { routeBadges } from '../lib/routeMeta'
+import { getFares, fmtFare } from '../lib/fares'
 
 interface StopRow {
   seq: string
@@ -32,7 +33,15 @@ export default function RouteStopsView({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [openStop, setOpenStop] = useState<string | null>(initialOpenStop ?? null)
+  const [fares, setFares] = useState<number[] | null>(null)
   const [, setFavTick] = useState(0) // 撳收藏星後強制重繪(更新星標狀態)
+
+  useEffect(() => {
+    setFares(null)
+    getFares(route.co, route.route, route.bound, route.service_type)
+      .then(setFares)
+      .catch(() => setFares(null))
+  }, [route])
 
   useEffect(() => {
     let alive = true
@@ -114,6 +123,11 @@ export default function RouteStopsView({
           </div>
           <div className="muted small">由 {route.orig_tc}</div>
         </div>
+        {fares && fares.length > 0 && (
+          <div className="fare-badge" title="全程車費(成人八達通)">
+            {fmtFare(fares[0])}
+          </div>
+        )}
       </div>
 
       {sortedVariants.length > 1 && (
@@ -142,10 +156,11 @@ export default function RouteStopsView({
       )}
 
       <ol className="stop-list">
-        {stops.map((row) => {
+        {stops.map((row, idx) => {
           const fav = makeFav(row)
           const faved = isFavorite(fav)
           const open = openStop === row.stopId
+          const fare = fares && idx < fares.length ? fares[idx] : null
           return (
             <li key={row.stopId} className={`stop-item ${open ? 'open' : ''}`}>
               <div className="stop-head">
@@ -156,6 +171,7 @@ export default function RouteStopsView({
                 >
                   <span className="stop-seq">{row.seq}</span>
                   <span className="stop-name">{row.name}</span>
+                  {fare != null && <span className="fare-pill">{fmtFare(fare)}</span>}
                   <span className="chev">{open ? '▾' : '▸'}</span>
                 </button>
                 <button

@@ -484,6 +484,30 @@ input:focus-visible {
   font-weight: 700;
 }
 
+/* ---- Fares ---- */
+.fare-badge {
+  margin-left: auto;
+  align-self: center;
+  background: var(--green);
+  color: #fff;
+  font-weight: 800;
+  font-size: 1rem;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.fare-pill {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 12%, transparent);
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /* ---- Stop list ---- */
 .stop-list,
 .route-results {
