@@ -29,8 +29,23 @@ export function getPosition(): Promise<GeolocationPosition> {
     }
     navigator.geolocation.getCurrentPosition(resolve, reject, {
       enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 30000,
+      timeout: 15000,
+      maximumAge: 60000,
     })
   })
+}
+
+/** 將 Geolocation 錯誤轉成可讀、可行動嘅中文訊息 */
+export function describeGeoError(e: unknown): string {
+  if (typeof e === 'object' && e !== null && 'code' in e) {
+    const code = (e as GeolocationPositionError).code
+    if (code === 1)
+      return '定位權限被拒絕。請喺瀏覽器網址列左邊嘅鎖頭圖示 → 開啟「位置」權限,再按「重新定位」。'
+    if (code === 2)
+      return '暫時取得唔到位置(可能室內或 GPS 訊號弱)。請行去空曠位置再試。'
+    if (code === 3) return '定位逾時。請再試一次。'
+  }
+  if (!window.isSecureContext)
+    return '定位需要 HTTPS 安全連線先用到。'
+  return e instanceof Error ? e.message : '定位失敗,請再試。'
 }
