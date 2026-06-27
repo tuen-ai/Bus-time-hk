@@ -3,11 +3,13 @@ import * as kmb from './kmb'
 import * as ctb from './ctb'
 import { fetchLrtSchedule } from './lrt'
 import { fetchNlbEta } from './nlb'
+import { fetchGmbEta } from './gmb'
 import { lrRoutes, lrRouteStops } from '../lib/lrData'
 import { nlbRoutes, nlbRouteStops, nlbRouteId } from '../lib/nlbData'
+import { gmbRoutesAsync, gmbRouteStops } from '../lib/gmbData'
 import { getStopMap } from '../lib/store'
 
-export type Co = 'kmb' | 'ctb' | 'lrt' | 'nlb'
+export type Co = 'kmb' | 'ctb' | 'lrt' | 'nlb' | 'gmb'
 
 export interface Route {
   co: Co
@@ -16,6 +18,7 @@ export interface Route {
   service_type: string
   orig_tc: string
   dest_tc: string
+  uid?: string // GMB 用 gtfsId 做唯一鍵(route 號跨區重複)
 }
 
 export interface Stop {
@@ -47,10 +50,26 @@ export interface RouteStopInfo {
 }
 
 export const coLabel = (co: Co): string =>
-  co === 'ctb' ? '城巴' : co === 'lrt' ? '輕鐵' : co === 'nlb' ? '嶼巴' : '九巴'
+  co === 'ctb'
+    ? '城巴'
+    : co === 'lrt'
+      ? '輕鐵'
+      : co === 'nlb'
+        ? '嶼巴'
+        : co === 'gmb'
+          ? '綠van'
+          : '九巴'
 
 export const coClass = (co: Co): string =>
-  co === 'ctb' ? 'co-ctb' : co === 'lrt' ? 'co-lrt' : co === 'nlb' ? 'co-nlb' : ''
+  co === 'ctb'
+    ? 'co-ctb'
+    : co === 'lrt'
+      ? 'co-lrt'
+      : co === 'nlb'
+        ? 'co-nlb'
+        : co === 'gmb'
+          ? 'co-gmb'
+          : ''
 
 /** 分批並行 map(每批 size 個),避免一次過開太多連線 */
 async function batchMap<T, R>(items: T[], size: number, fn: (x: T) => Promise<R>): Promise<R[]> {
@@ -107,7 +126,8 @@ export async function getAllRoutes(): Promise<Route[]> {
   } catch {
     nl = []
   }
-  const all = [...k, ...c, ...lr, ...nl]
+  const gm = await gmbRoutesAsync().catch(() => [] as Route[])
+  const all = [...k, ...c, ...lr, ...nl, ...gm]
   // 兩邊都失敗(離線/CORS)→ 唔好快取空陣列毒化一日,直接拋錯俾 App 顯示重試
   if (all.length === 0) throw new Error('路線資料載入失敗,請稍後重試')
   routeMem = all
@@ -126,6 +146,9 @@ export async function getRouteStops(r: Route): Promise<RouteStopInfo[]> {
   }
   if (r.co === 'nlb') {
     return nlbRouteStops(r.route, r.bound, r.service_type)
+  }
+  if (r.co === 'gmb') {
+    return r.uid ? gmbRouteStops(r.uid) : []
   }
   if (r.co === 'kmb') {
     const [rs, stopMap] = await Promise.all([
@@ -170,6 +193,9 @@ export async function getEta(r: Route, stopId: string): Promise<Eta[]> {
   }
   if (r.co === 'ctb') {
     return ctb.fetchCtbEta(stopId, r.route, r.bound)
+  }
+  if (r.co === 'gmb') {
+    return fetchGmbEta(stopId, r.route, r.bound)
   }
   if (r.co === 'nlb') {
     const id = nlbRouteId(r.route, r.bound, r.service_type)

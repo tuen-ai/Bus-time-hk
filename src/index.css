@@ -742,6 +742,12 @@ input:focus-visible {
 .route-badge.co-nlb {
   background: linear-gradient(135deg, #00a99d, #00857c);
 }
+.tag-gmb {
+  background: #167a3a;
+}
+.route-badge.co-gmb {
+  background: linear-gradient(135deg, #2bb24c, #167a3a);
+}
 /* CTB 路線號用青色作區分 */
 .route-badge.co-ctb {
   background: linear-gradient(135deg, #0e9aa7, #0e7490);
