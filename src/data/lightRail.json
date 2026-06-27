@@ -1,0 +1,1580 @@
+{
+ "_source": "hkbus/hk-bus-crawling gh-pages routeFareList.min.json (crawled from MTR opendata.mtr.com.hk light_rail_routes_and_stops.csv) — fetched 2026-06-27",
+ "_note": "Light Rail Next Train API uses endpoint https://rt.data.gov.hk/v1/transport/mtr/lrt/getSchedule with param station_id (numeric, = LRxxx without LR prefix & leading zeros stripped). bound: I=inbound, O=outbound. Routes suffixed * are special/limited-service variants.",
+ "stops": {
+  "LR001": {
+   "code": "LR001",
+   "zh": "屯門碼頭",
+   "en": "Tuen Mun Ferry Pier",
+   "pos": [
+    22.37271,
+    113.96712
+   ]
+  },
+  "LR010": {
+   "code": "LR010",
+   "zh": "美樂",
+   "en": "Melody Garden",
+   "pos": [
+    22.37505,
+    113.96111
+   ]
+  },
+  "LR015": {
+   "code": "LR015",
+   "zh": "蝴蝶",
+   "en": "Butterfly",
+   "pos": [
+    22.37817,
+    113.96166
+   ]
+  },
+  "LR020": {
+   "code": "LR020",
+   "zh": "輕鐵車廠",
+   "en": "Light Rail Depot",
+   "pos": [
+    22.38181,
+    113.96342
+   ]
+  },
+  "LR030": {
+   "code": "LR030",
+   "zh": "龍門",
+   "en": "Lung Mun",
+   "pos": [
+    22.38526,
+    113.96498
+   ]
+  },
+  "LR040": {
+   "code": "LR040",
+   "zh": "青山村",
+   "en": "Tsing Shan Tsuen",
+   "pos": [
+    22.3904,
+    113.96696
+   ]
+  },
+  "LR050": {
+   "code": "LR050",
+   "zh": "青雲",
+   "en": "Tsing Wun",
+   "pos": [
+    22.39434,
+    113.9674
+   ]
+  },
+  "LR060": {
+   "code": "LR060",
+   "zh": "建安",
+   "en": "Kin On",
+   "pos": [
+    22.39513,
+    113.9689
+   ]
+  },
+  "LR070": {
+   "code": "LR070",
+   "zh": "河田",
+   "en": "Ho Tin",
+   "pos": [
+    22.39738,
+    113.97313
+   ]
+  },
+  "LR075": {
+   "code": "LR075",
+   "zh": "蔡意橋",
+   "en": "Choy Yee Bridge",
+   "pos": [
+    22.39993,
+    113.97417
+   ]
+  },
+  "LR080": {
+   "code": "LR080",
+   "zh": "澤豐",
+   "en": "Affluence",
+   "pos": [
+    22.40349,
+    113.97589
+   ]
+  },
+  "LR090": {
+   "code": "LR090",
+   "zh": "屯門醫院",
+   "en": "Tuen Mun Hospital",
+   "pos": [
+    22.40777,
+    113.97715
+   ]
+  },
+  "LR100": {
+   "code": "LR100",
+   "zh": "兆康",
+   "en": "Siu Hong",
+   "pos": [
+    22.4119,
+    113.97822
+   ]
+  },
+  "LR110": {
+   "code": "LR110",
+   "zh": "麒麟",
+   "en": "Kei Lun",
+   "pos": [
+    22.41097,
+    113.97634
+   ]
+  },
+  "LR120": {
+   "code": "LR120",
+   "zh": "青松",
+   "en": "Ching Chung",
+   "pos": [
+    22.40729,
+    113.97252
+   ]
+  },
+  "LR130": {
+   "code": "LR130",
+   "zh": "建生",
+   "en": "Kin Sang",
+   "pos": [
+    22.40673,
+    113.96918
+   ]
+  },
+  "LR140": {
+   "code": "LR140",
+   "zh": "田景",
+   "en": "Tin King",
+   "pos": [
+    22.40771,
+    113.96643
+   ]
+  },
+  "LR150": {
+   "code": "LR150",
+   "zh": "良景",
+   "en": "Leung King",
+   "pos": [
+    22.40669,
+    113.96363
+   ]
+  },
+  "LR160": {
+   "code": "LR160",
+   "zh": "新圍",
+   "en": "San Wai",
+   "pos": [
+    22.40529,
+    113.96442
+   ]
+  },
+  "LR170": {
+   "code": "LR170",
+   "zh": "石排",
+   "en": "Shek Pai",
+   "pos": [
+    22.40138,
+    113.96769
+   ]
+  },
+  "LR180": {
+   "code": "LR180",
+   "zh": "山景(北)",
+   "en": "Shan King (North)",
+   "pos": [
+    22.39851,
+    113.96662
+   ]
+  },
+  "LR190": {
+   "code": "LR190",
+   "zh": "山景(南)",
+   "en": "Shan King (South)",
+   "pos": [
+    22.39662,
+    113.96598
+   ]
+  },
+  "LR200": {
+   "code": "LR200",
+   "zh": "鳴琴",
+   "en": "Ming Kum",
+   "pos": [
+    22.39706,
+    113.96734
+   ]
+  },
+  "LR212": {
+   "code": "LR212",
+   "zh": "大興(北)",
+   "en": "Tai Hing (North)",
+   "pos": [
+    22.4046,
+    113.96998
+   ]
+  },
+  "LR220": {
+   "code": "LR220",
+   "zh": "大興(南)",
+   "en": "Tai Hing (South)",
+   "pos": [
+    22.40267,
+    113.97197
+   ]
+  },
+  "LR230": {
+   "code": "LR230",
+   "zh": "銀圍",
+   "en": "Ngan Wai",
+   "pos": [
+    22.40239,
+    113.97484
+   ]
+  },
+  "LR240": {
+   "code": "LR240",
+   "zh": "兆禧",
+   "en": "Siu Hei",
+   "pos": [
+    22.37524,
+    113.9669
+   ]
+  },
+  "LR250": {
+   "code": "LR250",
+   "zh": "屯門泳池",
+   "en": "Tuen Mun Swimming Pool",
+   "pos": [
+    22.38116,
+    113.97041
+   ]
+  },
+  "LR260": {
+   "code": "LR260",
+   "zh": "豐景園",
+   "en": "Goodview Garden",
+   "pos": [
+    22.38327,
+    113.97299
+   ]
+  },
+  "LR265": {
+   "code": "LR265",
+   "zh": "兆麟",
+   "en": "Siu Lun",
+   "pos": [
+    22.38456,
+    113.97509
+   ]
+  },
+  "LR270": {
+   "code": "LR270",
+   "zh": "安定",
+   "en": "On Ting",
+   "pos": [
+    22.38764,
+    113.97507
+   ]
+  },
+  "LR275": {
+   "code": "LR275",
+   "zh": "友愛",
+   "en": "Yau Oi",
+   "pos": [
+    22.38672,
+    113.97352
+   ]
+  },
+  "LR280": {
+   "code": "LR280",
+   "zh": "市中心",
+   "en": "Town Centre",
+   "pos": [
+    22.39136,
+    113.97489
+   ]
+  },
+  "LR295": {
+   "code": "LR295",
+   "zh": "屯門",
+   "en": "Tuen Mun",
+   "pos": [
+    22.39372,
+    113.97331
+   ]
+  },
+  "LR300": {
+   "code": "LR300",
+   "zh": "杯渡",
+   "en": "Pui To",
+   "pos": [
+    22.39461,
+    113.9768
+   ]
+  },
+  "LR310": {
+   "code": "LR310",
+   "zh": "何福堂",
+   "en": "Hoh Fuk Tong",
+   "pos": [
+    22.39737,
+    113.9774
+   ]
+  },
+  "LR320": {
+   "code": "LR320",
+   "zh": "新墟",
+   "en": "San Hui",
+   "pos": [
+    22.40022,
+    113.97804
+   ]
+  },
+  "LR330": {
+   "code": "LR330",
+   "zh": "景峰",
+   "en": "Prime View",
+   "pos": [
+    22.40313,
+    113.9795
+   ]
+  },
+  "LR340": {
+   "code": "LR340",
+   "zh": "鳳地",
+   "en": "Fung Tei",
+   "pos": [
+    22.40674,
+    113.97874
+   ]
+  },
+  "LR350": {
+   "code": "LR350",
+   "zh": "藍地",
+   "en": "Lam Tei",
+   "pos": [
+    22.4185,
+    113.98163
+   ]
+  },
+  "LR360": {
+   "code": "LR360",
+   "zh": "泥圍",
+   "en": "Nai Wai",
+   "pos": [
+    22.42365,
+    113.98632
+   ]
+  },
+  "LR370": {
+   "code": "LR370",
+   "zh": "鍾屋村",
+   "en": "Chung Uk Tsuen",
+   "pos": [
+    22.42966,
+    113.99223
+   ]
+  },
+  "LR380": {
+   "code": "LR380",
+   "zh": "洪水橋",
+   "en": "Hung Shui Kiu",
+   "pos": [
+    22.43364,
+    113.99736
+   ]
+  },
+  "LR390": {
+   "code": "LR390",
+   "zh": "塘坊村",
+   "en": "Tong Fong Tsuen",
+   "pos": [
+    22.44011,
+    114.00704
+   ]
+  },
+  "LR400": {
+   "code": "LR400",
+   "zh": "屏山",
+   "en": "Ping Shan",
+   "pos": [
+    22.44282,
+    114.01176
+   ]
+  },
+  "LR425": {
+   "code": "LR425",
+   "zh": "坑尾村",
+   "en": "Hang Mei Tsuen",
+   "pos": [
+    22.44509,
+    114.00553
+   ]
+  },
+  "LR430": {
+   "code": "LR430",
+   "zh": "天水圍",
+   "en": "Tin Shui Wai",
+   "pos": [
+    22.44945,
+    114.00596
+   ]
+  },
+  "LR435": {
+   "code": "LR435",
+   "zh": "天慈",
+   "en": "Tin Tsz",
+   "pos": [
+    22.4527,
+    114.00602
+   ]
+  },
+  "LR445": {
+   "code": "LR445",
+   "zh": "天耀",
+   "en": "Tin Yiu",
+   "pos": [
+    22.45038,
+    114.00267
+   ]
+  },
+  "LR448": {
+   "code": "LR448",
+   "zh": "樂湖",
+   "en": "Locwood",
+   "pos": [
+    22.45304,
+    114.00108
+   ]
+  },
+  "LR450": {
+   "code": "LR450",
+   "zh": "天湖",
+   "en": "Tin Wu",
+   "pos": [
+    22.45499,
+    114.00577
+   ]
+  },
+  "LR455": {
+   "code": "LR455",
+   "zh": "銀座",
+   "en": "Ginza",
+   "pos": [
+    22.45756,
+    114.00489
+   ]
+  },
+  "LR460": {
+   "code": "LR460",
+   "zh": "天瑞",
+   "en": "Tin Shui",
+   "pos": [
+    22.45592,
+    113.99943
+   ]
+  },
+  "LR468": {
+   "code": "LR468",
+   "zh": "頌富",
+   "en": "Chung Fu",
+   "pos": [
+    22.46203,
+    113.99696
+   ]
+  },
+  "LR480": {
+   "code": "LR480",
+   "zh": "天富",
+   "en": "Tin Fu",
+   "pos": [
+    22.46454,
+    113.9977
+   ]
+  },
+  "LR490": {
+   "code": "LR490",
+   "zh": "翠湖",
+   "en": "Chestwood",
+   "pos": [
+    22.45972,
+    113.99953
+   ]
+  },
+  "LR500": {
+   "code": "LR500",
+   "zh": "天榮",
+   "en": "Tin Wing",
+   "pos": [
+    22.45953,
+    114.0026
+   ]
+  },
+  "LR510": {
+   "code": "LR510",
+   "zh": "天悅",
+   "en": "Tin Yuet",
+   "pos": [
+    22.46282,
+    114.00156
+   ]
+  },
+  "LR520": {
+   "code": "LR520",
+   "zh": "天秀",
+   "en": "Tin Sau",
+   "pos": [
+    22.46555,
+    114.00297
+   ]
+  },
+  "LR530": {
+   "code": "LR530",
+   "zh": "濕地公園",
+   "en": "Wetland Park",
+   "pos": [
+    22.4696,
+    114.00246
+   ]
+  },
+  "LR540": {
+   "code": "LR540",
+   "zh": "天恒",
+   "en": "Tin Heng",
+   "pos": [
+    22.46966,
+    114.00076
+   ]
+  },
+  "LR550": {
+   "code": "LR550",
+   "zh": "天逸",
+   "en": "Tin Yat",
+   "pos": [
+    22.46697,
+    113.99883
+   ]
+  },
+  "LR560": {
+   "code": "LR560",
+   "zh": "水邊圍",
+   "en": "Shui Pin Wai",
+   "pos": [
+    22.44446,
+    114.02045
+   ]
+  },
+  "LR570": {
+   "code": "LR570",
+   "zh": "豐年路",
+   "en": "Fung Nin Road",
+   "pos": [
+    22.44447,
+    114.0239
+   ]
+  },
+  "LR580": {
+   "code": "LR580",
+   "zh": "康樂路",
+   "en": "Hong Lok Road",
+   "pos": [
+    22.44455,
+    114.02661
+   ]
+  },
+  "LR590": {
+   "code": "LR590",
+   "zh": "大棠路",
+   "en": "Tai Tong Road",
+   "pos": [
+    22.44452,
+    114.02897
+   ]
+  },
+  "LR600": {
+   "code": "LR600",
+   "zh": "元朗",
+   "en": "Yuen Long",
+   "pos": [
+    22.44572,
+    114.03437
+   ]
+  },
+  "LR920": {
+   "code": "LR920",
+   "zh": "三聖",
+   "en": "Sam Shing",
+   "pos": [
+    22.3829,
+    113.97686
+   ]
+  }
+ },
+ "routes": [
+  {
+   "route": "505",
+   "special": false,
+   "directions": [
+    {
+     "bound": "I",
+     "orig": {
+      "zh": "兆康",
+      "en": "Siu Hong"
+     },
+     "dest": {
+      "zh": "三聖",
+      "en": "Sam Shing"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR100",
+      "LR120",
+      "LR130",
+      "LR140",
+      "LR150",
+      "LR160",
+      "LR170",
+      "LR200",
+      "LR060",
+      "LR295",
+      "LR280",
+      "LR270",
+      "LR265",
+      "LR920"
+     ]
+    },
+    {
+     "bound": "O",
+     "orig": {
+      "zh": "三聖",
+      "en": "Sam Shing"
+     },
+     "dest": {
+      "zh": "兆康",
+      "en": "Siu Hong"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR920",
+      "LR265",
+      "LR270",
+      "LR280",
+      "LR295",
+      "LR060",
+      "LR190",
+      "LR180",
+      "LR170",
+      "LR160",
+      "LR150",
+      "LR140",
+      "LR130",
+      "LR120",
+      "LR110",
+      "LR100"
+     ]
+    }
+   ]
+  },
+  {
+   "route": "507",
+   "special": false,
+   "directions": [
+    {
+     "bound": "I",
+     "orig": {
+      "zh": "田景",
+      "en": "Tin King"
+     },
+     "dest": {
+      "zh": "屯門碼頭",
+      "en": "Tuen Mun Ferry Pier"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR140",
+      "LR150",
+      "LR160",
+      "LR212",
+      "LR220",
+      "LR230",
+      "LR075",
+      "LR070",
+      "LR295",
+      "LR280",
+      "LR270",
+      "LR265",
+      "LR260",
+      "LR250",
+      "LR240",
+      "LR001"
+     ]
+    },
+    {
+     "bound": "O",
+     "orig": {
+      "zh": "屯門碼頭",
+      "en": "Tuen Mun Ferry Pier"
+     },
+     "dest": {
+      "zh": "田景",
+      "en": "Tin King"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR001",
+      "LR240",
+      "LR250",
+      "LR260",
+      "LR265",
+      "LR270",
+      "LR280",
+      "LR295",
+      "LR070",
+      "LR075",
+      "LR230",
+      "LR220",
+      "LR212",
+      "LR160",
+      "LR150",
+      "LR140"
+     ]
+    }
+   ]
+  },
+  {
+   "route": "610",
+   "special": false,
+   "directions": [
+    {
+     "bound": "I",
+     "orig": {
+      "zh": "元朗",
+      "en": "Yuen Long"
+     },
+     "dest": {
+      "zh": "屯門碼頭",
+      "en": "Tuen Mun Ferry Pier"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR600",
+      "LR590",
+      "LR580",
+      "LR570",
+      "LR560",
+      "LR400",
+      "LR390",
+      "LR380",
+      "LR370",
+      "LR360",
+      "LR350",
+      "LR100",
+      "LR090",
+      "LR080",
+      "LR230",
+      "LR220",
+      "LR212",
+      "LR170",
+      "LR200",
+      "LR050",
+      "LR040",
+      "LR030",
+      "LR020",
+      "LR015",
+      "LR010",
+      "LR001"
+     ]
+    },
+    {
+     "bound": "O",
+     "orig": {
+      "zh": "屯門碼頭",
+      "en": "Tuen Mun Ferry Pier"
+     },
+     "dest": {
+      "zh": "元朗",
+      "en": "Yuen Long"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR001",
+      "LR010",
+      "LR015",
+      "LR020",
+      "LR030",
+      "LR040",
+      "LR050",
+      "LR200",
+      "LR170",
+      "LR212",
+      "LR220",
+      "LR230",
+      "LR080",
+      "LR090",
+      "LR100",
+      "LR350",
+      "LR360",
+      "LR370",
+      "LR380",
+      "LR390",
+      "LR400",
+      "LR560",
+      "LR570",
+      "LR580",
+      "LR590",
+      "LR600"
+     ]
+    }
+   ]
+  },
+  {
+   "route": "614",
+   "special": false,
+   "directions": [
+    {
+     "bound": "I",
+     "orig": {
+      "zh": "元朗",
+      "en": "Yuen Long"
+     },
+     "dest": {
+      "zh": "屯門碼頭",
+      "en": "Tuen Mun Ferry Pier"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR600",
+      "LR590",
+      "LR580",
+      "LR570",
+      "LR560",
+      "LR400",
+      "LR390",
+      "LR380",
+      "LR370",
+      "LR360",
+      "LR350",
+      "LR100",
+      "LR340",
+      "LR330",
+      "LR320",
+      "LR310",
+      "LR300",
+      "LR280",
+      "LR270",
+      "LR265",
+      "LR260",
+      "LR250",
+      "LR240",
+      "LR001"
+     ]
+    },
+    {
+     "bound": "O",
+     "orig": {
+      "zh": "屯門碼頭",
+      "en": "Tuen Mun Ferry Pier"
+     },
+     "dest": {
+      "zh": "元朗",
+      "en": "Yuen Long"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR001",
+      "LR240",
+      "LR250",
+      "LR260",
+      "LR265",
+      "LR270",
+      "LR280",
+      "LR300",
+      "LR310",
+      "LR320",
+      "LR330",
+      "LR340",
+      "LR100",
+      "LR350",
+      "LR360",
+      "LR370",
+      "LR380",
+      "LR390",
+      "LR400",
+      "LR560",
+      "LR570",
+      "LR580",
+      "LR590",
+      "LR600"
+     ]
+    }
+   ]
+  },
+  {
+   "route": "614P",
+   "special": false,
+   "directions": [
+    {
+     "bound": "I",
+     "orig": {
+      "zh": "兆康",
+      "en": "Siu Hong"
+     },
+     "dest": {
+      "zh": "屯門碼頭",
+      "en": "Tuen Mun Ferry Pier"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR100",
+      "LR340",
+      "LR330",
+      "LR320",
+      "LR310",
+      "LR300",
+      "LR280",
+      "LR270",
+      "LR265",
+      "LR260",
+      "LR250",
+      "LR240",
+      "LR001"
+     ]
+    },
+    {
+     "bound": "O",
+     "orig": {
+      "zh": "屯門碼頭",
+      "en": "Tuen Mun Ferry Pier"
+     },
+     "dest": {
+      "zh": "兆康",
+      "en": "Siu Hong"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR001",
+      "LR240",
+      "LR250",
+      "LR260",
+      "LR265",
+      "LR270",
+      "LR280",
+      "LR300",
+      "LR310",
+      "LR320",
+      "LR330",
+      "LR340",
+      "LR100"
+     ]
+    }
+   ]
+  },
+  {
+   "route": "615",
+   "special": false,
+   "directions": [
+    {
+     "bound": "I",
+     "orig": {
+      "zh": "元朗",
+      "en": "Yuen Long"
+     },
+     "dest": {
+      "zh": "屯門碼頭",
+      "en": "Tuen Mun Ferry Pier"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR600",
+      "LR590",
+      "LR580",
+      "LR570",
+      "LR560",
+      "LR400",
+      "LR390",
+      "LR380",
+      "LR370",
+      "LR360",
+      "LR350",
+      "LR100",
+      "LR120",
+      "LR130",
+      "LR140",
+      "LR150",
+      "LR160",
+      "LR170",
+      "LR200",
+      "LR050",
+      "LR040",
+      "LR030",
+      "LR020",
+      "LR015",
+      "LR010",
+      "LR001"
+     ]
+    },
+    {
+     "bound": "O",
+     "orig": {
+      "zh": "屯門碼頭",
+      "en": "Tuen Mun Ferry Pier"
+     },
+     "dest": {
+      "zh": "元朗",
+      "en": "Yuen Long"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR001",
+      "LR010",
+      "LR015",
+      "LR020",
+      "LR030",
+      "LR040",
+      "LR050",
+      "LR200",
+      "LR170",
+      "LR160",
+      "LR150",
+      "LR140",
+      "LR130",
+      "LR120",
+      "LR100",
+      "LR350",
+      "LR360",
+      "LR370",
+      "LR380",
+      "LR390",
+      "LR400",
+      "LR560",
+      "LR570",
+      "LR580",
+      "LR590",
+      "LR600"
+     ]
+    }
+   ]
+  },
+  {
+   "route": "615P",
+   "special": false,
+   "directions": [
+    {
+     "bound": "I",
+     "orig": {
+      "zh": "兆康",
+      "en": "Siu Hong"
+     },
+     "dest": {
+      "zh": "屯門碼頭",
+      "en": "Tuen Mun Ferry Pier"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR100",
+      "LR110",
+      "LR120",
+      "LR130",
+      "LR140",
+      "LR150",
+      "LR160",
+      "LR170",
+      "LR200",
+      "LR050",
+      "LR040",
+      "LR030",
+      "LR020",
+      "LR015",
+      "LR010",
+      "LR001"
+     ]
+    },
+    {
+     "bound": "O",
+     "orig": {
+      "zh": "屯門碼頭",
+      "en": "Tuen Mun Ferry Pier"
+     },
+     "dest": {
+      "zh": "兆康",
+      "en": "Siu Hong"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR001",
+      "LR010",
+      "LR015",
+      "LR020",
+      "LR030",
+      "LR040",
+      "LR050",
+      "LR200",
+      "LR170",
+      "LR160",
+      "LR150",
+      "LR140",
+      "LR130",
+      "LR120",
+      "LR110",
+      "LR100"
+     ]
+    }
+   ]
+  },
+  {
+   "route": "705",
+   "special": false,
+   "directions": [
+    {
+     "bound": "O",
+     "orig": {
+      "zh": "天水圍",
+      "en": "Tin Shui Wai"
+     },
+     "dest": {
+      "zh": "天水圍 (循環線)",
+      "en": "Tin Shui Wai (Circular)"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR430",
+      "LR435",
+      "LR450",
+      "LR455",
+      "LR500",
+      "LR510",
+      "LR520",
+      "LR530",
+      "LR540",
+      "LR550",
+      "LR480",
+      "LR468",
+      "LR460",
+      "LR448",
+      "LR445"
+     ]
+    }
+   ]
+  },
+  {
+   "route": "706",
+   "special": false,
+   "directions": [
+    {
+     "bound": "O",
+     "orig": {
+      "zh": "天水圍",
+      "en": "Tin Shui Wai"
+     },
+     "dest": {
+      "zh": "天水圍 (循環線)",
+      "en": "Tin Shui Wai (Circular)"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR430",
+      "LR445",
+      "LR448",
+      "LR460",
+      "LR468",
+      "LR480",
+      "LR550",
+      "LR540",
+      "LR530",
+      "LR520",
+      "LR510",
+      "LR500",
+      "LR455",
+      "LR450",
+      "LR435"
+     ]
+    }
+   ]
+  },
+  {
+   "route": "751",
+   "special": false,
+   "directions": [
+    {
+     "bound": "I",
+     "orig": {
+      "zh": "天逸",
+      "en": "Tin Yat"
+     },
+     "dest": {
+      "zh": "友愛",
+      "en": "Yau Oi"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR550",
+      "LR480",
+      "LR468",
+      "LR490",
+      "LR500",
+      "LR455",
+      "LR450",
+      "LR435",
+      "LR430",
+      "LR425",
+      "LR380",
+      "LR370",
+      "LR360",
+      "LR350",
+      "LR100",
+      "LR090",
+      "LR080",
+      "LR075",
+      "LR070",
+      "LR295",
+      "LR280",
+      "LR275"
+     ]
+    },
+    {
+     "bound": "O",
+     "orig": {
+      "zh": "友愛",
+      "en": "Yau Oi"
+     },
+     "dest": {
+      "zh": "天逸",
+      "en": "Tin Yat"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR275",
+      "LR270",
+      "LR280",
+      "LR295",
+      "LR070",
+      "LR075",
+      "LR080",
+      "LR090",
+      "LR100",
+      "LR350",
+      "LR360",
+      "LR370",
+      "LR380",
+      "LR425",
+      "LR430",
+      "LR435",
+      "LR450",
+      "LR455",
+      "LR500",
+      "LR490",
+      "LR468",
+      "LR480",
+      "LR550"
+     ]
+    }
+   ]
+  },
+  {
+   "route": "751P",
+   "special": false,
+   "directions": [
+    {
+     "bound": "I",
+     "orig": {
+      "zh": "天逸",
+      "en": "Tin Yat"
+     },
+     "dest": {
+      "zh": "天水圍",
+      "en": "Tin Shui Wai"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR550",
+      "LR480",
+      "LR468",
+      "LR490",
+      "LR500",
+      "LR455",
+      "LR450",
+      "LR435",
+      "LR430"
+     ]
+    },
+    {
+     "bound": "O",
+     "orig": {
+      "zh": "天水圍",
+      "en": "Tin Shui Wai"
+     },
+     "dest": {
+      "zh": "天逸",
+      "en": "Tin Yat"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR430",
+      "LR435",
+      "LR450",
+      "LR455",
+      "LR500",
+      "LR490",
+      "LR468",
+      "LR480",
+      "LR550"
+     ]
+    }
+   ]
+  },
+  {
+   "route": "761P",
+   "special": false,
+   "directions": [
+    {
+     "bound": "I",
+     "orig": {
+      "zh": "元朗",
+      "en": "Yuen Long"
+     },
+     "dest": {
+      "zh": "天逸",
+      "en": "Tin Yat"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR600",
+      "LR590",
+      "LR580",
+      "LR570",
+      "LR560",
+      "LR400",
+      "LR390",
+      "LR425",
+      "LR445",
+      "LR448",
+      "LR460",
+      "LR468",
+      "LR480",
+      "LR550"
+     ]
+    },
+    {
+     "bound": "O",
+     "orig": {
+      "zh": "天逸",
+      "en": "Tin Yat"
+     },
+     "dest": {
+      "zh": "元朗",
+      "en": "Yuen Long"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR550",
+      "LR480",
+      "LR468",
+      "LR460",
+      "LR448",
+      "LR445",
+      "LR425",
+      "LR390",
+      "LR400",
+      "LR560",
+      "LR570",
+      "LR580",
+      "LR590",
+      "LR600"
+     ]
+    }
+   ]
+  },
+  {
+   "route": "SPR",
+   "special": false,
+   "directions": [
+    {
+     "bound": "O",
+     "orig": {
+      "zh": "天逸",
+      "en": "Tin Yat"
+     },
+     "dest": {
+      "zh": "兆康",
+      "en": "Siu Hong"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR550",
+      "LR480",
+      "LR468",
+      "LR490",
+      "LR500",
+      "LR455",
+      "LR450",
+      "LR435",
+      "LR430",
+      "LR425",
+      "LR380",
+      "LR370",
+      "LR360",
+      "LR350",
+      "LR100"
+     ]
+    }
+   ]
+  },
+  {
+   "route": "720*",
+   "special": true,
+   "directions": [
+    {
+     "bound": "O",
+     "orig": {
+      "zh": "兆康",
+      "en": "Siu Hong"
+     },
+     "dest": {
+      "zh": "天榮",
+      "en": "Tin Wing"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR100",
+      "LR350",
+      "LR360",
+      "LR370",
+      "LR380",
+      "LR425",
+      "LR445",
+      "LR448",
+      "LR460",
+      "LR490",
+      "LR500"
+     ]
+    }
+   ]
+  },
+  {
+   "route": "751*",
+   "special": true,
+   "directions": [
+    {
+     "bound": "O",
+     "orig": {
+      "zh": "天逸",
+      "en": "Tin Yat"
+     },
+     "dest": {
+      "zh": "屯門碼頭",
+      "en": "Tuen Mun Ferry Pier"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR550",
+      "LR480",
+      "LR468",
+      "LR490",
+      "LR500",
+      "LR455",
+      "LR450",
+      "LR435",
+      "LR430",
+      "LR425",
+      "LR380",
+      "LR370",
+      "LR360",
+      "LR350",
+      "LR100",
+      "LR090",
+      "LR080",
+      "LR075",
+      "LR070",
+      "LR295",
+      "LR280",
+      "LR270",
+      "LR265",
+      "LR260",
+      "LR250",
+      "LR240",
+      "LR001"
+     ]
+    }
+   ]
+  },
+  {
+   "route": "506P*",
+   "special": true,
+   "directions": [
+    {
+     "bound": "O",
+     "orig": {
+      "zh": "屯門碼頭",
+      "en": "Tuen Mun Ferry Pier"
+     },
+     "dest": {
+      "zh": "兆康",
+      "en": "Siu Hong"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR001",
+      "LR010",
+      "LR015",
+      "LR020",
+      "LR030",
+      "LR040",
+      "LR050",
+      "LR060",
+      "LR295",
+      "LR300",
+      "LR310",
+      "LR320",
+      "LR330",
+      "LR340",
+      "LR100"
+     ]
+    }
+   ]
+  },
+  {
+   "route": "507P*",
+   "special": true,
+   "directions": [
+    {
+     "bound": "O",
+     "orig": {
+      "zh": "兆康",
+      "en": "Siu Hong"
+     },
+     "dest": {
+      "zh": "屯門碼頭",
+      "en": "Tuen Mun Ferry Pier"
+     },
+     "serviceType": "1",
+     "stops": [
+      "LR100",
+      "LR120",
+      "LR130",
+      "LR140",
+      "LR150",
+      "LR160",
+      "LR212",
+      "LR220",
+      "LR230",
+      "LR075",
+      "LR070",
+      "LR295",
+      "LR280",
+      "LR270",
+      "LR265",
+      "LR260",
+      "LR250",
+      "LR240",
+      "LR001"
+     ]
+    }
+   ]
+  }
+ ]
+}

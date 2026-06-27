@@ -17,6 +17,9 @@ export interface StationSchedule {
   down: TrainArrival[] // 下行
   sysTime: string | null
   isDelay: boolean
+  /** status=0:特別車務安排 / 暫無實時數據 */
+  special: boolean
+  message: string | null
 }
 
 interface RawTrain {
@@ -29,9 +32,10 @@ interface RawTrain {
 
 interface RawResp {
   status?: number
+  message?: string
   curr_time?: string
   sys_time?: string
-  isdelay?: string
+  isdelay?: string // 'Y' | 'N'
   data?: Record<string, { UP?: RawTrain[]; DOWN?: RawTrain[] }>
 }
 
@@ -57,6 +61,8 @@ export async function fetchSchedule(line: string, station: string): Promise<Stat
     up: mapTrains(node?.UP),
     down: mapTrains(node?.DOWN),
     sysTime: json.sys_time ?? null,
-    isDelay: json.isdelay === 'true',
+    isDelay: json.isdelay === 'Y',
+    special: json.status === 0,
+    message: json.message ?? null,
   }
 }

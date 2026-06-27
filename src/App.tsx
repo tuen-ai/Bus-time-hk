@@ -3,11 +3,12 @@ import { getAllRoutes, coLabel, type Route } from './api/bus'
 import Favorites from './components/Favorites'
 import RouteStopsView from './components/RouteStopsView'
 import NearbyView from './components/NearbyView'
+import MtrView from './components/MtrView'
 import WeatherBanner from './components/WeatherBanner'
 import { routeBadges } from './lib/routeMeta'
 import type { Favorite } from './lib/store'
 
-type Tab = 'search' | 'nearby'
+type Tab = 'search' | 'nearby' | 'mtr'
 
 export default function App() {
   const [routes, setRoutes] = useState<Route[]>([])
@@ -99,7 +100,13 @@ export default function App() {
             className={tab === 'nearby' ? 'tab on' : 'tab'}
             onClick={() => setTab('nearby')}
           >
-            📍 附近車站
+            📍 附近
+          </button>
+          <button
+            className={tab === 'mtr' ? 'tab on' : 'tab'}
+            onClick={() => setTab('mtr')}
+          >
+            🚇 鐵路
           </button>
         </nav>
       )}
@@ -115,6 +122,8 @@ export default function App() {
           />
         ) : tab === 'nearby' ? (
           <NearbyView />
+        ) : tab === 'mtr' ? (
+          <MtrView />
         ) : (
           <>
             <div className="search">
@@ -179,7 +188,7 @@ export default function App() {
         </a>{' '}
         (GPL-2.0) · 地圖 © OpenStreetMap contributors
         <br />
-        天氣:香港天文台 (HKO) data.gov.hk
+        天氣:香港天文台 (HKO) · 港鐵下一班列車:© 港鐵公司 MTR · data.gov.hk
       </footer>
     </div>
   )
