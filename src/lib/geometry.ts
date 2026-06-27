@@ -21,6 +21,7 @@ const maps: Record<Co, Record<string, string>> = {
   kmb: kmbMap as Record<string, string>,
   ctb: ctbMap as Record<string, string>,
   lrt: {}, // 輕鐵無 waypoint 幾何 → 用站對站直線
+  nlb: {}, // 嶼巴無 hkbus waypoint → OSRM 道路 snap / 直線
 }
 
 /** (co, route, bound, serviceType) → gtfsId(用 build-time 精簡映射表) */

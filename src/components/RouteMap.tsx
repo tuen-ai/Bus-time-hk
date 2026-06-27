@@ -203,7 +203,7 @@ export default function RouteMap({ route, stops, focusStopId }: Props) {
           ? '🚌 預測巴士位置 · 僅供參考(此 API 無 GPS,位置由到站時間推算)'
           : route.co === 'lrt'
             ? '🚊 輕鐵路綫示意(站對站連線)'
-            : '🚌 城巴暫無預測巴士(API 未提供全線到站,只顯示路線同車站)'}
+            : '🚌 此營辦商未提供全線到站,只顯示路線同車站'}
         {source === 'osrm' && ' · 路線為道路推算(OSRM)'}
         {route.co !== 'lrt' && source === 'straight' && ' · 路線用站點直線(未有行車幾何)'}
       </div>

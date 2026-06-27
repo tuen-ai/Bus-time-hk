@@ -2,10 +2,12 @@
 import * as kmb from './kmb'
 import * as ctb from './ctb'
 import { fetchLrtSchedule } from './lrt'
+import { fetchNlbEta } from './nlb'
 import { lrRoutes, lrRouteStops } from '../lib/lrData'
+import { nlbRoutes, nlbRouteStops, nlbRouteId } from '../lib/nlbData'
 import { getStopMap } from '../lib/store'
 
-export type Co = 'kmb' | 'ctb' | 'lrt'
+export type Co = 'kmb' | 'ctb' | 'lrt' | 'nlb'
 
 export interface Route {
   co: Co
@@ -45,10 +47,10 @@ export interface RouteStopInfo {
 }
 
 export const coLabel = (co: Co): string =>
-  co === 'ctb' ? '城巴' : co === 'lrt' ? '輕鐵' : '九巴'
+  co === 'ctb' ? '城巴' : co === 'lrt' ? '輕鐵' : co === 'nlb' ? '嶼巴' : '九巴'
 
 export const coClass = (co: Co): string =>
-  co === 'ctb' ? 'co-ctb' : co === 'lrt' ? 'co-lrt' : ''
+  co === 'ctb' ? 'co-ctb' : co === 'lrt' ? 'co-lrt' : co === 'nlb' ? 'co-nlb' : ''
 
 /** 分批並行 map(每批 size 個),避免一次過開太多連線 */
 async function batchMap<T, R>(items: T[], size: number, fn: (x: T) => Promise<R>): Promise<R[]> {
@@ -94,12 +96,18 @@ export async function getAllRoutes(): Promise<Route[]> {
     ctb.fetchCtbRoutes().catch(() => [] as Route[]),
   ])
   let lr: Route[] = []
+  let nl: Route[] = []
   try {
     lr = lrRoutes()
   } catch {
     lr = []
   }
-  const all = [...k, ...c, ...lr]
+  try {
+    nl = nlbRoutes()
+  } catch {
+    nl = []
+  }
+  const all = [...k, ...c, ...lr, ...nl]
   // 兩邊都失敗(離線/CORS)→ 唔好快取空陣列毒化一日,直接拋錯俾 App 顯示重試
   if (all.length === 0) throw new Error('路線資料載入失敗,請稍後重試')
   routeMem = all
@@ -115,6 +123,9 @@ export async function getAllRoutes(): Promise<Route[]> {
 export async function getRouteStops(r: Route): Promise<RouteStopInfo[]> {
   if (r.co === 'lrt') {
     return lrRouteStops(r.route, r.bound, r.service_type)
+  }
+  if (r.co === 'nlb') {
+    return nlbRouteStops(r.route, r.bound, r.service_type)
   }
   if (r.co === 'kmb') {
     const [rs, stopMap] = await Promise.all([
@@ -159,6 +170,23 @@ export async function getEta(r: Route, stopId: string): Promise<Eta[]> {
   }
   if (r.co === 'ctb') {
     return ctb.fetchCtbEta(stopId, r.route, r.bound)
+  }
+  if (r.co === 'nlb') {
+    const id = nlbRouteId(r.route, r.bound, r.service_type)
+    if (!id) return []
+    const arrs = await fetchNlbEta(id, stopId)
+    return arrs.map((a, i) => ({
+      co: 'nlb' as const,
+      route: r.route,
+      dir: r.bound,
+      service_type: 1,
+      seq: 0,
+      dest_tc: r.dest_tc,
+      eta_seq: i + 1,
+      eta: a.eta,
+      rmk_tc: a.noGps ? '預定班次' : a.departed ? '已開出' : '',
+      data_timestamp: '',
+    }))
   }
   // 輕鐵:由站取所有路綫下一班,filter 出本路綫,轉成統一 Eta
   const trains = await fetchLrtSchedule(Number(stopId.slice(2)))

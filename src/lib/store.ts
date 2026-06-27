@@ -46,7 +46,7 @@ export async function getStopMap(): Promise<Map<string, Stop>> {
 // ---- 收藏(路線 + 方向 + 班次 + 站)----
 
 export interface Favorite {
-  co: 'kmb' | 'ctb' | 'lrt'
+  co: 'kmb' | 'ctb' | 'lrt' | 'nlb'
   route: string
   bound: 'I' | 'O'
   serviceType: string
