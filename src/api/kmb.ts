@@ -60,7 +60,8 @@ interface ApiEnvelope<T> {
 }
 
 async function get<T>(path: string): Promise<ApiEnvelope<T>> {
-  const res = await fetch(`${BASE}${path}`)
+  // 加 timeout,避免某個請求 hang 住令 Promise.all 永遠唔返(如「附近」卡住)
+  const res = await fetch(`${BASE}${path}`, { signal: AbortSignal.timeout(20000) })
   if (!res.ok) {
     throw new Error(`API 錯誤 (${res.status}): ${path}`)
   }

@@ -21,6 +21,7 @@ const NEAR_STOPS = 8
 
 export async function nearbyBuses(lat: number, lng: number): Promise<NearbyRow[]> {
   const stopMap = await getStopMap()
+  if (stopMap.size === 0) throw new Error('未能載入車站資料,請重試')
   const nearest = [...stopMap.values()]
     .map((s) => ({ s, d: distanceMeters(lat, lng, Number(s.lat), Number(s.long)) }))
     .sort((a, b) => a.d - b.d)
