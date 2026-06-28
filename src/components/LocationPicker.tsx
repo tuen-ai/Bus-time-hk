@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import { TILE_URL, TILE_ATTRIB } from '../lib/mapConfig'
 import { geocode, type GeoPlace } from '../api/geocode'
+import { localPlaces } from '../lib/localPlaces'
 
 export interface PickedPlace {
   label: string
@@ -46,15 +47,39 @@ export default function LocationPicker({ title, initial, onConfirm, onCancel }: 
   const [results, setResults] = useState<GeoPlace[]>([])
   const [searching, setSearching] = useState(false)
   const [flyTo, setFlyTo] = useState<[number, number] | null>(null)
+  const [picked, setPicked] = useState(false) // 揀咗建議後唔再彈
 
-  const search = async () => {
-    if (!q.trim()) return
-    setSearching(true)
-    try {
-      setResults(await geocode(q))
-    } finally {
-      setSearching(false)
+  // 即打即彈建議:本地車站(即時)+ 地理編碼(debounce)
+  useEffect(() => {
+    if (picked) return
+    const s = q.trim()
+    if (s.length < 1) {
+      setResults([])
+      return
     }
+    const local = localPlaces(s)
+    setResults(local)
+    setSearching(true)
+    const t = setTimeout(async () => {
+      const geo = await geocode(s)
+      const merged = [...local]
+      for (const g of geo) {
+        if (!merged.some((m) => m.label === g.label)) merged.push(g)
+        if (merged.length >= 8) break
+      }
+      setResults(merged)
+      setSearching(false)
+    }, 350)
+    return () => clearTimeout(t)
+  }, [q, picked])
+
+  const choose = (r: GeoPlace) => {
+    setLabel(r.label)
+    setCenter({ lat: r.lat, lng: r.lng })
+    setFlyTo([r.lat, r.lng])
+    setPicked(true)
+    setResults([])
+    setQ(r.label)
   }
 
   return (
@@ -69,37 +94,29 @@ export default function LocationPicker({ title, initial, onConfirm, onCancel }: 
       <div className="search">
         <input
           value={q}
-          placeholder="搜尋地址或地點(例:太古城中心)"
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && search()}
+          placeholder="搜尋地址或地點(例:葵芳、葵涌廣場)"
+          onChange={(e) => { setPicked(false); setQ(e.target.value) }}
         />
         {q && (
-          <button className="clear" onClick={() => { setQ(''); setResults([]) }} aria-label="清除">
+          <button className="clear" onClick={() => { setPicked(false); setQ(''); setResults([]) }} aria-label="清除">
             ✕
           </button>
         )}
       </div>
 
-      {searching && <div className="muted pad">搜尋緊…</div>}
       {results.length > 0 && (
         <ul className="geo-results">
           {results.map((r, i) => (
-            <li key={i}>
-              <button
-                className="geo-item"
-                onClick={() => {
-                  setLabel(r.label)
-                  setCenter({ lat: r.lat, lng: r.lng })
-                  setFlyTo([r.lat, r.lng])
-                  setResults([])
-                  setQ(r.label)
-                }}
-              >
-                <span className="geo-label">{r.label}</span>
-                {r.sub && <span className="muted small">{r.sub}</span>}
+            <li key={`${r.label}-${i}`}>
+              <button className="geo-item" onClick={() => choose(r)}>
+                <span className="geo-label">
+                  {r.label}
+                  {r.sub && <span className="geo-tag">{r.sub}</span>}
+                </span>
               </button>
             </li>
           ))}
+          {searching && <li className="geo-loading muted small">搜尋更多地點…</li>}
         </ul>
       )}
 
