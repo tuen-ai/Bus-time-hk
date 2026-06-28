@@ -4,7 +4,7 @@ import { getPosition, describeGeoError, formatDistance } from '../lib/geo'
 
 type Status = 'idle' | 'locating' | 'ready' | 'error'
 
-const minsLabel = (m: number) => (m <= 0 ? '即將' : `${m}`)
+const timeLabel = (m: number) => (m <= 0 ? '即將' : `${m}分`)
 
 export default function NearbyView({ onOpen }: { onOpen: (r: NearbyRow) => void }) {
   const [status, setStatus] = useState<Status>('idle')
@@ -64,15 +64,17 @@ export default function NearbyView({ onOpen }: { onOpen: (r: NearbyRow) => void 
                 </span>
               </span>
               <span className="nearby-eta">
-                <span className={`nearby-min ${(r.mins[0] ?? 99) <= 3 ? 'soon' : ''}`}>
-                  {minsLabel(r.mins[0] ?? 0)}
-                </span>
-                {r.mins.length > 1 && (
-                  <span className="nearby-next">
-                    {r.mins.slice(1).map((m) => minsLabel(m)).join(' · ')}
+                <span className="muted small">下一班</span>
+                <span className="nearby-times">
+                  <span className={`nearby-min ${(r.mins[0] ?? 99) <= 3 ? 'soon' : ''}`}>
+                    {timeLabel(r.mins[0] ?? 0)}
                   </span>
-                )}
-                <span className="muted small">分鐘</span>
+                  {r.mins.length > 1 && (
+                    <span className="nearby-next">
+                      {r.mins.slice(1).map((m) => timeLabel(m)).join(', ')}
+                    </span>
+                  )}
+                </span>
               </span>
             </button>
           </li>

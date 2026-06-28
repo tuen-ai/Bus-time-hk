@@ -373,9 +373,14 @@ input:focus-visible {
 }
 .nearby-eta {
   display: flex;
-  align-items: baseline;
-  gap: 3px;
+  flex-direction: column;
+  align-items: flex-end;
   flex-shrink: 0;
+}
+.nearby-times {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
 }
 .nearby-min {
   font-size: 1.5rem;
