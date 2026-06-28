@@ -1,22 +1,25 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { nearbyBuses, type NearbyRow } from '../lib/nearby'
 import { getPosition, describeGeoError, formatDistance } from '../lib/geo'
 
 type Status = 'idle' | 'locating' | 'ready' | 'error'
 
+const REFRESH_MS = 5_000
 const timeLabel = (m: number) => (m <= 0 ? '即將' : `${m}分`)
 
 export default function NearbyView({ onOpen }: { onOpen: (r: NearbyRow) => void }) {
   const [status, setStatus] = useState<Status>('idle')
   const [error, setError] = useState<string | null>(null)
   const [rows, setRows] = useState<NearbyRow[]>([])
+  const coords = useRef<{ lat: number; lng: number } | null>(null)
 
   const locate = async () => {
     setStatus('locating')
     setError(null)
     try {
       const pos = await getPosition()
-      const r = await nearbyBuses(pos.coords.latitude, pos.coords.longitude)
+      coords.current = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+      const r = await nearbyBuses(coords.current.lat, coords.current.lng)
       setRows(r)
       setStatus('ready')
     } catch (e) {
@@ -24,6 +27,19 @@ export default function NearbyView({ onOpen }: { onOpen: (r: NearbyRow) => void 
       setStatus('error')
     }
   }
+
+  // 每 5 秒用已知位置靜默刷新 ETA(唔再彈定位)
+  useEffect(() => {
+    if (status !== 'ready') return
+    const id = setInterval(() => {
+      const c = coords.current
+      if (!c) return
+      nearbyBuses(c.lat, c.lng)
+        .then(setRows)
+        .catch(() => {})
+    }, REFRESH_MS)
+    return () => clearInterval(id)
+  }, [status])
 
   if (status === 'idle' || status === 'error') {
     return (
@@ -46,7 +62,7 @@ export default function NearbyView({ onOpen }: { onOpen: (r: NearbyRow) => void 
   return (
     <div>
       <div className="nearby-head">
-        <h2 className="section-title">📍 附近巴士</h2>
+        <h2 className="section-title">📍 附近巴士 · 每 5 秒刷新</h2>
         <button className="back-btn" onClick={locate}>
           ↻ 重新定位
         </button>
