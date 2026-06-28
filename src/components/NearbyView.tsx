@@ -64,7 +64,14 @@ export default function NearbyView({ onOpen }: { onOpen: (r: NearbyRow) => void 
                 </span>
               </span>
               <span className="nearby-eta">
-                <span className={`nearby-min ${r.mins <= 3 ? 'soon' : ''}`}>{minsLabel(r.mins)}</span>
+                <span className={`nearby-min ${(r.mins[0] ?? 99) <= 3 ? 'soon' : ''}`}>
+                  {minsLabel(r.mins[0] ?? 0)}
+                </span>
+                {r.mins.length > 1 && (
+                  <span className="nearby-next">
+                    {r.mins.slice(1).map((m) => minsLabel(m)).join(' · ')}
+                  </span>
+                )}
                 <span className="muted small">分鐘</span>
               </span>
             </button>

@@ -14,7 +14,7 @@ export interface NearbyRow {
   stopId: string
   stopName: string
   dist: number
-  mins: number
+  mins: number[] // 下一班、下下一班…(最多 3 班)
 }
 
 const NEAR_STOPS = 8
@@ -32,23 +32,39 @@ export async function nearbyBuses(lat: number, lng: number): Promise<NearbyRow[]
     nearest.map(async ({ s, d }) => {
       try {
         const etas = await fetchStopEta(s.stop)
-        return etas
-          .filter((e) => e.eta_seq === 1 && e.eta)
-          .map<NearbyRow>((e) => ({
-            co: 'kmb',
-            route: e.route,
-            dir: e.dir,
-            serviceType: String(e.service_type),
-            dest: e.dest_tc,
-            stopId: s.stop,
-            stopName: s.name_tc,
-            dist: d,
-            mins: minutesUntil(e.eta, now) ?? 0,
-          }))
+        // 同一站同一路線(方向/班次)嘅多班 ETA 聚合成一行
+        const groups = new Map<string, NearbyRow>()
+        for (const e of etas) {
+          if (!e.eta) continue
+          const m = minutesUntil(e.eta, now)
+          if (m == null) continue
+          const key = `${e.route}|${e.dir}|${e.service_type}`
+          let row = groups.get(key)
+          if (!row) {
+            row = {
+              co: 'kmb',
+              route: e.route,
+              dir: e.dir,
+              serviceType: String(e.service_type),
+              dest: e.dest_tc,
+              stopId: s.stop,
+              stopName: s.name_tc,
+              dist: d,
+              mins: [],
+            }
+            groups.set(key, row)
+          }
+          row.mins.push(m)
+        }
+        for (const row of groups.values()) row.mins.sort((a, b) => a - b)
+        return [...groups.values()]
       } catch {
         return []
       }
     }),
   )
-  return batches.flat().sort((a, b) => a.mins - b.mins || a.dist - b.dist)
+  return batches
+    .flat()
+    .map((r) => ({ ...r, mins: r.mins.slice(0, 3) }))
+    .sort((a, b) => (a.mins[0] ?? 999) - (b.mins[0] ?? 999) || a.dist - b.dist)
 }

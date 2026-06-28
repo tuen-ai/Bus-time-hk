@@ -386,6 +386,12 @@ input:focus-visible {
 .nearby-min.soon {
   color: var(--soon);
 }
+.nearby-next {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
 
 /* ---- Map ---- */
 .map {
