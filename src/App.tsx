@@ -6,6 +6,7 @@ import MtrView from './components/MtrView'
 import NearbyView from './components/NearbyView'
 import PlannerView from './components/PlannerView'
 import WeatherBanner from './components/WeatherBanner'
+import { PandaLogo, MascotWelcome } from './components/Mascots'
 import type { NearbyRow } from './lib/nearby'
 import { routeBadges } from './lib/routeMeta'
 import type { Favorite } from './lib/store'
@@ -95,8 +96,15 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
+        <span className="topbar-deco" style={{ top: 8, left: '38%' }}>♡</span>
+        <span className="topbar-deco" style={{ top: 30, left: '54%' }}>✦</span>
+        <span className="topbar-deco" style={{ bottom: 8, left: '46%' }}>♡</span>
+        <span className="topbar-deco" style={{ top: 14, left: '66%' }}>🎀</span>
+        <span className="topbar-deco" style={{ bottom: 10, left: '30%' }}>✨</span>
         <div className="topbar-row">
-          <h1 onClick={() => { setSelected(null); setTab('search') }}>🚌 可出行</h1>
+          <h1 onClick={() => { setSelected(null); setTab('search') }}>
+            <PandaLogo />可出行
+          </h1>
           <button
             className="theme-toggle"
             onClick={() => setDark((d) => !d)}
@@ -105,7 +113,7 @@ export default function App() {
             {dark ? '☀️' : '🌙'}
           </button>
         </div>
-        <span className="topbar-sub">香港交通到站 · 行程規劃</span>
+        <span className="topbar-sub">香港交通到站 · 行程規劃 ♡</span>
       </header>
 
       <WeatherBanner />
@@ -116,7 +124,7 @@ export default function App() {
             className={tab === 'search' ? 'tab on' : 'tab'}
             onClick={() => setTab('search')}
           >
-            🔍 搜尋路線
+            🔍 搜尋
           </button>
           <button
             className={tab === 'nearby' ? 'tab on' : 'tab'}
@@ -197,6 +205,9 @@ export default function App() {
               </div>
             )}
 
+            {!query && !loading && !error && (
+              <MascotWelcome title="今日去邊度呢? 💕" sub="輸入路線號碼,即刻睇到站時間~" />
+            )}
             {!query && !loading && <Favorites onOpen={openFavorite} />}
 
             {query && matches.length === 0 && !loading && (

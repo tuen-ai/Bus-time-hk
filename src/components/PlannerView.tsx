@@ -8,6 +8,7 @@ import {
   PRESET_DEFS,
   type SavedPlace,
 } from '../lib/places'
+import { MascotWelcome } from './Mascots'
 
 const LEG_COLOR: Record<string, string> = {
   kmb: '#c8102e', ctb: '#0e7490', nlb: '#00857c', gmb: '#167a3a', lightRail: '#7d3c98',
@@ -164,6 +165,10 @@ export default function PlannerView() {
           {planning ? '計緊…' : '🧭 搵最快路線'}
         </button>
       </div>
+
+      {!results && !planning && !planErr && (
+        <MascotWelcome title="一齊去邊度玩呢? 💕" sub="揀起點同終點,搵最快路線~ 🥰" />
+      )}
 
       {planErr && <div className="error pad">⚠️ {planErr}</div>}
       {results && results.length === 0 && !planning && (
