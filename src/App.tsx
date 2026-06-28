@@ -95,7 +95,7 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <div className="topbar-row">
-          <h1 onClick={() => { setSelected(null); setTab('search') }}>🚌 香港巴士到站</h1>
+          <h1 onClick={() => { setSelected(null); setTab('search') }}>🚌 可出行</h1>
           <button
             className="theme-toggle"
             onClick={() => setDark((d) => !d)}
@@ -104,7 +104,7 @@ export default function App() {
             {dark ? '☀️' : '🌙'}
           </button>
         </div>
-        <span className="topbar-sub">九巴 · 龍運 · 城巴 實時 ETA</span>
+        <span className="topbar-sub">香港交通到站 · 行程規劃</span>
       </header>
 
       <WeatherBanner />

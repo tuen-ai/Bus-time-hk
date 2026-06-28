@@ -1,7 +1,7 @@
 {
-  "name": "九巴到站時間 · HK Bus ETA",
-  "short_name": "九巴ETA",
-  "description": "香港九巴 / 龍運巴士實時到站時間查詢",
+  "name": "可出行 · 香港交通到站",
+  "short_name": "可出行",
+  "description": "香港交通實時到站、車費、行程規劃",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
