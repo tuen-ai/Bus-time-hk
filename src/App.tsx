@@ -4,12 +4,13 @@ import Favorites from './components/Favorites'
 import RouteStopsView from './components/RouteStopsView'
 import MtrView from './components/MtrView'
 import NearbyView from './components/NearbyView'
+import PlannerView from './components/PlannerView'
 import WeatherBanner from './components/WeatherBanner'
 import type { NearbyRow } from './lib/nearby'
 import { routeBadges } from './lib/routeMeta'
 import type { Favorite } from './lib/store'
 
-type Tab = 'search' | 'nearby' | 'mtr'
+type Tab = 'search' | 'nearby' | 'mtr' | 'plan'
 
 export default function App() {
   const [routes, setRoutes] = useState<Route[]>([])
@@ -129,6 +130,12 @@ export default function App() {
           >
             🚇 鐵路
           </button>
+          <button
+            className={tab === 'plan' ? 'tab on' : 'tab'}
+            onClick={() => setTab('plan')}
+          >
+            🧭 規劃
+          </button>
         </nav>
       )}
 
@@ -145,6 +152,8 @@ export default function App() {
           <NearbyView onOpen={openNearby} />
         ) : tab === 'mtr' ? (
           <MtrView />
+        ) : tab === 'plan' ? (
+          <PlannerView />
         ) : (
           <>
             <div className="co-filter">
