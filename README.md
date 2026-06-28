@@ -1,5 +1,7 @@
 # 🚌 香港巴士到站 · HK Bus ETA
 
+**▶️ 線上試用:https://tuen-ai.github.io/Bus-time-hk/**
+
 查香港 **九巴 (KMB) / 龍運 (LWB) / 城巴 (CTB) / 嶼巴 (NLB) / 綠van (GMB) / 輕鐵 (LR) / 港鐵 (MTR)** 實時到站時間的純前端 Web App,另有天氣警告、車費、沿途交通事故預警。
 資料來自運輸署開放數據(data.gov.hk),由 browser 直接呼叫,**無需自建後端、無需 API key**。
 
