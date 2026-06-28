@@ -1,4 +1,4 @@
-# 🚌 可出行 · 香港交通到站 (HK Transit)
+# 🚌 可可出行 · 香港交通到站 (HK Transit)
 
 **▶️ 線上試用:https://tuen-ai.github.io/Bus-time-hk/**
 

@@ -103,7 +103,7 @@ export default function App() {
         <span className="topbar-deco" style={{ bottom: 10, left: '30%' }}>✨</span>
         <div className="topbar-row">
           <h1 onClick={() => { setSelected(null); setTab('search') }}>
-            <PandaLogo />可出行
+            <PandaLogo />可可出行
           </h1>
           <button
             className="theme-toggle"
