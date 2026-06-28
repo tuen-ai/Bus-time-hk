@@ -1,11 +1,35 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import LocationPicker, { type PickedPlace } from './LocationPicker'
+import { getPosition, describeGeoError } from '../lib/geo'
+import { planJourneys, type Journey, type Leg } from '../lib/journey'
 import {
   getPlaces,
   savePlace,
   PRESET_DEFS,
   type SavedPlace,
 } from '../lib/places'
+
+const LEG_COLOR: Record<string, string> = {
+  kmb: '#c8102e', ctb: '#0e7490', nlb: '#00857c', gmb: '#167a3a', lightRail: '#7d3c98',
+}
+
+function renderLegs(legs: Leg[]) {
+  const items: ReactNode[] = []
+  legs.forEach((l, i) => {
+    if (i > 0) items.push(<span key={`a${i}`} className="arrow">›</span>)
+    if (l.kind === 'walk') {
+      items.push(<span key={i} className="leg-walk">🚶{l.mins}分</span>)
+    } else {
+      items.push(
+        <span key={i} className="leg-badge" style={{ background: LEG_COLOR[l.co ?? ''] ?? '#666' }}>
+          {l.route}
+        </span>,
+      )
+      if (l.nStops) items.push(<span key={`n${i}`} className="leg-n">{l.nStops}站</span>)
+    }
+  })
+  return items
+}
 
 type Endpoint = PickedPlace | 'mylocation' | null
 
@@ -26,7 +50,34 @@ export default function PlannerView() {
   const [dest, setDest] = useState<Endpoint>(null)
   const [picking, setPicking] = useState<Picking>(null)
   const [places, setPlaces] = useState<SavedPlace[]>(getPlaces())
-  const [planned, setPlanned] = useState(false)
+  const [results, setResults] = useState<Journey[] | null>(null)
+  const [planning, setPlanning] = useState(false)
+  const [planErr, setPlanErr] = useState<string | null>(null)
+
+  const coordsOf = async (e: Endpoint): Promise<{ lat: number; lng: number } | null> => {
+    if (e === 'mylocation') {
+      const p = await getPosition()
+      return { lat: p.coords.latitude, lng: p.coords.longitude }
+    }
+    if (e) return { lat: e.lat, lng: e.lng }
+    return null
+  }
+
+  const doPlan = async () => {
+    setPlanning(true)
+    setPlanErr(null)
+    setResults(null)
+    try {
+      const [oc, dc] = await Promise.all([coordsOf(origin), coordsOf(dest)])
+      if (!oc || !dc) throw new Error('請先設定起點同終點')
+      const js = await planJourneys(oc, dc)
+      setResults(js)
+    } catch (e) {
+      setPlanErr(describeGeoError(e))
+    } finally {
+      setPlanning(false)
+    }
+  }
 
   const presetOf = (id: string) => places.find((p) => p.id === id)
 
@@ -107,20 +158,36 @@ export default function PlannerView() {
 
         <button
           className="primary-btn full"
-          disabled={!origin || !dest}
-          onClick={() => setPlanned(true)}
+          disabled={!origin || !dest || planning}
+          onClick={doPlan}
         >
-          🧭 搵最快路線
+          {planning ? '計緊…' : '🧭 搵最快路線'}
         </button>
       </div>
 
-      {planned && (
-        <div className="plan-soon">
-          🚧 行程計算演算法<strong>建構中</strong>(直達 + 轉乘 + 車費),好快推出。<br />
-          <span className="muted small">
-            而家已可設定起訖 + 喜好預設(家/公司);搵路線結果即將上線。
-          </span>
-        </div>
+      {planErr && <div className="error pad">⚠️ {planErr}</div>}
+      {results && results.length === 0 && !planning && (
+        <div className="muted pad">搵唔到合適方案(可試擴大附近範圍或揀近啲車站)。</div>
+      )}
+      {results && results.length > 0 && (
+        <>
+          <div className="section-title">{results.length} 個方案 · 估算時間排序</div>
+          {results.map((j, i) => (
+            <div key={i} className={`jcard ${i === 0 ? 'best' : ''}`}>
+              <div className="jhead">
+                {i === 0 && <span className="tagbest">最快</span>}
+                <span className="jtime">{j.mins}分</span>
+                <span className="jmeta">
+                  · {j.transfers === 0 ? '直達' : `${j.transfers} 次轉乘`}
+                </span>
+                {j.fare != null && <span className="jfare">${j.fare.toFixed(1)}</span>}
+              </div>
+              <div className="legs">{renderLegs(j.legs)}</div>
+              {j.fareNote && <div className="muted small" style={{ marginTop: 4 }}>{j.fareNote}</div>}
+            </div>
+          ))}
+          <div className="muted small pad">⚠️ 時間/車費為估算(無時刻表),僅供參考。八達通轉乘優惠未計。</div>
+        </>
       )}
 
       <div className="section-title" style={{ marginTop: 18 }}>喜好地點</div>
