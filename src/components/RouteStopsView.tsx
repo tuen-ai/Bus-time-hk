@@ -137,7 +137,7 @@ export default function RouteStopsView({
             const active = v.bound === route.bound && v.service_type === route.service_type
             return (
               <button
-                key={`${v.bound}|${v.service_type}`}
+                key={`${v.bound}|${v.service_type}|${v.uid ?? ''}`}
                 className={`variant-chip ${active ? 'on' : ''}`}
                 onClick={() => !active && onSwitch(v)}
               >

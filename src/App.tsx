@@ -195,9 +195,9 @@ export default function App() {
             )}
 
             <div className="route-results">
-              {matches.map((r) => (
+              {matches.map((r, i) => (
                 <button
-                  key={`${r.co}|${r.route}|${r.bound}|${r.service_type}`}
+                  key={`${r.co}|${r.route}|${r.bound}|${r.service_type}|${r.uid ?? ''}|${i}`}
                   className="route-card"
                   onClick={() => openRoute(r)}
                 >
