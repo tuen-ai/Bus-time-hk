@@ -20,6 +20,10 @@ export interface Leg {
   toName?: string
   nStops?: number
   mins: number
+  // ride leg 嘅完整 route key + 上車站(畀「開路線睇實時 ETA」用)
+  bound?: 'I' | 'O'
+  serviceType?: string
+  boardStopId?: string
 }
 export interface Journey {
   mins: number
@@ -40,9 +44,15 @@ function rideMins(r: PlanRoute, from: number, to: number): number {
 interface ReachA { ri: number; bSeq: number; xSeq: number; wO: number; t: number }
 interface ReachB { ri: number; ySeq: number; aSeq: number; wD: number; t: number }
 
+export interface PlanOptions {
+  /** 只要直達方案(站間直達搜尋) */
+  directOnly?: boolean
+}
+
 export async function planJourneys(
   o: { lat: number; lng: number },
   d: { lat: number; lng: number },
+  opts: PlanOptions = {},
 ): Promise<Journey[]> {
   const ix = await loadGraph()
   const oStops = nearStops(ix, o.lat, o.lng, NEAR_M, MAX_NEAR)
@@ -78,6 +88,7 @@ export async function planJourneys(
   }
 
   // ---- 1 轉乘 ----
+  if (!opts.directOnly) {
   const reachA = buildReachA(ix, oStops)
   const reachB = buildReachB(ix, dStops, dDist)
   // 將 reachB 站建 grid 以便就近匹配
@@ -125,9 +136,12 @@ export async function planJourneys(
       }
     }
   }
+  }
 
   // 去重 + 排序 + 取頭幾個 + 計車費
-  const ranked = dedupe(out).sort((x, y) => x.mins - y.mins).slice(0, 6)
+  const ranked = dedupe(out)
+    .sort((x, y) => x.mins - y.mins)
+    .slice(0, opts.directOnly ? 10 : 6)
   await Promise.all(ranked.map((j) => fillFare(ix, j)))
   return ranked
 }
@@ -142,6 +156,9 @@ function ride1(ix: Indexed, r: PlanRoute, from: number, to: number, mins: number
     toName: name(ix, r.st[to]),
     nStops: to - from,
     mins,
+    bound: r.b,
+    serviceType: r.s,
+    boardStopId: r.st[from],
   }
 }
 const name = (ix: Indexed, id: string) => ix.graph.stops[id]?.[2] ?? id
@@ -202,8 +219,14 @@ async function fillFare(ix: Indexed, j: Journey): Promise<void> {
   let unknown = false
   for (const leg of j.legs) {
     if (leg.kind !== 'ride' || !leg.co || !leg.route) continue
-    // 搵返該 ride 嘅 route 同 board seq
-    const r = ix.routeByIdx.find((x) => x.co === leg.co && x.r === leg.route)
+    // 搵返該 ride 嘅 route 同 board seq(有 bound/serviceType 就精確匹配)
+    const r = ix.routeByIdx.find(
+      (x) =>
+        x.co === leg.co &&
+        x.r === leg.route &&
+        (!leg.bound || x.b === leg.bound) &&
+        (!leg.serviceType || x.s === leg.serviceType),
+    )
     const fares =
       r && (r.co === 'kmb' || r.co === 'ctb') ? await getFares(r.co, r.r, r.b, r.s) : null
     const boardSeq = r ? r.st.findIndex((s) => name(ix, s) === leg.fromName) : -1

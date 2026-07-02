@@ -6,6 +6,8 @@ import RouteMap, { type MapStop } from './RouteMap'
 import { routeBadges } from '../lib/routeMeta'
 import { getFares, fmtFare } from '../lib/fares'
 import TrafficAlert from './TrafficAlert'
+import { getAlarm, startAlarm, stopAlarm, subscribeAlarm } from '../lib/alarm'
+import { primeAudio, askNotify } from '../lib/chime'
 
 interface StopRow {
   seq: string
@@ -36,6 +38,26 @@ export default function RouteStopsView({
   const [openStop, setOpenStop] = useState<string | null>(initialOpenStop ?? null)
   const [fares, setFares] = useState<number[] | null>(null)
   const [, setFavTick] = useState(0) // 撳收藏星後強制重繪(更新星標狀態)
+  const [alarmStopId, setAlarmStopId] = useState<string | null>(getAlarm()?.stopId ?? null)
+
+  useEffect(() => subscribeAlarm((a) => setAlarmStopId(a?.stopId ?? null)), [])
+
+  // 撳鐘仔:設/取消落車鬧鐘
+  const toggleAlarm = async (row: StopRow) => {
+    if (alarmStopId === row.stopId) {
+      stopAlarm()
+      return
+    }
+    primeAudio()
+    await askNotify()
+    startAlarm({
+      stopId: row.stopId,
+      stopName: row.name,
+      lat: row.lat,
+      lng: row.lng,
+      routeLabel: `${coLabel(route.co)} ${route.route}`,
+    })
+  }
 
   useEffect(() => {
     setFares(null)
@@ -176,6 +198,15 @@ export default function RouteStopsView({
                   <span className="stop-name">{row.name}</span>
                   {fare != null && <span className="fare-pill">{fmtFare(fare)}</span>}
                   <span className="chev">{open ? '▾' : '▸'}</span>
+                </button>
+                <button
+                  className={`bell ${alarmStopId === row.stopId ? 'on' : ''}`}
+                  aria-label={alarmStopId === row.stopId ? '取消落車提醒' : '設落車提醒'}
+                  aria-pressed={alarmStopId === row.stopId}
+                  title="接近呢個站時震動+響鈴提醒落車"
+                  onClick={() => void toggleAlarm(row)}
+                >
+                  🔔
                 </button>
                 <button
                   className={`star ${faved ? 'on' : ''}`}

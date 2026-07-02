@@ -33,6 +33,11 @@ jobs:
         run: node scripts/fetch-geometry.mjs
         continue-on-error: true
 
+      # 預先抓取交通速度圖 link 幾何到 public/tsm;失敗不致命(前端自動隱藏路況圖)
+      - name: Bake TSM traffic links
+        run: node scripts/fetch-tsm.mjs
+        continue-on-error: true
+
       - run: npm run build
 
       # 自動啟用 Pages(若尚未啟用)

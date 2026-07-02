@@ -1,5 +1,8 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { getWeather, type Weather } from '../api/weather'
+
+// 面板連 Leaflet 地圖 —— 撳開先載入
+const WeatherPanel = lazy(() => import('./WeatherPanel'))
 
 // 暴雨/颱風等警告用代碼前綴判斷顏色
 function warnClass(code: string): string {
@@ -13,6 +16,7 @@ function warnClass(code: string): string {
 
 export default function WeatherBanner() {
   const [w, setW] = useState<Weather | null>(null)
+  const [open, setOpen] = useState(false)
 
   useEffect(() => {
     getWeather()
@@ -25,14 +29,29 @@ export default function WeatherBanner() {
   if (!hasWarn && w.tempC == null) return null
 
   return (
-    <div className={`weather-bar ${hasWarn ? 'has-warn' : ''}`}>
-      {w.tempC != null && <span className="wx-temp">🌡 {Math.round(w.tempC)}°</span>}
-      {w.warnings.map((warn) => (
-        <span key={warn.code} className={`wx-warn ${warnClass(warn.code)}`}>
-          ⚠️ {warn.name}
+    <>
+      <button
+        className={`weather-bar ${hasWarn ? 'has-warn' : ''}`}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {w.tempC != null && <span className="wx-temp">🌡 {Math.round(w.tempC)}°</span>}
+        {w.humidity != null && <span className="muted small">💧{Math.round(w.humidity)}%</span>}
+        {w.warnings.map((warn) => (
+          <span key={warn.code} className={`wx-warn ${warnClass(warn.code)}`}>
+            ⚠️ {warn.name}
+          </span>
+        ))}
+        {!hasWarn && <span className="muted small">天氣正常</span>}
+        <span className="wx-more">
+          🚦 路況 {open ? '▴' : '▾'}
         </span>
-      ))}
-      {!hasWarn && <span className="muted small">天氣正常</span>}
-    </div>
+      </button>
+      {open && (
+        <Suspense fallback={<div className="muted small" style={{ padding: '8px 14px' }}>載入…</div>}>
+          <WeatherPanel w={w} />
+        </Suspense>
+      )}
+    </>
   )
 }

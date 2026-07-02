@@ -9,22 +9,56 @@ import {
   type SavedPlace,
 } from '../lib/places'
 import { MascotWelcome } from './Mascots'
+import { leaveAtFor, setReminder, fmtClock } from '../lib/reminder'
+import { primeAudio, askNotify } from '../lib/chime'
 
 const LEG_COLOR: Record<string, string> = {
   kmb: '#c8102e', ctb: '#0e7490', nlb: '#00857c', gmb: '#167a3a', lightRail: '#7d3c98',
 }
 
-function renderLegs(legs: Leg[]) {
+/** planner ride leg → 開返路線頁(實時 ETA)用嘅 key */
+export interface LegRouteKey {
+  co: string
+  route: string
+  bound: 'I' | 'O'
+  serviceType: string
+  boardStopId?: string
+  dest?: string
+}
+
+interface Props {
+  onOpenLeg?: (k: LegRouteKey) => void
+}
+
+function renderLegs(legs: Leg[], onOpenLeg?: (k: LegRouteKey) => void) {
   const items: ReactNode[] = []
   legs.forEach((l, i) => {
     if (i > 0) items.push(<span key={`a${i}`} className="arrow">›</span>)
     if (l.kind === 'walk') {
       items.push(<span key={i} className="leg-walk">🚶{l.mins}分</span>)
     } else {
+      const clickable = onOpenLeg && l.co && l.route && l.bound && l.serviceType
       items.push(
-        <span key={i} className="leg-badge" style={{ background: LEG_COLOR[l.co ?? ''] ?? '#666' }}>
+        <button
+          key={i}
+          className={`leg-badge ${clickable ? 'tappable' : ''}`}
+          style={{ background: LEG_COLOR[l.co ?? ''] ?? '#666' }}
+          disabled={!clickable}
+          title={clickable ? '撳一下睇實時到站' : undefined}
+          onClick={() =>
+            clickable &&
+            onOpenLeg!({
+              co: l.co!,
+              route: l.route!,
+              bound: l.bound!,
+              serviceType: l.serviceType!,
+              boardStopId: l.boardStopId,
+              dest: l.dest,
+            })
+          }
+        >
           {l.route}
-        </span>,
+        </button>,
       )
       if (l.nStops) items.push(<span key={`n${i}`} className="leg-n">{l.nStops}站</span>)
     }
@@ -46,7 +80,7 @@ function epLabel(e: Endpoint): string {
   return ''
 }
 
-export default function PlannerView() {
+export default function PlannerView({ onOpenLeg }: Props) {
   const [origin, setOrigin] = useState<Endpoint>('mylocation')
   const [dest, setDest] = useState<Endpoint>(null)
   const [picking, setPicking] = useState<Picking>(null)
@@ -54,6 +88,9 @@ export default function PlannerView() {
   const [results, setResults] = useState<Journey[] | null>(null)
   const [planning, setPlanning] = useState(false)
   const [planErr, setPlanErr] = useState<string | null>(null)
+  const [directOnly, setDirectOnly] = useState(false)
+  const [arriveBy, setArriveBy] = useState('') // "HH:MM";空 = 冇設
+  const [remindSet, setRemindSet] = useState<number | null>(null) // 已設提醒嘅方案 index
 
   const coordsOf = async (e: Endpoint): Promise<{ lat: number; lng: number } | null> => {
     if (e === 'mylocation') {
@@ -64,14 +101,15 @@ export default function PlannerView() {
     return null
   }
 
-  const doPlan = async () => {
+  const doPlan = async (dOnly = directOnly) => {
     setPlanning(true)
     setPlanErr(null)
     setResults(null)
+    setRemindSet(null)
     try {
       const [oc, dc] = await Promise.all([coordsOf(origin), coordsOf(dest)])
       if (!oc || !dc) throw new Error('請先設定起點同終點')
-      const js = await planJourneys(oc, dc)
+      const js = await planJourneys(oc, dc, { directOnly: dOnly })
       setResults(js)
     } catch (e) {
       setPlanErr(describeGeoError(e))
@@ -125,6 +163,20 @@ export default function PlannerView() {
     setDest(origin)
   }
 
+  const destLabel = epLabel(dest) || '目的地'
+
+  // 設「夠鐘出門」提醒
+  const remindLeave = async (j: Journey, idx: number) => {
+    const at = leaveAtFor(arriveBy, j.mins)
+    if (at == null) return
+    primeAudio()
+    await askNotify()
+    setReminder({ at, destLabel, journeyMins: j.mins, arriveBy })
+    setRemindSet(idx)
+  }
+
+  const shown = results && directOnly ? results.filter((j) => j.transfers === 0) : results
+
   return (
     <div>
       <div className="plan-card">
@@ -155,12 +207,38 @@ export default function PlannerView() {
               {d.icon} {presetOf(d.id) ? d.label : `設定${d.label}`}
             </button>
           ))}
+          <button
+            className={`preset-chip ${directOnly ? 'on' : ''}`}
+            aria-pressed={directOnly}
+            onClick={() => {
+              const v = !directOnly
+              setDirectOnly(v)
+              if (results) void doPlan(v) // 已有結果就即刻重計
+            }}
+          >
+            🚌 只睇直達
+          </button>
+        </div>
+
+        <div className="arrive-row">
+          <label htmlFor="arriveBy">⏰ 幾點前要到?</label>
+          <input
+            id="arriveBy"
+            type="time"
+            value={arriveBy}
+            onChange={(e) => setArriveBy(e.target.value)}
+          />
+          {arriveBy && (
+            <button className="fb-x" onClick={() => setArriveBy('')} aria-label="清除時間">
+              ✕
+            </button>
+          )}
         </div>
 
         <button
           className="primary-btn full"
           disabled={!origin || !dest || planning}
-          onClick={doPlan}
+          onClick={() => void doPlan()}
         >
           {planning ? '計緊…' : '🧭 搵最快路線'}
         </button>
@@ -171,27 +249,56 @@ export default function PlannerView() {
       )}
 
       {planErr && <div className="error pad">⚠️ {planErr}</div>}
-      {results && results.length === 0 && !planning && (
-        <div className="muted pad">搵唔到合適方案(可試擴大附近範圍或揀近啲車站)。</div>
+      {shown && shown.length === 0 && !planning && (
+        <div className="muted pad">
+          {directOnly ? '冇直達方案,試下關「只睇直達」。' : '搵唔到合適方案(可試擴大附近範圍或揀近啲車站)。'}
+        </div>
       )}
-      {results && results.length > 0 && (
+      {shown && shown.length > 0 && (
         <>
-          <div className="section-title">{results.length} 個方案 · 估算時間排序</div>
-          {results.map((j, i) => (
-            <div key={i} className={`jcard ${i === 0 ? 'best' : ''}`}>
-              <div className="jhead">
-                {i === 0 && <span className="tagbest">最快</span>}
-                <span className="jtime">{j.mins}分</span>
-                <span className="jmeta">
-                  · {j.transfers === 0 ? '直達' : `${j.transfers} 次轉乘`}
-                </span>
-                {j.fare != null && <span className="jfare">${j.fare.toFixed(1)}</span>}
+          <div className="section-title">
+            {shown.length} 個方案 · {directOnly ? '直達優先' : '估算時間排序'}
+          </div>
+          {shown.map((j, i) => {
+            const leaveAt = arriveBy ? leaveAtFor(arriveBy, j.mins) : null
+            const missed = leaveAt != null && leaveAt <= Date.now()
+            return (
+              <div key={i} className={`jcard ${i === 0 ? 'best' : ''}`}>
+                <div className="jhead">
+                  {i === 0 && <span className="tagbest">💖 最快</span>}
+                  <span className="jtime">{j.mins}分</span>
+                  <span className="jmeta">
+                    · {j.transfers === 0 ? '直達' : `${j.transfers} 次轉乘`}
+                  </span>
+                  {j.fare != null && <span className="jfare">${j.fare.toFixed(1)}</span>}
+                </div>
+                <div className="legs">{renderLegs(j.legs, onOpenLeg)}</div>
+                {leaveAt != null && (
+                  <div className={`leaveby ${missed ? 'missed' : ''}`}>
+                    {missed ? (
+                      <>⚠️ 想 {arriveBy} 前到就已經過咗最遲出門時間喇</>
+                    ) : (
+                      <>
+                        🏠 最遲 <b>{fmtClock(leaveAt)}</b> 出門
+                        {remindSet === i ? (
+                          <span className="remind-ok">✓ 已設提醒</span>
+                        ) : (
+                          <button className="remind-btn" onClick={() => void remindLeave(j, i)}>
+                            ⏰ 夠鐘提我
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+                {j.fareNote && <div className="muted small" style={{ marginTop: 4 }}>{j.fareNote}</div>}
               </div>
-              <div className="legs">{renderLegs(j.legs)}</div>
-              {j.fareNote && <div className="muted small" style={{ marginTop: 4 }}>{j.fareNote}</div>}
-            </div>
-          ))}
-          <div className="muted small pad">⚠️ 時間/車費為估算(無時刻表),僅供參考。八達通轉乘優惠未計。</div>
+            )
+          })}
+          <div className="muted small pad">
+            ⚠️ 時間/車費為估算(無時刻表),僅供參考。八達通轉乘優惠未計。撳路線號可以睇實時到站。
+            出門提醒要 app 開住先響。
+          </div>
         </>
       )}
 

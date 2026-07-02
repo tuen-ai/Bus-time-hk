@@ -10,6 +10,7 @@ export interface Warning {
 
 export interface Weather {
   tempC: number | null
+  humidity: number | null
   warnings: Warning[]
   /** 分區過去一小時雨量(mm),key = HKO 分區名 */
   rainfall: Record<string, number>
@@ -31,6 +32,7 @@ export async function getWeather(): Promise<Weather> {
   type WarnSum = Record<string, { name?: string; code?: string; actionCode?: string }>
   type Current = {
     temperature?: { data?: { place: string; value: number }[] }
+    humidity?: { data?: { place: string; value: number }[] }
     rainfall?: { data?: { place: string; max?: number; unit?: string }[] }
   }
   const [warn, current] = await Promise.all([
@@ -45,13 +47,14 @@ export async function getWeather(): Promise<Weather> {
   const temps = current.temperature?.data ?? []
   const hko = temps.find((t) => t.place === '香港天文台')
   const tempC = hko?.value ?? temps[0]?.value ?? null
+  const humidity = current.humidity?.data?.[0]?.value ?? null
 
   const rainfall: Record<string, number> = {}
   for (const r of current.rainfall?.data ?? []) {
     rainfall[r.place] = r.max ?? 0
   }
 
-  const data: Weather = { tempC, warnings, rainfall, updatedAt: Date.now() }
+  const data: Weather = { tempC, humidity, warnings, rainfall, updatedAt: Date.now() }
   cache = { ts: Date.now(), data }
   return data
 }

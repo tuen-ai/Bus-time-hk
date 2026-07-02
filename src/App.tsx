@@ -4,8 +4,9 @@ import Favorites from './components/Favorites'
 import RouteStopsView from './components/RouteStopsView'
 import MtrView from './components/MtrView'
 import NearbyView from './components/NearbyView'
-import PlannerView from './components/PlannerView'
+import PlannerView, { type LegRouteKey } from './components/PlannerView'
 import WeatherBanner from './components/WeatherBanner'
+import AlertBanners from './components/AlertBanners'
 import { PandaLogo, MascotWelcome } from './components/Mascots'
 import type { NearbyRow } from './lib/nearby'
 import { routeBadges } from './lib/routeMeta'
@@ -41,6 +42,24 @@ export default function App() {
       setTab('search')
       openRoute(r, row.stopId)
     }
+  }
+
+  // 規劃方案 ride leg → 開返對應路線(planGraph co 名 lightRail ↔ app lrt)
+  const openLeg = (k: LegRouteKey) => {
+    const co = k.co === 'lightRail' ? 'lrt' : k.co
+    const cands = routes.filter(
+      (x) =>
+        x.co === co &&
+        x.route === k.route &&
+        x.bound === k.bound &&
+        x.service_type === k.serviceType,
+    )
+    // GMB 同號跨區可能多個 → 用目的地名 tiebreak
+    const r =
+      cands.length > 1 && k.dest
+        ? cands.find((x) => x.dest_tc === k.dest) ?? cands[0]
+        : cands[0]
+    if (r) openRoute(r, k.boardStopId)
   }
 
   const openFavorite = (f: Favorite) => {
@@ -161,7 +180,7 @@ export default function App() {
         ) : tab === 'mtr' ? (
           <MtrView />
         ) : tab === 'plan' ? (
-          <PlannerView />
+          <PlannerView onOpenLeg={openLeg} />
         ) : (
           <>
             <div className="co-filter">
@@ -239,6 +258,8 @@ export default function App() {
           </>
         )}
       </main>
+
+      <AlertBanners />
 
       <footer className="footer">
         到站資料:運輸署 / 九巴 ·{' '}
