@@ -75,7 +75,14 @@ export function linksFromPdfText(text) {
     ]
     n++
   }
-  if (n < 50) throw new Error(`PDF 只解析到 ${n} 條 link`)
+  if (n < 50) {
+    // debug:印出中段文字樣本,方便由 CI log 診斷真實格式
+    const ls = text.split(/\r?\n/).filter((l) => l.trim())
+    const mid = Math.floor(ls.length / 2)
+    console.log(`  [debug] PDF 文字共 ${ls.length} 行,中段樣本:`)
+    for (const l of ls.slice(mid, mid + 25)) console.log(`  | ${l.slice(0, 140)}`)
+    throw new Error(`PDF 只解析到 ${n} 條 link`)
+  }
   return out
 }
 
