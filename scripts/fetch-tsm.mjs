@@ -29,12 +29,20 @@ const HK80 =
   '+towgs84=-162.619,-276.959,-161.764,0.067753,-2.24365,-1.15883,-1.09425 +units=m +no_defs'
 const toWgs = proj4(HK80, proj4.WGS84)
 
-async function get(url) {
+// CSDI WAF 對非瀏覽器 UA 嘅 /query 會 403 —— 扮瀏覽器 + 帶 Referer
+const BROWSER_HEADERS = {
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
+  Accept: 'application/json,*/*',
+  Referer: 'https://portal.csdi.gov.hk/',
+}
+
+async function get(url, browserish = false) {
   const res = await fetch(url, {
     signal: AbortSignal.timeout(60000),
-    headers: { 'User-Agent': 'kkcx-build/1.0' },
+    headers: browserish ? BROWSER_HEADERS : { 'User-Agent': 'kkcx-build/1.0' },
   })
-  if (!res.ok) throw new Error(`${res.status} ${url}`)
+  if (!res.ok) throw new Error(`${res.status} ${url.slice(0, 120)}`)
   return res.text()
 }
 
@@ -105,56 +113,97 @@ async function findLayer() {
   throw new Error('搵唔到有 ROUTE_ID 嘅 Polyline layer')
 }
 
-/** 批量 query 幾何(f=geojson,outSR=4326) */
-async function queryGeometries(ids, layerId, idField) {
+/** GeoJSON / esriJSON feature → [id, path] */
+function featureToLink(f, idField) {
+  const props = f?.properties ?? f?.attributes ?? {}
+  const id = String(props[idField] ?? props[idField.toLowerCase()] ?? props[idField.toUpperCase()] ?? '').trim()
+  if (!id) return null
+  const g = f?.geometry
+  let coords = null
+  if (g?.type === 'LineString') coords = g.coordinates
+  else if (g?.type === 'MultiLineString') coords = g.coordinates.flat()
+  else if (g?.paths?.length) coords = g.paths.flat() // esriJSON polyline
+  if (!coords?.length) return null
+  const path = toPath(coords)
+  return path ? [id, path] : null
+}
+
+/** 批量 query 幾何(f=geojson → f=json 後備,扮瀏覽器 headers) */
+async function queryGeometries(serviceUrl, ids, layerId, idField) {
   const links = {}
   let matched = 0
+  let hardFail = 0
   for (let i = 0; i < ids.length; i += BATCH) {
     const batch = ids.slice(i, i + BATCH)
-    // ROUTE_ID 可能係數字/文字 —— 試 raw,唔得就加引號
-    const mk = (quoted) =>
-      `${CSDI_SERVICE}/${layerId}/query?where=${encodeURIComponent(
+    const mk = (fmt, quoted) =>
+      `${serviceUrl}/${layerId}/query?where=${encodeURIComponent(
         `${idField} IN (${batch.map((v) => (quoted ? `'${v}'` : v)).join(',')})`,
-      )}&outFields=${idField}&returnGeometry=true&outSR=4326&f=geojson`
-    let gj = null
-    for (const quoted of [false, true]) {
+      )}&outFields=${idField}&returnGeometry=true&outSR=4326&f=${fmt}`
+    let feats = null
+    let lastErr = ''
+    for (const [fmt, quoted] of [['geojson', false], ['json', false], ['json', true]]) {
       try {
-        const j = JSON.parse(await get(mk(quoted)))
+        const j = JSON.parse(await get(mk(fmt, quoted), true))
+        if (j?.error) throw new Error(JSON.stringify(j.error).slice(0, 160))
         if (j?.features) {
-          gj = j
+          feats = j.features
           break
         }
-        if (j?.error) throw new Error(JSON.stringify(j.error).slice(0, 160))
       } catch (e) {
-        if (quoted) console.log(`  batch ${i / BATCH} 失敗:${e.message}`)
+        lastErr = e.message
       }
     }
-    if (!gj) continue
-    for (const f of gj.features) {
-      const id = String(f?.properties?.[idField] ?? f?.properties?.[idField.toLowerCase()] ?? '').trim()
-      if (!id) continue
-      const g = f.geometry
-      let coords = null
-      if (g?.type === 'LineString') coords = g.coordinates
-      else if (g?.type === 'MultiLineString') coords = g.coordinates.flat()
-      if (!coords?.length) continue
-      const path = toPath(coords)
-      if (!path) continue
-      links[id] = path
+    if (!feats) {
+      hardFail++
+      if (hardFail <= 2) console.log(`  batch ${i / BATCH} 失敗:${lastErr}`)
+      if (hardFail >= 3 && matched === 0) throw new Error(`query 連續失敗(${lastErr})`)
+      continue
+    }
+    for (const f of feats) {
+      const r = featureToLink(f, idField)
+      if (!r) continue
+      links[r[0]] = r[1]
       matched++
     }
-    if (i % (BATCH * 5) === 0) console.log(`  進度 ${Math.min(i + BATCH, ids.length)}/${ids.length},已對到 ${matched}`)
+    if (i % (BATCH * 10) === 0) console.log(`  進度 ${Math.min(i + BATCH, ids.length)}/${ids.length},已對到 ${matched}`)
   }
   return links
+}
+
+/** 後備:esrichina ArcGIS Hub 嘅香港道路網鏡像(FeatureServer 開放 query) */
+async function esriHubFallback(ids) {
+  const HUB = 'https://opendata.arcgis.com/api/v3/datasets/188a2dfc78bd44d19fa99edfe87b20e7'
+  const meta = JSON.parse(await get(HUB, true))
+  const url = meta?.data?.attributes?.url ?? meta?.data?.attributes?.serviceUrl
+  if (!url) throw new Error('Hub metadata 冇 service url')
+  console.log(`Hub 服務:${url}`)
+  const base = url.replace(/\/(\d+)\/?$/, '')
+  const layerId = /\/(\d+)\/?$/.exec(url)?.[1] ?? '0'
+  // 攞 layer fields 搵 ROUTE_ID
+  const info = JSON.parse(await get(`${base}/${layerId}?f=pjson`, true))
+  const idField = (info?.fields ?? []).map((f) => f.name).find((n) => /^route.?_?id$/i.test(n))
+  if (!idField) throw new Error(`Hub layer 冇 ROUTE_ID(fields: ${(info?.fields ?? []).map((f) => f.name).slice(0, 10).join(',')})`)
+  return queryGeometries(base, ids, layerId, idField)
 }
 
 async function main() {
   try {
     const ids = segmentIdsFromCsv(await get(SEGMENTS_CSV))
     console.log(`路段清單:${ids.length} 個 irn_id(樣本:${ids.slice(0, 5).join(', ')})`)
-    const { layerId, idField } = await findLayer()
-    console.log(`用 layer ${layerId},id 欄 ${idField}`)
-    const links = await queryGeometries(ids, layerId, idField)
+    let links = null
+    // 1) CSDI 官方
+    try {
+      const { layerId, idField } = await findLayer()
+      console.log(`用 CSDI layer ${layerId},id 欄 ${idField}`)
+      links = await queryGeometries(CSDI_SERVICE, ids, layerId, idField)
+    } catch (e) {
+      console.log(`CSDI 失敗:${e.message}`)
+    }
+    // 2) esrichina Hub 鏡像後備
+    if (!links || Object.keys(links).length < 50) {
+      console.log('轉用 ArcGIS Hub 鏡像…')
+      links = await esriHubFallback(ids)
+    }
     const n = Object.keys(links).length
     if (n < 50) throw new Error(`只對到 ${n} 條 segment 幾何`)
     mkdirSync(OUT_DIR, { recursive: true })
