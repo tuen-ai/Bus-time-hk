@@ -6,7 +6,10 @@
 //   - 路段清單: static.data.gov.hk/td/traffic-data-strategic-major-roads/info/speed_segments_info.csv(irn_id)
 //   - 路段幾何: CSDI「Road Network (2nd Gen)」CENTERLINE(ArcGIS REST,ROUTE_ID = segment_id)
 // ⚠️ fail-soft:任何失敗只 log 唔 throw(exit 0),前端見唔到檔案就自動隱藏路況圖。
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { createWriteStream, createReadStream, mkdirSync, writeFileSync, readdirSync, statSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
+import { Readable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import proj4 from 'proj4'
@@ -170,40 +173,144 @@ async function queryGeometries(serviceUrl, ids, layerId, idField) {
   return links
 }
 
-/** 後備:esrichina ArcGIS Hub 嘅香港道路網鏡像(FeatureServer 開放 query) */
-async function esriHubFallback(ids) {
-  const HUB = 'https://opendata.arcgis.com/api/v3/datasets/188a2dfc78bd44d19fa99edfe87b20e7'
-  const meta = JSON.parse(await get(HUB, true))
-  const url = meta?.data?.attributes?.url ?? meta?.data?.attributes?.serviceUrl
-  if (!url) throw new Error('Hub metadata 冇 service url')
-  console.log(`Hub 服務:${url}`)
-  const base = url.replace(/\/(\d+)\/?$/, '')
-  const layerId = /\/(\d+)\/?$/.exec(url)?.[1] ?? '0'
-  // 攞 layer fields 搵 ROUTE_ID
-  const info = JSON.parse(await get(`${base}/${layerId}?f=pjson`, true))
-  const idField = (info?.fields ?? []).map((f) => f.name).find((n) => /^route.?_?id$/i.test(n))
-  if (!idField) throw new Error(`Hub layer 冇 ROUTE_ID(fields: ${(info?.fields ?? []).map((f) => f.name).slice(0, 10).join(',')})`)
-  return queryGeometries(base, ids, layerId, idField)
+// ---- 後備:Road Network (2nd Gen) GML/KML 靜態包(static.data.gov.hk,無 WAF)----
+
+/** CKAN 搵 Road Network v2 嘅 GML/KML zip URL */
+async function findRoadNetZip() {
+  const j = JSON.parse(
+    await get('https://data.gov.hk/en-data/api/3/action/package_show?id=hk-td-tis_15-road-network-v2'),
+  )
+  const rs = j?.result?.resources ?? []
+  console.log(`CKAN road-network-v2 resources(${rs.length}):`)
+  for (const r of rs) console.log(` - [${r.format}] ${r.name ?? ''} ${r.url}`)
+  // 優先 GML,其次 KML(兩者都係文字,可以 stream 過濾)
+  const pick =
+    rs.find((r) => /gml/i.test(`${r.format} ${r.url}`)) ??
+    rs.find((r) => /kml|kmz/i.test(`${r.format} ${r.url}`))
+  if (!pick) throw new Error('搵唔到 GML/KML 資源')
+  return pick.url
+}
+
+async function download(url, dest) {
+  const res = await fetch(url, { signal: AbortSignal.timeout(600000), headers: { 'User-Agent': 'kkcx-build/1.0' } })
+  if (!res.ok) throw new Error(`${res.status} ${url}`)
+  await new Promise((resolve, reject) => {
+    const ws = createWriteStream(dest)
+    Readable.fromWeb(res.body).pipe(ws).on('finish', resolve).on('error', reject)
+  })
+  console.log(`  已下載 ${(statSync(dest).size / 1048576).toFixed(1)}MB`)
+}
+
+function walkFiles(dir) {
+  const out = []
+  for (const f of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, f.name)
+    if (f.isDirectory()) out.push(...walkFiles(p))
+    else out.push(p)
+  }
+  return out
+}
+
+/**
+ * Stream 過濾大型 GML/KML:逐 feature 塊收集 ROUTE_ID + raw 座標(未轉軸)。
+ * GML posList(HK1980)軸序可能係 E,N 或官方 N,E —— E/N 數值範圍重疊,
+ * 單一 feature 判斷唔到,所以先收集晒,再由 finalizeLinks 全體投票決定。
+ * GML2 <coordinates> 規範係 x,y(E,N);KML <coordinates> 係 lng,lat —— 冇歧義。
+ */
+export function extractFromMarkup(buffer, wanted, raw) {
+  // 以 feature 結尾 tag 分塊(featureMember / member / Placemark)
+  const parts = buffer.split(/<\/(?:gml:featureMember|wfs:member|member|Placemark)>/)
+  const rest = parts.pop() ?? ''
+  for (const block of parts) {
+    const idm = /ROUTE_ID[^>]*>\s*(\d+)\s*</i.exec(block)
+    if (!idm || !wanted.has(idm[1])) continue
+    const pos = /<[^>]*posList([^>]*)>([\d\s.eE+-]+)</.exec(block)
+    if (pos) {
+      const dim = /srsDimension\s*=\s*"?(\d)/.exec(pos[1])?.[1] === '3' ? 3 : 2
+      const nums = pos[2].trim().split(/\s+/).map(Number)
+      const pairs = []
+      for (let i = 0; i + 1 < nums.length; i += dim) pairs.push([nums[i], nums[i + 1]])
+      if (pairs.length >= 2) raw.set(idm[1], { pairs, posList: true })
+      continue
+    }
+    const co = /<[^>]*coordinates[^>]*>([\d\s.,eE+-]+)</.exec(block)
+    if (co) {
+      const pairs = co[1].trim().split(/\s+/).map((p) => p.split(',').slice(0, 2).map(Number))
+      if (pairs.length >= 2) raw.set(idm[1], { pairs, posList: false })
+    }
+  }
+  return rest
+}
+
+/** 全體投票決定 posList 軸序,再轉晒做 [[lat,lng],...] */
+export function finalizeLinks(raw) {
+  let xy = 0
+  let yx = 0
+  for (const { pairs, posList } of raw.values()) {
+    if (!posList) continue
+    const [a, b] = pairs[0]
+    if (toLatLng(a, b)) xy++
+    if (toLatLng(b, a)) yx++
+  }
+  // 正確軸序應該幾乎全中;錯嗰邊只會部分中
+  const swap = yx > xy
+  if (xy || yx) console.log(`  [axis] posList 軸序投票 E,N=${xy} N,E=${yx} → 用 ${swap ? 'N,E(對調)' : 'E,N'}`)
+  const links = {}
+  for (const [id, { pairs, posList }] of raw) {
+    const coords = posList && swap ? pairs.map(([a, b]) => [b, a]) : pairs
+    const path = toPath(coords)
+    if (path) links[id] = path
+  }
+  return links
+}
+
+async function roadNetFallback(idList) {
+  const wanted = new Set(idList)
+  const url = await findRoadNetZip()
+  const tmp = join(tmpdir(), 'roadnet')
+  mkdirSync(tmp, { recursive: true })
+  const zipPath = join(tmp, 'roadnet.zip')
+  console.log(`下載 ${url} …`)
+  await download(url, zipPath)
+  const un = spawnSync('unzip', ['-o', '-q', zipPath, '-d', tmp], { stdio: 'inherit' })
+  if (un.status !== 0) throw new Error('unzip 失敗')
+  const files = walkFiles(tmp).filter((f) => /\.(gml|kml|xml)$/i.test(f) && !/\.zip$/i.test(f))
+  console.log(`解壓檔案:${files.map((f) => `${f.split('/').pop()}(${(statSync(f).size / 1048576).toFixed(0)}MB)`).join(', ')}`)
+  // 優先包含 CENTERLINE 字眼嘅檔
+  files.sort((a, b) => (/centre?line/i.test(b) ? 1 : 0) - (/centre?line/i.test(a) ? 1 : 0))
+  const raw = new Map() // id → { pairs, posList }(raw 座標,最後先定軸序)
+  for (const f of files) {
+    await new Promise((resolve, reject) => {
+      let buf = ''
+      let sampled = false
+      const rs = createReadStream(f, { encoding: 'utf8', highWaterMark: 1 << 20 })
+      rs.on('data', (chunk) => {
+        buf += chunk
+        if (!sampled && buf.length > 4000) {
+          sampled = true
+          if (!/ROUTE_ID/i.test(buf)) console.log(`  [debug] ${f.split('/').pop()} 頭段:${buf.slice(0, 700).replace(/\s+/g, ' ')}`)
+        }
+        if (buf.length > 8 << 20) buf = extractFromMarkup(buf, wanted, raw)
+      })
+      rs.on('end', () => {
+        extractFromMarkup(buf, wanted, raw)
+        resolve()
+      })
+      rs.on('error', reject)
+    })
+    console.log(`  ${f.split('/').pop()} → 累計對到 ${raw.size}`)
+    if (raw.size >= wanted.size * 0.5) break // 夠一半就收工
+  }
+  return finalizeLinks(raw)
 }
 
 async function main() {
   try {
     const ids = segmentIdsFromCsv(await get(SEGMENTS_CSV))
     console.log(`路段清單:${ids.length} 個 irn_id(樣本:${ids.slice(0, 5).join(', ')})`)
-    let links = null
-    // 1) CSDI 官方
-    try {
-      const { layerId, idField } = await findLayer()
-      console.log(`用 CSDI layer ${layerId},id 欄 ${idField}`)
-      links = await queryGeometries(CSDI_SERVICE, ids, layerId, idField)
-    } catch (e) {
-      console.log(`CSDI 失敗:${e.message}`)
-    }
-    // 2) esrichina Hub 鏡像後備
-    if (!links || Object.keys(links).length < 50) {
-      console.log('轉用 ArcGIS Hub 鏡像…')
-      links = await esriHubFallback(ids)
-    }
+    // CSDI /query 對 datacenter IP 一律 403(已試瀏覽器 headers)——
+    // 直接用 static.data.gov.hk 嘅 Road Network (2nd Gen) GML/KML 包過濾
+    const links = await roadNetFallback(ids)
     const n = Object.keys(links).length
     if (n < 50) throw new Error(`只對到 ${n} 條 segment 幾何`)
     mkdirSync(OUT_DIR, { recursive: true })
