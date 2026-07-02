@@ -19,11 +19,12 @@ const HK80 =
 const toWgs = proj4(HK80, proj4.WGS84)
 
 // CKAN dataset id(自動發現資源 URL)+ 已知直接 URL 後備
+// 主來源:tsm_dataspec.pdf —— link 座標表(HK1980)就係擺喺 spec PDF 入面
 const CKAN = 'https://data.gov.hk/en-data/api/3/action/package_show?id=hk-td-sm_1-traffic-speed-map'
 const FALLBACK_URLS = [
+  'https://static.data.gov.hk/td/traffic-speed-map/en/tsm_dataspec.pdf',
+  'https://static.data.gov.hk/td/traffic-speed-map/tc/tsm_dataspec.pdf',
   'https://static.data.gov.hk/td/traffic-speed-map/en/tsm_link_and_node_info_v2.xlsx',
-  'https://static.data.gov.hk/td/traffic-speed-map/en/tsm_link_and_node_info.xlsx',
-  'https://static.data.gov.hk/td/traffic-speed-map/tc/tsm_link_and_node_info_v2.xlsx',
 ]
 
 async function get(url, asBuffer = false) {
@@ -38,17 +39,44 @@ async function get(url, asBuffer = false) {
 /** 由 CKAN 資源列表搵 link/node 座標檔 */
 async function discoverUrls() {
   try {
-    const j = JSON.parse(await get(CKAN))
+    const text = await get(CKAN)
+    const j = JSON.parse(text)
     const resources = j?.result?.resources ?? []
-    console.log('CKAN resources:')
+    console.log(`CKAN resources(${resources.length}):`)
     for (const r of resources) console.log(` - [${r.format}] ${r.url}`)
+    if (!resources.length) console.log(`  (raw: ${text.slice(0, 400)})`)
     return resources
-      .filter((r) => /link|node/i.test(`${r.name} ${r.url}`) && /xlsx|csv/i.test(`${r.format} ${r.url}`))
+      .filter((r) => /link|node|spec/i.test(`${r.name} ${r.url}`) && /xlsx|csv|pdf/i.test(`${r.format} ${r.url}`))
       .map((r) => r.url)
   } catch (e) {
     console.log(`CKAN discover 失敗(${e.message}),用後備 URL`)
     return []
   }
+}
+
+/** PDF 文字 → links(逐行搵 LINK_ID + 4 個 HK1980 座標數字) */
+export function linksFromPdfText(text) {
+  const out = {}
+  let n = 0
+  for (const line of text.split(/\r?\n/)) {
+    const idm = /(\d{3,6}-\d{3,6})/.exec(line)
+    if (!idm) continue
+    // HK1980 E/N 都係 6 位數(約 80 萬),攞頭 4 個
+    const nums = (line.match(/\b\d{6}(?:\.\d+)?\b/g) ?? []).map(Number).filter((v) => v > 700000 && v < 900000)
+    if (nums.length < 4) continue
+    const [sx, sy, ex, ey] = nums
+    const [lng1, lat1] = toWgs.forward([sx, sy])
+    const [lng2, lat2] = toWgs.forward([ex, ey])
+    if (lat1 < 22 || lat1 > 22.7 || lng1 < 113.7 || lng1 > 114.5) continue
+    if (lat2 < 22 || lat2 > 22.7 || lng2 < 113.7 || lng2 > 114.5) continue
+    out[idm[1]] = [
+      [Number(lat1.toFixed(5)), Number(lng1.toFixed(5))],
+      [Number(lat2.toFixed(5)), Number(lng2.toFixed(5))],
+    ]
+    n++
+  }
+  if (n < 50) throw new Error(`PDF 只解析到 ${n} 條 link`)
+  return out
 }
 
 /** rows(第一行內搵 header)→ { linkId: [[lat,lng],[lat,lng]] } */
@@ -123,6 +151,11 @@ async function tryUrl(url) {
   if (/\.csv(\?|$)/i.test(url)) {
     return rowsToLinks(parseCsv(await get(url)))
   }
+  if (/\.pdf(\?|$)/i.test(url)) {
+    const { default: pdfParse } = await import('pdf-parse/lib/pdf-parse.js')
+    const data = await pdfParse(await get(url, true))
+    return linksFromPdfText(data.text)
+  }
   const buf = await get(url, true)
   const wb = XLSX.read(buf, { type: 'buffer' })
   // 逐個 sheet 試(座標可能唔喺第一個)
@@ -138,25 +171,30 @@ async function tryUrl(url) {
   throw lastErr ?? new Error('冇 sheet 解析到')
 }
 
-// TSM_URL env 可以直接指定來源(測試/discovery 壞咗時 pin 住用)
-const urls = process.env.TSM_URL
-  ? [process.env.TSM_URL]
-  : [...(await discoverUrls()), ...FALLBACK_URLS]
-let links = null
-for (const url of urls) {
-  try {
-    links = await tryUrl(url)
-    console.log(`✓ 成功:${Object.keys(links).length} 條 link ← ${url}`)
-    break
-  } catch (e) {
-    console.log(`  ✗ ${e.message}`)
+async function main() {
+  // TSM_URL env 可以直接指定來源(測試/discovery 壞咗時 pin 住用)
+  const urls = process.env.TSM_URL
+    ? [process.env.TSM_URL]
+    : [...(await discoverUrls()), ...FALLBACK_URLS]
+  let links = null
+  for (const url of urls) {
+    try {
+      links = await tryUrl(url)
+      console.log(`✓ 成功:${Object.keys(links).length} 條 link ← ${url}`)
+      break
+    } catch (e) {
+      console.log(`  ✗ ${e.message}`)
+    }
+  }
+
+  if (links) {
+    mkdirSync(OUT_DIR, { recursive: true })
+    writeFileSync(join(OUT_DIR, 'links.json'), JSON.stringify(links))
+    console.log(`寫入 public/tsm/links.json`)
+  } else {
+    console.log('全部來源失敗 —— 跳過(前端會自動隱藏路況圖,不影響部署)')
   }
 }
 
-if (links) {
-  mkdirSync(OUT_DIR, { recursive: true })
-  writeFileSync(join(OUT_DIR, 'links.json'), JSON.stringify(links))
-  console.log(`寫入 public/tsm/links.json`)
-} else {
-  console.log('全部來源失敗 —— 跳過(前端會自動隱藏路況圖,不影響部署)')
-}
+// import 唔會自動跑(方便單元測試 linksFromPdfText 等)
+if (process.argv[1] && /fetch-tsm\.mjs$/.test(process.argv[1])) await main()
