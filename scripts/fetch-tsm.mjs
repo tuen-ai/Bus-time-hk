@@ -242,8 +242,12 @@ function walkFiles(dir) {
  * GML2 <coordinates> 規範係 x,y(E,N);KML <coordinates> 係 lng,lat —— 冇歧義。
  */
 export function extractFromMarkup(buffer, wanted, raw) {
-  // 以 feature 結尾 tag 分塊(featureMember / member / Placemark)
-  const parts = buffer.split(/<\/(?:gml:featureMember|wfs:member|member|Placemark)>/)
+  // 以 feature 結尾 tag 分塊:featureMember / member / Placemark,
+  // 或者直接以 feature element 本身結尾(esri 出嘅 GML 成日用
+  // <gml:featureMembers> 複數包住全部 <XXX:CENTERLINE> —— 要用後者做界)
+  const parts = buffer.split(
+    /<\/(?:gml:featureMember|wfs:member|member|Placemark|(?:\w+:)?\w*CENTERLINE\w*)>/i,
+  )
   const rest = parts.pop() ?? ''
   for (const block of parts) {
     const idm = /ROUTE_ID[^>]*>\s*(\d+)\s*</i.exec(block)
@@ -311,15 +315,17 @@ async function roadNetFallback(idList) {
   files.sort((a, b) => (/centre?line/i.test(b) ? 1 : 0) - (/centre?line/i.test(a) ? 1 : 0))
   const raw = new Map() // id → { pairs, posList }(raw 座標,最後先定軸序)
   for (const f of files) {
+    let head = '' // 檔案頭 + 第一個 ROUTE_ID 附近樣本(parse 失敗時用嚟診斷)
+    let ridSnippet = ''
     await new Promise((resolve, reject) => {
       let buf = ''
-      let sampled = false
       const rs = createReadStream(f, { encoding: 'utf8', highWaterMark: 1 << 20 })
       rs.on('data', (chunk) => {
         buf += chunk
-        if (!sampled && buf.length > 4000) {
-          sampled = true
-          if (!/ROUTE_ID/i.test(buf)) console.log(`  [debug] ${f.split('/').pop()} 頭段:${buf.slice(0, 700).replace(/\s+/g, ' ')}`)
+        if (head.length < 2500) head = buf.slice(0, 2500)
+        if (!ridSnippet) {
+          const at = buf.search(/ROUTE_ID/i)
+          if (at >= 0 && buf.length > at + 600) ridSnippet = buf.slice(Math.max(0, at - 400), at + 600)
         }
         if (buf.length > 8 << 20) buf = extractFromMarkup(buf, wanted, raw)
       })
@@ -330,6 +336,11 @@ async function roadNetFallback(idList) {
       rs.on('error', reject)
     })
     console.log(`  ${f.split('/').pop()} → 累計對到 ${raw.size}`)
+    if (raw.size === 0) {
+      // 印真實結構樣本,方便由 CI log 再對症下藥
+      console.log(`  [debug] 檔案頭:${head.replace(/\s+/g, ' ').slice(0, 1200)}`)
+      console.log(`  [debug] ROUTE_ID 附近:${ridSnippet.replace(/\s+/g, ' ').slice(0, 1000)}`)
+    }
     if (raw.size >= wanted.size * 0.5) break // 夠一半就收工
   }
   return finalizeLinks(raw)
