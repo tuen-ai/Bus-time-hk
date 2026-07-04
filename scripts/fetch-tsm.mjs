@@ -241,24 +241,43 @@ function walkFiles(dir) {
  * 單一 feature 判斷唔到,所以先收集晒,再由 finalizeLinks 全體投票決定。
  * GML2 <coordinates> 規範係 x,y(E,N);KML <coordinates> 係 lng,lat —— 冇歧義。
  */
+/** posList 數字 → pairs(自動偵測 2D/3D:冇 srsDimension 時用 z 值細 + 每 3 個一組判斷) */
+function numsToPairs(nums, explicitDim) {
+  let dim = explicitDim ?? 2
+  if (!explicitDim && nums.length % 3 === 0 && nums.length >= 6) {
+    const zLike = nums.every((v, i) => i % 3 !== 2 || Math.abs(v) < 10000)
+    const xyLike = nums.every((v, i) => i % 3 === 2 || Math.abs(v) > 100000)
+    if (zLike && xyLike) dim = 3
+  }
+  const pairs = []
+  for (let i = 0; i + 1 < nums.length; i += dim) pairs.push([nums[i], nums[i + 1]])
+  return pairs
+}
+
 export function extractFromMarkup(buffer, wanted, raw) {
-  // 以 feature 結尾 tag 分塊:featureMember / member / Placemark,
-  // 或者直接以 feature element 本身結尾(esri 出嘅 GML 成日用
-  // <gml:featureMembers> 複數包住全部 <XXX:CENTERLINE> —— 要用後者做界)
+  // 以 feature 結尾 tag 分塊:featureMember / member / Placemark /
+  // cityObjectMember(CityGML)/ <XXX:CENTERLINE>(esri featureMembers 複數式)
   const parts = buffer.split(
-    /<\/(?:gml:featureMember|wfs:member|member|Placemark|(?:\w+:)?\w*CENTERLINE\w*)>/i,
+    /<\/(?:gml:featureMember|wfs:member|member|Placemark|(?:\w+:)?cityObjectMember|(?:\w+:)?\w*CENTERLINE\w*)>/i,
   )
   const rest = parts.pop() ?? ''
   for (const block of parts) {
-    const idm = /ROUTE_ID[^>]*>\s*(\d+)\s*</i.exec(block)
+    // 兩款:<td:ROUTE_ID>275< 或 CityGML <gen:intAttribute name="ROUTE_ID"><gen:value>275<
+    const idm = /ROUTE_ID[^>]*>\s*(?:<(?:\w+:)?value[^>]*>\s*)?(\d+)\s*</i.exec(block)
     if (!idm || !wanted.has(idm[1])) continue
     const pos = /<[^>]*posList([^>]*)>([\d\s.eE+-]+)</.exec(block)
     if (pos) {
-      const dim = /srsDimension\s*=\s*"?(\d)/.exec(pos[1])?.[1] === '3' ? 3 : 2
+      const explicit = /srsDimension\s*=\s*"?(\d)/.exec(pos[1])?.[1]
       const nums = pos[2].trim().split(/\s+/).map(Number)
-      const pairs = []
-      for (let i = 0; i + 1 < nums.length; i += dim) pairs.push([nums[i], nums[i + 1]])
+      const pairs = numsToPairs(nums, explicit ? Number(explicit) : undefined)
       if (pairs.length >= 2) raw.set(idm[1], { pairs, posList: true })
+      continue
+    }
+    // CityGML LineString 有時逐點 <gml:pos>x y z</gml:pos>
+    const posPts = [...block.matchAll(/<(?:\w+:)?pos(?:\s[^>]*)?>([\d\s.eE+-]+)</g)]
+    if (posPts.length >= 2) {
+      const pairs = posPts.map((m) => m[1].trim().split(/\s+/).slice(0, 2).map(Number))
+      raw.set(idm[1], { pairs, posList: true })
       continue
     }
     const co = /<[^>]*coordinates[^>]*>([\d\s.,eE+-]+)</.exec(block)

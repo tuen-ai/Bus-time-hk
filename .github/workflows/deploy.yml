@@ -58,3 +58,13 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      # Pages 後端間中「Deployment failed, try again later」—— 等 90 秒重試一次
+      - name: Wait before retry
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 90
+
+      - id: deployment-retry
+        if: steps.deployment.outcome == 'failure'
+        uses: actions/deploy-pages@v4
