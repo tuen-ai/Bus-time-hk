@@ -41,12 +41,22 @@ const BROWSER_HEADERS = {
 }
 
 async function get(url, browserish = false) {
-  const res = await fetch(url, {
-    signal: AbortSignal.timeout(60000),
-    headers: browserish ? BROWSER_HEADERS : { 'User-Agent': 'kkcx-build/1.0' },
-  })
-  if (!res.ok) throw new Error(`${res.status} ${url.slice(0, 120)}`)
-  return res.text()
+  // 網絡級 fetch failed 好常見 —— 重試 3 次,退避 2s/4s
+  let lastErr
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt) await new Promise((r) => setTimeout(r, attempt * 2000))
+    try {
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(60000),
+        headers: browserish ? BROWSER_HEADERS : { 'User-Agent': 'kkcx-build/1.0' },
+      })
+      if (!res.ok) throw new Error(`${res.status} ${url.slice(0, 120)}`)
+      return res.text()
+    } catch (e) {
+      lastErr = e
+    }
+  }
+  throw lastErr
 }
 
 const round5 = (v) => Number(v.toFixed(5))
@@ -176,10 +186,19 @@ async function queryGeometries(serviceUrl, ids, layerId, idField) {
 // ---- 後備:Road Network (2nd Gen) GML/KML 靜態包(static.data.gov.hk,無 WAF)----
 
 /** CKAN 搵 Road Network v2 嘅 GML/KML zip URL */
+// CKAN 清單(run 28605013296)已證實存在嘅直接 URL —— CKAN 掛咗都照跑
+const CENTERLINE_GML = 'https://static.data.gov.hk/td/road-network-v2/CENTERLINE.gml'
+
 async function findRoadNetZip() {
-  const j = JSON.parse(
-    await get('https://data.gov.hk/en-data/api/3/action/package_show?id=hk-td-tis_15-road-network-v2'),
-  )
+  let j
+  try {
+    j = JSON.parse(
+      await get('https://data.gov.hk/en-data/api/3/action/package_show?id=hk-td-tis_15-road-network-v2'),
+    )
+  } catch (e) {
+    console.log(`CKAN 失敗(${e.message}),用已知 CENTERLINE.gml URL`)
+    return CENTERLINE_GML
+  }
   const rs = j?.result?.resources ?? []
   console.log(`CKAN road-network-v2 resources(${rs.length}):`)
   for (const r of rs) console.log(` - [${r.format}] ${r.name ?? ''} ${r.url}`)
@@ -188,7 +207,10 @@ async function findRoadNetZip() {
     rs.find((r) => /centre?line/i.test(`${r.name} ${r.url}`) && /\.gml/i.test(r.url)) ??
     rs.find((r) => /centre?line/i.test(`${r.name} ${r.url}`) && /kml|kmz/i.test(`${r.format} ${r.url}`)) ??
     rs.find((r) => /gml/i.test(`${r.format} ${r.url}`))
-  if (!pick) throw new Error('搵唔到 CENTERLINE GML/KML 資源')
+  if (!pick) {
+    console.log('CKAN 清單搵唔到 CENTERLINE,用已知 URL')
+    return CENTERLINE_GML
+  }
   console.log(`揀咗:${pick.url}`)
   return pick.url
 }
