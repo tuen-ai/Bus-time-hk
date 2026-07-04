@@ -1,5 +1,5 @@
 // 簡單 service worker:快取 app shell,API 請求一律走網絡(保持 ETA 即時)。
-const CACHE = 'kmb-eta-v4'
+const CACHE = 'kmb-eta-v5'
 
 self.addEventListener('install', (e) => {
   self.skipWaiting()
@@ -28,14 +28,32 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // 靜態資源:cache-first
+  // tsm/ 資料每次部署會更新:network-first,離線先用快取
+  if (url.pathname.includes('/tsm/')) {
+    event.respondWith(
+      fetch(request)
+        .then((res) => {
+          if (res.ok) {
+            const copy = res.clone()
+            caches.open(CACHE).then((c) => c.put(request, copy))
+          }
+          return res
+        })
+        .catch(() => caches.match(request)),
+    )
+    return
+  }
+
+  // 靜態資源:cache-first(只 cache 成功回應,唔好鎖死 404)
   event.respondWith(
     caches.match(request).then(
       (hit) =>
         hit ||
         fetch(request).then((res) => {
-          const copy = res.clone()
-          caches.open(CACHE).then((c) => c.put(request, copy))
+          if (res.ok) {
+            const copy = res.clone()
+            caches.open(CACHE).then((c) => c.put(request, copy))
+          }
           return res
         }),
     ),

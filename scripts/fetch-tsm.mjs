@@ -312,8 +312,11 @@ export function finalizeLinks(raw) {
     if (toLatLng(b, a)) yx++
   }
   let swap
-  if (maxA > 852000 && maxB <= 852000) swap = false // 第一列係 E
-  else if (maxB > 852000 && maxA <= 852000) swap = true // 第二列係 E → 對調
+  if (maxA > 852000 && maxB <= 852000) swap = false // E 極值(>852k 只可能係 E)
+  else if (maxB > 852000 && maxA <= 852000) swap = true
+  // N 下限:香港陸上道路 N ≥ ~805k(再南係公海),E 可以低到 ~801k(港珠澳橋西端)
+  else if (minA < 805000 && minB >= 805000) swap = false // 第一列有 <805k → 係 E
+  else if (minB < 805000 && minA >= 805000) swap = true
   else swap = yx > xy // 後備:投票
   if (xy || yx) {
     console.log(
