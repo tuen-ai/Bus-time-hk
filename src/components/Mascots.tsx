@@ -63,3 +63,35 @@ export function MascotWelcome({ title, sub }: { title: string; sub: string }) {
 export function PandaLogo({ className = 'topbar-logo' }: { className?: string }) {
   return <PandaFace className={className} />
 }
+
+/** Sad 熊貓(眼耷耷 + 眼淚)—— 搵唔到嘢/出錯時用 */
+export function PandaSad({ className = 'mascot sm' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 100 100" aria-hidden="true">
+      <ellipse cx="24" cy="22" rx="13" ry="14" fill="#2e2a2c" />
+      <ellipse cx="76" cy="22" rx="13" ry="14" fill="#2e2a2c" />
+      <circle cx="50" cy="56" r="38" fill="#fff" stroke="#2e2a2c" strokeWidth="3" />
+      <ellipse cx="35" cy="52" rx="10" ry="12" fill="#2e2a2c" />
+      <ellipse cx="65" cy="52" rx="10" ry="12" fill="#2e2a2c" />
+      {/* 眼耷耷(向下彎) */}
+      <path d="M30 50 q5 4 10 0" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round" />
+      <path d="M60 50 q5 4 10 0" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round" />
+      {/* 眼淚 */}
+      <path d="M40 60 q-2 6 0 8 q3 2 4 -2 q0 -4 -4 -6z" fill="#8ecbff" />
+      <ellipse cx="24" cy="70" rx="8" ry="6" fill="#ffb3d1" />
+      <ellipse cx="76" cy="70" rx="8" ry="6" fill="#ffb3d1" />
+      {/* 嘴向下彎 */}
+      <path d="M43 74 q7 -6 14 0" stroke="#2e2a2c" strokeWidth="3" fill="none" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** 狀態小插圖:busy(郁動熊貓)/ sad(喊喊熊貓)+ 一句話 */
+export function MascotState({ mood, text }: { mood: 'busy' | 'sad'; text: string }) {
+  return (
+    <div className="mascot-state" role="status">
+      {mood === 'sad' ? <PandaSad /> : <PandaFace className="mascot sm a" />}
+      <div className="mascot-state-text">{text}</div>
+    </div>
+  )
+}

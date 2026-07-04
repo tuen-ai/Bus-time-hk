@@ -65,7 +65,8 @@ function pick(el: Element, tags: string[]): string {
 }
 
 let cache: { ts: number; data: TsmData } | null = null
-const TTL = 2 * 60 * 1000
+// 面板每 2 分鐘 tick 一次;TTL 要短過 tick 週期,否則 tick 會攞 stale cache
+const TTL = 90 * 1000
 
 /** 攞實時路況(2 分鐘快取)。冇幾何/攞唔到 live → null。 */
 export async function fetchTsm(): Promise<TsmData | null> {

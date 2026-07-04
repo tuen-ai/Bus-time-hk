@@ -42,7 +42,10 @@ export default function AlertBanners() {
   if (!reminder && !alarm) return null
 
   return (
-    <div className="banners">
+    <>
+      {/* fixed banner 出咗 flow —— 用 spacer 頂住,免遮住頁尾內容 */}
+      <div className="banners-spacer" aria-hidden="true" />
+      <div className="banners">
       {reminder && (
         <div className={`fbanner ${now >= reminder.at ? 'urgent' : ''}`}>
           <span className="fb-icon">{now >= reminder.at ? '🏃' : '⏰'}</span>
@@ -82,6 +85,7 @@ export default function AlertBanners() {
           </button>
         </div>
       )}
-    </div>
+      </div>
+    </>
   )
 }

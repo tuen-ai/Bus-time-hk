@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getEta, type Eta, type Route } from '../api/bus'
 import { clockLabel, etaLabel } from '../lib/time'
+import { speak, speechSupported } from '../lib/speech'
 
 const REFRESH_MS = 5_000
 
@@ -42,6 +43,20 @@ export default function EtaPanel({ route, stopId }: Props) {
 
   const hasAny = etas.some((e) => e.eta)
 
+  // 讀出下一班(眼唔使盯住 mon,兼顧無障礙)
+  const speakEta = () => {
+    const mins = etas
+      .filter((e) => e.eta)
+      .map((e) => Math.round((new Date(e.eta!).getTime() - Date.now()) / 60000))
+    if (!mins.length) {
+      speak(`${route.route} 往 ${route.dest_tc},暫時冇預計班次`)
+      return
+    }
+    const first = mins[0] <= 0 ? '即將到站' : `下一班仲有 ${mins[0]} 分鐘`
+    const next = mins.length > 1 && mins[1] > 0 ? `,之後嗰班 ${mins[1]} 分鐘` : ''
+    speak(`${route.route} 往 ${route.dest_tc},${first}${next}`)
+  }
+
   return (
     <div className="eta-panel">
       {!hasAny && <div className="muted">暫無預計班次</div>}
@@ -64,6 +79,11 @@ export default function EtaPanel({ route, stopId }: Props) {
           <button className="refresh-btn" onClick={load} aria-label="立即刷新">
             ↻ 刷新
           </button>
+          {speechSupported && (
+            <button className="refresh-btn" onClick={speakEta} aria-label="讀出到站時間">
+              🔊 讀出
+            </button>
+          )}
         </div>
       )}
     </div>

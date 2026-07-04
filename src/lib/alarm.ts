@@ -44,10 +44,13 @@ export function startAlarm(a: Omit<AlightAlarm, 'dist' | 'fired'>): void {
   watchId = navigator.geolocation.watchPosition(
     (pos) => {
       if (!current) return
+      const prev = current.dist
       const d = distanceMeters(pos.coords.latitude, pos.coords.longitude, current.lat, current.lng)
       const shouldFire = !current.fired && d <= ALARM_FIRE_M
+      // 一設鬧鐘已經喺範圍內(第一個 fix 就 <400m)→ 靜默進入提示狀態,唔嘈醒你
+      const silently = shouldFire && prev == null
       current = { ...current, dist: d, fired: current.fired || shouldFire, geoError: undefined }
-      if (shouldFire) {
+      if (shouldFire && !silently) {
         alertAll('🔔 就快到站喇!', `${current.routeLabel} · ${current.stopName} 前約 ${Math.round(d)} 米,準備落車~`)
       }
       emit()

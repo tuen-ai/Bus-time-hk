@@ -7,7 +7,7 @@ import NearbyView from './components/NearbyView'
 import PlannerView, { type LegRouteKey } from './components/PlannerView'
 import WeatherBanner from './components/WeatherBanner'
 import AlertBanners from './components/AlertBanners'
-import { PandaLogo, MascotWelcome } from './components/Mascots'
+import { PandaLogo, MascotWelcome, MascotState } from './components/Mascots'
 import type { NearbyRow } from './lib/nearby'
 import { routeBadges } from './lib/routeMeta'
 import type { Favorite } from './lib/store'
@@ -54,10 +54,12 @@ export default function App() {
         x.bound === k.bound &&
         x.service_type === k.serviceType,
     )
-    // GMB 同號跨區可能多個 → 用目的地名 tiebreak
+    // GMB 同號跨區可能多個 → 用目的地名 tiebreak(兩邊字串來源唔同,寬鬆 includes 匹配)
     const r =
       cands.length > 1 && k.dest
-        ? cands.find((x) => x.dest_tc === k.dest) ?? cands[0]
+        ? cands.find((x) => x.dest_tc === k.dest) ??
+          cands.find((x) => x.dest_tc.includes(k.dest!) || k.dest!.includes(x.dest_tc)) ??
+          cands[0]
         : cands[0]
     if (r) openRoute(r, k.boardStopId)
   }
@@ -214,7 +216,7 @@ export default function App() {
               )}
             </div>
 
-            {loading && <div className="muted pad">載入路線資料…</div>}
+            {loading && <MascotState mood="busy" text="熊貓幫緊你載入路線資料…" />}
             {error && (
               <div className="error pad">
                 ⚠️ {error}{' '}
@@ -230,7 +232,7 @@ export default function App() {
             {!query && !loading && <Favorites onOpen={openFavorite} />}
 
             {query && matches.length === 0 && !loading && (
-              <div className="muted pad">搵唔到路線「{query}」</div>
+              <MascotState mood="sad" text={`搵唔到路線「${query}」,試下轉車種 filter?`} />
             )}
 
             <div className="route-results">

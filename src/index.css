@@ -176,6 +176,19 @@ input:focus-visible {
   pointer-events: none;
   user-select: none;
 }
+.mascot.sm {
+  width: 76px;
+  height: 76px;
+}
+.mascot-state {
+  text-align: center;
+  padding: 22px 0 10px;
+}
+.mascot-state-text {
+  color: var(--muted);
+  margin-top: 8px;
+  font-size: 0.95rem;
+}
 
 /* ---- MTR ---- */
 .mtr-lines {
@@ -799,6 +812,9 @@ input:focus-visible {
 }
 
 /* ---- 底部浮動提示(出門倒數/落車鬧鐘)---- */
+.banners-spacer {
+  height: 120px;
+}
 .banners {
   position: fixed;
   left: 50%;

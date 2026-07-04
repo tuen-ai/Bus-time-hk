@@ -183,11 +183,13 @@ async function findRoadNetZip() {
   const rs = j?.result?.resources ?? []
   console.log(`CKAN road-network-v2 resources(${rs.length}):`)
   for (const r of rs) console.log(` - [${r.format}] ${r.name ?? ''} ${r.url}`)
-  // 優先 GML,其次 KML(兩者都係文字,可以 stream 過濾)
+  // 只要 CENTERLINE(路中心線)—— 優先 GML(純文字免解壓),其次 KML/KMZ
   const pick =
-    rs.find((r) => /gml/i.test(`${r.format} ${r.url}`)) ??
-    rs.find((r) => /kml|kmz/i.test(`${r.format} ${r.url}`))
-  if (!pick) throw new Error('搵唔到 GML/KML 資源')
+    rs.find((r) => /centre?line/i.test(`${r.name} ${r.url}`) && /\.gml/i.test(r.url)) ??
+    rs.find((r) => /centre?line/i.test(`${r.name} ${r.url}`) && /kml|kmz/i.test(`${r.format} ${r.url}`)) ??
+    rs.find((r) => /gml/i.test(`${r.format} ${r.url}`))
+  if (!pick) throw new Error('搵唔到 CENTERLINE GML/KML 資源')
+  console.log(`揀咗:${pick.url}`)
   return pick.url
 }
 
@@ -269,13 +271,20 @@ async function roadNetFallback(idList) {
   const url = await findRoadNetZip()
   const tmp = join(tmpdir(), 'roadnet')
   mkdirSync(tmp, { recursive: true })
-  const zipPath = join(tmp, 'roadnet.zip')
+  // .gml 係純文字直接用;.zip/.kmz 先至解壓
+  const isZip = /\.(zip|kmz)(\?|$)/i.test(url)
+  const dest = join(tmp, isZip ? 'roadnet.zip' : 'roadnet.gml')
   console.log(`下載 ${url} …`)
-  await download(url, zipPath)
-  const un = spawnSync('unzip', ['-o', '-q', zipPath, '-d', tmp], { stdio: 'inherit' })
-  if (un.status !== 0) throw new Error('unzip 失敗')
-  const files = walkFiles(tmp).filter((f) => /\.(gml|kml|xml)$/i.test(f) && !/\.zip$/i.test(f))
-  console.log(`解壓檔案:${files.map((f) => `${f.split('/').pop()}(${(statSync(f).size / 1048576).toFixed(0)}MB)`).join(', ')}`)
+  await download(url, dest)
+  let files
+  if (isZip) {
+    const un = spawnSync('unzip', ['-o', '-q', dest, '-d', tmp], { stdio: 'inherit' })
+    if (un.status !== 0) throw new Error('unzip 失敗')
+    files = walkFiles(tmp).filter((f) => /\.(gml|kml|xml)$/i.test(f) && !/\.zip$/i.test(f))
+  } else {
+    files = [dest]
+  }
+  console.log(`待解析:${files.map((f) => `${f.split('/').pop()}(${(statSync(f).size / 1048576).toFixed(0)}MB)`).join(', ')}`)
   // 優先包含 CENTERLINE 字眼嘅檔
   files.sort((a, b) => (/centre?line/i.test(b) ? 1 : 0) - (/centre?line/i.test(a) ? 1 : 0))
   const raw = new Map() // id → { pairs, posList }(raw 座標,最後先定軸序)

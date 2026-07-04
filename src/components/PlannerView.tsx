@@ -8,7 +8,7 @@ import {
   PRESET_DEFS,
   type SavedPlace,
 } from '../lib/places'
-import { MascotWelcome } from './Mascots'
+import { MascotWelcome, MascotState } from './Mascots'
 import { leaveAtFor, setReminder, fmtClock } from '../lib/reminder'
 import { primeAudio, askNotify } from '../lib/chime'
 
@@ -226,7 +226,10 @@ export default function PlannerView({ onOpenLeg }: Props) {
             id="arriveBy"
             type="time"
             value={arriveBy}
-            onChange={(e) => setArriveBy(e.target.value)}
+            onChange={(e) => {
+              setArriveBy(e.target.value)
+              setRemindSet(null) // 時間變咗,舊提醒指示唔再成立
+            }}
           />
           {arriveBy && (
             <button className="fb-x" onClick={() => setArriveBy('')} aria-label="清除時間">
@@ -250,9 +253,10 @@ export default function PlannerView({ onOpenLeg }: Props) {
 
       {planErr && <div className="error pad">⚠️ {planErr}</div>}
       {shown && shown.length === 0 && !planning && (
-        <div className="muted pad">
-          {directOnly ? '冇直達方案,試下關「只睇直達」。' : '搵唔到合適方案(可試擴大附近範圍或揀近啲車站)。'}
-        </div>
+        <MascotState
+          mood="sad"
+          text={directOnly ? '冇直達方案,試下關「只睇直達」~' : '搵唔到合適方案,試下揀近啲嘅起訖點~'}
+        />
       )}
       {shown && shown.length > 0 && (
         <>
