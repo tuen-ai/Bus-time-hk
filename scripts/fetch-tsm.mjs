@@ -289,19 +289,38 @@ export function extractFromMarkup(buffer, wanted, raw) {
   return rest
 }
 
-/** 全體投票決定 posList 軸序,再轉晒做 [[lat,lng],...] */
+/** 決定 posList 軸序,再轉晒做 [[lat,lng],...]
+ *  規則1(決定性):HK1980 E 最大 ~869k(西貢以東),N 最大 ~847k ——
+ *  邊列有 >852k 嘅值邊列就係 E。規則2(後備):in-bounds 投票。 */
 export function finalizeLinks(raw) {
   let xy = 0
   let yx = 0
+  let maxA = -Infinity
+  let maxB = -Infinity
+  let minA = Infinity
+  let minB = Infinity
   for (const { pairs, posList } of raw.values()) {
     if (!posList) continue
+    for (const [a, b] of pairs) {
+      if (a > maxA) maxA = a
+      if (b > maxB) maxB = b
+      if (a < minA) minA = a
+      if (b < minB) minB = b
+    }
     const [a, b] = pairs[0]
     if (toLatLng(a, b)) xy++
     if (toLatLng(b, a)) yx++
   }
-  // 正確軸序應該幾乎全中;錯嗰邊只會部分中
-  const swap = yx > xy
-  if (xy || yx) console.log(`  [axis] posList 軸序投票 E,N=${xy} N,E=${yx} → 用 ${swap ? 'N,E(對調)' : 'E,N'}`)
+  let swap
+  if (maxA > 852000 && maxB <= 852000) swap = false // 第一列係 E
+  else if (maxB > 852000 && maxA <= 852000) swap = true // 第二列係 E → 對調
+  else swap = yx > xy // 後備:投票
+  if (xy || yx) {
+    console.log(
+      `  [axis] 列A範圍 ${Math.round(minA)}–${Math.round(maxA)},列B範圍 ${Math.round(minB)}–${Math.round(maxB)};` +
+        `投票 E,N=${xy} N,E=${yx} → 用 ${swap ? 'N,E(對調)' : 'E,N'}`,
+    )
+  }
   const links = {}
   for (const [id, { pairs, posList }] of raw) {
     const coords = posList && swap ? pairs.map(([a, b]) => [b, a]) : pairs
