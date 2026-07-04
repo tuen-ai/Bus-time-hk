@@ -107,8 +107,8 @@ async function findLayer() {
   console.log(`CSDI 服務 layers(${layers.length}):`, layers.map((l) => `${l.id}:${l.name}`).join(', '))
   // 優先名叫 CENTERLINE 嘅,否則逐個試
   const order = [
-    ...layers.filter((l) => /centre?line/i.test(l.name)),
-    ...layers.filter((l) => !/centre?line/i.test(l.name)),
+    ...layers.filter((l) => /cent(?:er|re)line/i.test(l.name)),
+    ...layers.filter((l) => !/cent(?:er|re)line/i.test(l.name)),
   ]
   for (const l of order) {
     try {
@@ -204,8 +204,8 @@ async function findRoadNetZip() {
   for (const r of rs) console.log(` - [${r.format}] ${r.name ?? ''} ${r.url}`)
   // 只要 CENTERLINE(路中心線)—— 優先 GML(純文字免解壓),其次 KML/KMZ
   const pick =
-    rs.find((r) => /centre?line/i.test(`${r.name} ${r.url}`) && /\.gml/i.test(r.url)) ??
-    rs.find((r) => /centre?line/i.test(`${r.name} ${r.url}`) && /kml|kmz/i.test(`${r.format} ${r.url}`)) ??
+    rs.find((r) => /cent(?:er|re)line/i.test(`${r.name} ${r.url}`) && /\.gml/i.test(r.url)) ??
+    rs.find((r) => /cent(?:er|re)line/i.test(`${r.name} ${r.url}`) && /kml|kmz/i.test(`${r.format} ${r.url}`)) ??
     rs.find((r) => /gml/i.test(`${r.format} ${r.url}`))
   if (!pick) {
     console.log('CKAN 清單搵唔到 CENTERLINE,用已知 URL')
@@ -331,7 +331,7 @@ async function roadNetFallback(idList) {
   }
   console.log(`待解析:${files.map((f) => `${f.split('/').pop()}(${(statSync(f).size / 1048576).toFixed(0)}MB)`).join(', ')}`)
   // 優先包含 CENTERLINE 字眼嘅檔
-  files.sort((a, b) => (/centre?line/i.test(b) ? 1 : 0) - (/centre?line/i.test(a) ? 1 : 0))
+  files.sort((a, b) => (/cent(?:er|re)line/i.test(b) ? 1 : 0) - (/cent(?:er|re)line/i.test(a) ? 1 : 0))
   const raw = new Map() // id → { pairs, posList }(raw 座標,最後先定軸序)
   for (const f of files) {
     let head = '' // 檔案頭 + 第一個 ROUTE_ID 附近樣本(parse 失敗時用嚟診斷)
