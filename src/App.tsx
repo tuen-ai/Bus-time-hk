@@ -7,7 +7,12 @@ import NearbyView from './components/NearbyView'
 import PlannerView, { type LegRouteKey } from './components/PlannerView'
 import WeatherBanner from './components/WeatherBanner'
 import AlertBanners from './components/AlertBanners'
+import SmartSuggest from './components/SmartSuggest'
+import StampCard from './components/StampCard'
+import BackupPanel from './components/BackupPanel'
 import { PandaLogo, MascotWelcome, MascotState } from './components/Mascots'
+import { recordUse } from './lib/usage'
+import { addStamp } from './lib/stamps'
 import type { NearbyRow } from './lib/nearby'
 import { routeBadges } from './lib/routeMeta'
 import type { Favorite } from './lib/store'
@@ -25,9 +30,14 @@ export default function App() {
   const [initialStop, setInitialStop] = useState<string | undefined>()
   const [dark, setDark] = useState(() => localStorage.getItem('kmb.theme') === 'dark')
 
+  const [showBackup, setShowBackup] = useState(false)
+
   const openRoute = (r: Route, stopId?: string) => {
     setInitialStop(stopId)
     setSelected(r)
+    // 智能首頁統計 + 每日印仔(純本機)
+    recordUse({ co: r.co, route: r.route, bound: r.bound, serviceType: r.service_type, stopId })
+    addStamp()
   }
 
   const openNearby = (row: NearbyRow) => {
@@ -126,13 +136,22 @@ export default function App() {
           <h1 onClick={() => { setSelected(null); setTab('search') }}>
             <PandaLogo />可可出行
           </h1>
-          <button
-            className="theme-toggle"
-            onClick={() => setDark((d) => !d)}
-            aria-label="切換深色模式"
-          >
-            {dark ? '☀️' : '🌙'}
-          </button>
+          <span className="topbar-btns">
+            <button
+              className="theme-toggle"
+              onClick={() => setShowBackup(true)}
+              aria-label="備份與還原"
+            >
+              ⚙️
+            </button>
+            <button
+              className="theme-toggle"
+              onClick={() => setDark((d) => !d)}
+              aria-label="切換深色模式"
+            >
+              {dark ? '☀️' : '🌙'}
+            </button>
+          </span>
         </div>
         <span className="topbar-sub">香港交通到站 · 行程規劃 ♡</span>
       </header>
@@ -227,9 +246,13 @@ export default function App() {
             )}
 
             {!query && !loading && !error && (
-              <MascotWelcome title="今日去邊度呢? 💕" sub="輸入路線號碼,即刻睇到站時間~" />
+              <>
+                <SmartSuggest routes={routes} onOpen={openRoute} />
+                <MascotWelcome title="今日去邊度呢? 💕" sub="輸入路線號碼,即刻睇到站時間~" />
+              </>
             )}
             {!query && !loading && <Favorites onOpen={openFavorite} />}
+            {!query && !loading && !error && <StampCard />}
 
             {query && matches.length === 0 && !loading && (
               <MascotState mood="sad" text={`搵唔到路線「${query}」,試下轉車種 filter?`} />
@@ -262,6 +285,7 @@ export default function App() {
       </main>
 
       <AlertBanners />
+      {showBackup && <BackupPanel onClose={() => setShowBackup(false)} />}
 
       <footer className="footer">
         到站資料:運輸署 / 九巴 ·{' '}

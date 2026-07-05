@@ -11,6 +11,8 @@ import {
 import { MascotWelcome, MascotState } from './Mascots'
 import { leaveAtFor, setReminder, fmtClock } from '../lib/reminder'
 import { primeAudio, askNotify } from '../lib/chime'
+import { taxiFareEstimate } from '../lib/taxi'
+import { addStamp } from '../lib/stamps'
 
 const LEG_COLOR: Record<string, string> = {
   kmb: '#c8102e', ctb: '#0e7490', nlb: '#00857c', gmb: '#167a3a', lightRail: '#7d3c98',
@@ -91,6 +93,10 @@ export default function PlannerView({ onOpenLeg }: Props) {
   const [directOnly, setDirectOnly] = useState(false)
   const [arriveBy, setArriveBy] = useState('') // "HH:MM";空 = 冇設
   const [remindSet, setRemindSet] = useState<number | null>(null) // 已設提醒嘅方案 index
+  const [planCoords, setPlanCoords] = useState<{
+    o: { lat: number; lng: number }
+    d: { lat: number; lng: number }
+  } | null>(null) // 的士估價用
 
   const coordsOf = async (e: Endpoint): Promise<{ lat: number; lng: number } | null> => {
     if (e === 'mylocation') {
@@ -111,6 +117,8 @@ export default function PlannerView({ onOpenLeg }: Props) {
       if (!oc || !dc) throw new Error('請先設定起點同終點')
       const js = await planJourneys(oc, dc, { directOnly: dOnly })
       setResults(js)
+      setPlanCoords({ o: oc, d: dc })
+      if (js.length) addStamp() // 儲印仔
     } catch (e) {
       setPlanErr(describeGeoError(e))
     } finally {
@@ -299,6 +307,15 @@ export default function PlannerView({ onOpenLeg }: Props) {
               </div>
             )
           })}
+          {planCoords && (() => {
+            const t = taxiFareEstimate(planCoords.o, planCoords.d)
+            return t ? (
+              <div className="taxi-row">
+                🚕 的士估算 <b>${t.fare}</b>
+                <span className="muted small"> · 約 {t.km} 公里 · 市區錶,未計隧道費,僅供參考</span>
+              </div>
+            ) : null
+          })()}
           <div className="muted small pad">
             ⚠️ 時間/車費為估算(無時刻表),僅供參考。八達通轉乘優惠未計。撳路線號可以睇實時到站。
             出門提醒要 app 開住先響。
