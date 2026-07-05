@@ -29,10 +29,26 @@ const KMB_STOPS = 8
 const GRAPH_STOPS = 5 // ctb/gmb 每次查幾多個站
 const MAX_ROUTE_CALLS = 24 // ctb 逐路線上限(防止爆 request)
 
+/** 車號排序:純數字細→大行先(1, 2, 11, 269),之後先到帶英文字母嘅(1A, 269D, N21) */
+function routeCompare(a: string, b: string): number {
+  const pureA = /^\d+$/.test(a)
+  const pureB = /^\d+$/.test(b)
+  if (pureA !== pureB) return pureA ? -1 : 1 // 純數字排先
+  const numA = Number(/\d+/.exec(a)?.[0] ?? Infinity)
+  const numB = Number(/\d+/.exec(b)?.[0] ?? Infinity)
+  if (numA !== numB) return numA - numB // 再按數字部分
+  return a.localeCompare(b) // 最後按字面(1A < 1B;N21 之類)
+}
+
 function sortRows(rows: NearbyRow[]): NearbyRow[] {
   return rows
     .map((r) => ({ ...r, mins: r.mins.slice(0, 3) }))
-    .sort((a, b) => (a.mins[0] ?? 999) - (b.mins[0] ?? 999) || a.dist - b.dist)
+    .sort(
+      (a, b) =>
+        routeCompare(a.route, b.route) ||
+        (a.mins[0] ?? 999) - (b.mins[0] ?? 999) ||
+        a.dist - b.dist,
+    )
 }
 
 // ---- KMB(照舊:官方 stop-eta)----

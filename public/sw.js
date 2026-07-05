@@ -1,5 +1,5 @@
 // 簡單 service worker:快取 app shell,API 請求一律走網絡(保持 ETA 即時)。
-const CACHE = 'kmb-eta-v7'
+const CACHE = 'kmb-eta-v8'
 
 self.addEventListener('install', (e) => {
   self.skipWaiting()
