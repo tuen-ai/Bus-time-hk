@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { getRouteStops, coLabel, coClass, type Route } from '../api/bus'
 import { isFavorite, toggleFavorite, type Favorite } from '../lib/store'
 import EtaPanel from './EtaPanel'
-import RouteMap, { type MapStop } from './RouteMap'
+import type { MapStop } from './RouteMap'
+
+// 地圖(Leaflet)按需載入,搜尋首屏唔使孭住成個地圖庫
+const RouteMap = lazy(() => import('./RouteMap'))
 import { routeBadges } from '../lib/routeMeta'
 import { getFares, fmtFare } from '../lib/fares'
 import TrafficAlert from './TrafficAlert'
@@ -177,7 +180,9 @@ export default function RouteStopsView({
       {!loading && mapStops.length > 0 && <TrafficAlert stops={mapStops} />}
 
       {!loading && mapStops.length > 1 && (
-        <RouteMap route={route} stops={mapStops} focusStopId={openStop ?? undefined} />
+        <Suspense fallback={<div className="map muted" style={{ display: 'grid', placeItems: 'center' }}>🗺️ 地圖載入中…</div>}>
+          <RouteMap route={route} stops={mapStops} focusStopId={openStop ?? undefined} />
+        </Suspense>
       )}
 
       <ol className="stop-list">

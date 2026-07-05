@@ -1,5 +1,8 @@
-import { useState, type ReactNode } from 'react'
-import LocationPicker, { type PickedPlace } from './LocationPicker'
+import { lazy, Suspense, useState, type ReactNode } from 'react'
+import type { PickedPlace } from './LocationPicker'
+
+// 地圖揀點(Leaflet)按需載入
+const LocationPicker = lazy(() => import('./LocationPicker'))
 import { getPosition, describeGeoError } from '../lib/geo'
 import { planJourneys, type Journey, type Leg } from '../lib/journey'
 import {
@@ -158,11 +161,13 @@ export default function PlannerView({ onOpenLeg }: Props) {
 
   if (picking) {
     return (
-      <LocationPicker
-        title={picking.title}
-        onConfirm={onPick}
-        onCancel={() => setPicking(null)}
-      />
+      <Suspense fallback={<MascotState mood="busy" text="地圖載入中…" />}>
+        <LocationPicker
+          title={picking.title}
+          onConfirm={onPick}
+          onCancel={() => setPicking(null)}
+        />
+      </Suspense>
     )
   }
 

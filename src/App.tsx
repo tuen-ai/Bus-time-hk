@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { getAllRoutes, coLabel, coClass, CO_COLOR, SEARCH_OPERATORS, type Route, type Co } from './api/bus'
 import Favorites from './components/Favorites'
 import RouteStopsView from './components/RouteStopsView'
-import MtrView from './components/MtrView'
 import NearbyView from './components/NearbyView'
+
+// 鐵路頁拉埋 Leaflet 落嚟 —— 揀咗先載,搜尋首屏輕好多
+const MtrView = lazy(() => import('./components/MtrView'))
 import PlannerView, { type LegRouteKey } from './components/PlannerView'
 import WeatherBanner from './components/WeatherBanner'
 import AlertBanners from './components/AlertBanners'
@@ -98,7 +100,8 @@ export default function App() {
     setError(null)
     ;(async () => {
       try {
-        setRoutes(await getAllRoutes())
+        // SWR:舊 cache 即刻顯示,背景刷新完靜靜更新
+        setRoutes(await getAllRoutes((fresh) => setRoutes(fresh)))
       } catch (e) {
         setError(e instanceof Error ? e.message : '無法載入路線資料')
       } finally {
@@ -108,6 +111,17 @@ export default function App() {
   }
 
   useEffect(loadRoutes, [])
+
+  // 首屏著地後 idle 預載規劃圖(2.3MB chunk),第一次撳「搵路線」唔使等
+  useEffect(() => {
+    const warm = () => void import('./lib/planGraph').then((m) => m.loadGraph()).catch(() => {})
+    const idle = (window as unknown as { requestIdleCallback?: (fn: () => void, o?: { timeout: number }) => number })
+      .requestIdleCallback
+    const id = idle ? idle(warm, { timeout: 8000 }) : window.setTimeout(warm, 4000)
+    return () => {
+      if (!idle) clearTimeout(id)
+    }
+  }, [])
 
   const matches = useMemo(() => {
     const q = query.trim().toUpperCase()
@@ -199,7 +213,9 @@ export default function App() {
         ) : tab === 'nearby' ? (
           <NearbyView onOpen={openNearby} />
         ) : tab === 'mtr' ? (
-          <MtrView />
+          <Suspense fallback={<MascotState mood="busy" text="載入鐵路資料…" />}>
+            <MtrView />
+          </Suspense>
         ) : tab === 'plan' ? (
           <PlannerView onOpenLeg={openLeg} />
         ) : (

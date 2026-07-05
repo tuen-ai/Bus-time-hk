@@ -1,80 +1,154 @@
-import { useEffect, useRef, useState } from 'react'
-import { nearbyBuses, type NearbyRow } from '../lib/nearby'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  nearbyBuses,
+  readNearbyCache,
+  writeNearbyCache,
+  type NearbyCo,
+  type NearbyRow,
+} from '../lib/nearby'
 import { getPosition, describeGeoError, formatDistance } from '../lib/geo'
+import { coClass, CO_COLOR, coLabel } from '../api/bus'
+import { MascotState } from './Mascots'
 
-type Status = 'idle' | 'locating' | 'ready' | 'error'
-
-const REFRESH_MS = 5_000
+const CO_TABS: NearbyCo[] = ['kmb', 'ctb', 'gmb']
+// KMB 一炮一站好平;CTB 逐路線好貴 → 刷新頻率分開
+const REFRESH_MS: Record<NearbyCo, number> = { kmb: 5_000, ctb: 12_000, gmb: 12_000 }
 const timeLabel = (m: number) => (m <= 0 ? '即將' : `${m}分`)
 
 export default function NearbyView({ onOpen }: { onOpen: (r: NearbyRow) => void }) {
-  const [status, setStatus] = useState<Status>('idle')
-  const [error, setError] = useState<string | null>(null)
+  const [co, setCo] = useState<NearbyCo>(() => {
+    const s = localStorage.getItem('kkcx.nearby.co')
+    return s === 'ctb' || s === 'gmb' ? s : 'kmb'
+  })
   const [rows, setRows] = useState<NearbyRow[]>([])
+  const [stale, setStale] = useState(false) // 顯示緊上次結果
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const coords = useRef<{ lat: number; lng: number } | null>(null)
+  const coRef = useRef(co)
+  coRef.current = co
 
-  const locate = async () => {
-    setStatus('locating')
+  // 換營辦商:即刻俾 cache,再靜靜攞新
+  const showCoNow = useCallback((c: NearbyCo) => {
+    const cached = readNearbyCache(c)
+    if (cached) {
+      setRows(cached.rows)
+      setStale(true)
+      if (!coords.current) coords.current = { lat: cached.lat, lng: cached.lng }
+    } else {
+      setRows([])
+      setStale(false)
+    }
+  }, [])
+
+  const refresh = useCallback(
+    async (c: NearbyCo, loc: { lat: number; lng: number }) => {
+      try {
+        const r = await nearbyBuses(loc.lat, loc.lng, c)
+        if (coRef.current !== c) return // 用戶已經轉咗 tab
+        setRows(r)
+        setStale(false)
+        setError(null)
+        writeNearbyCache(c, loc.lat, loc.lng, r)
+      } catch (e) {
+        if (coRef.current !== c) return
+        if (!readNearbyCache(c)) setError(e instanceof Error ? e.message : '載入失敗')
+      }
+    },
+    [],
+  )
+
+  // 開 tab / 換營辦商:cache 即顯 + 自動定位刷新
+  useEffect(() => {
+    localStorage.setItem('kkcx.nearby.co', co)
+    showCoNow(co)
+    let alive = true
+    ;(async () => {
+      setBusy(true)
+      try {
+        if (!coords.current) {
+          const pos = await getPosition()
+          coords.current = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        }
+        if (!alive) return
+        await refresh(co, coords.current)
+      } catch (e) {
+        if (alive && !readNearbyCache(co)) setError(describeGeoError(e))
+      } finally {
+        if (alive) setBusy(false)
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [co, refresh, showCoNow])
+
+  // 定時刷新(用已知位置)
+  useEffect(() => {
+    const id = setInterval(() => {
+      const c = coords.current
+      if (c) void refresh(co, c)
+    }, REFRESH_MS[co])
+    return () => clearInterval(id)
+  }, [co, refresh])
+
+  const relocate = async () => {
+    setBusy(true)
     setError(null)
     try {
       const pos = await getPosition()
       coords.current = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-      const r = await nearbyBuses(coords.current.lat, coords.current.lng)
-      setRows(r)
-      setStatus('ready')
+      await refresh(co, coords.current)
     } catch (e) {
       setError(describeGeoError(e))
-      setStatus('error')
+    } finally {
+      setBusy(false)
     }
   }
 
-  // 每 5 秒用已知位置靜默刷新 ETA(唔再彈定位)
-  useEffect(() => {
-    if (status !== 'ready') return
-    const id = setInterval(() => {
-      const c = coords.current
-      if (!c) return
-      nearbyBuses(c.lat, c.lng)
-        .then(setRows)
-        .catch(() => {})
-    }, REFRESH_MS)
-    return () => clearInterval(id)
-  }, [status])
-
-  if (status === 'idle' || status === 'error') {
-    return (
-      <div className="nearby-cta">
-        <div className="cta-emoji">📍</div>
-        <p className="muted">睇下你附近有咩巴士就嚟到</p>
-        {status === 'error' && error && <div className="error pad">⚠️ {error}</div>}
-        <button className="primary-btn" onClick={locate}>
-          {status === 'error' ? '重新定位' : '顯示附近巴士'}
-        </button>
-        <p className="small muted" style={{ marginTop: 12 }}>
-          位置只喺你部機運算,唔會上傳。目前涵蓋九巴 / 龍運。
-        </p>
-      </div>
-    )
-  }
-
-  if (status === 'locating') return <div className="muted pad">📡 搵緊附近巴士…</div>
-
   return (
     <div>
-      <div className="nearby-head">
-        <h2 className="section-title">📍 附近巴士 · 每 5 秒刷新</h2>
-        <button className="back-btn" onClick={locate}>
+      <div className="co-filter">
+        {CO_TABS.map((c) => {
+          const active = co === c
+          const color = CO_COLOR[c]
+          return (
+            <button
+              key={c}
+              className={`co-chip ${active ? 'on' : ''}`}
+              style={active ? { background: color, borderColor: color } : { color, borderColor: color }}
+              onClick={() => setCo(c)}
+            >
+              {coLabel(c)}
+            </button>
+          )
+        })}
+        <button className="back-btn" style={{ marginLeft: 'auto' }} onClick={() => void relocate()}>
           ↻ 重新定位
         </button>
       </div>
-      {rows.length === 0 && <div className="muted pad">附近暫時無即將到站嘅班次</div>}
+
+      {stale && <div className="muted small" style={{ margin: '0 2px 8px' }}>⏳ 顯示緊上次結果,更新緊…</div>}
+      {busy && rows.length === 0 && !error && <MascotState mood="busy" text="📡 搵緊你附近嘅車…" />}
+      {error && rows.length === 0 && (
+        <div>
+          <MascotState mood="sad" text={error} />
+          <div style={{ textAlign: 'center' }}>
+            <button className="primary-btn" onClick={() => void relocate()}>重試</button>
+          </div>
+        </div>
+      )}
+      {!busy && !error && rows.length === 0 && !stale && (
+        <MascotState mood="sad" text={`附近暫時冇${coLabel(co)}即將到站嘅班次`} />
+      )}
+
       <ul className="nearby-list">
         {rows.map((r, i) => (
-          <li key={`${r.route}-${r.stopId}-${i}`}>
+          <li key={`${r.co}-${r.route}-${r.dir}-${r.stopId}-${i}`}>
             <button className="nearby-row" onClick={() => onOpen(r)}>
-              <span className="route-badge sm">{r.route}</span>
+              <span className={`route-badge sm ${coClass(r.co)}`}>{r.route}</span>
               <span className="nearby-info">
-                <span className="nearby-dest">往 {r.dest}</span>
+                <span className="nearby-dest">{r.dest ? `往 ${r.dest}` : coLabel(r.co)}</span>
                 <span className="muted small">
                   {r.stopName} · {formatDistance(r.dist)}
                 </span>
@@ -96,6 +170,11 @@ export default function NearbyView({ onOpen }: { onOpen: (r: NearbyRow) => void 
           </li>
         ))}
       </ul>
+      {rows.length > 0 && (
+        <p className="small muted" style={{ textAlign: 'center' }}>
+          每 {REFRESH_MS[co] / 1000} 秒自動刷新 · 位置只喺你部機運算,唔會上傳
+        </p>
+      )}
     </div>
   )
 }

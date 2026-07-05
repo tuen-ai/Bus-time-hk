@@ -1,12 +1,20 @@
-// 附近巴士:由 GPS 搵最近九巴站,取各站所有路線下一班,攤平成 route-centric 清單。
-// (用九巴 stop-eta;九巴站資料有離線座標,覆蓋最廣)
+// 附近巴士(route-centric):支援九巴 / 城巴 / 綠van,逐營辦商查。
+// - KMB:官方 stopList + /stop-eta(一炮一站)
+// - CTB:planGraph 站座標 + 逐路線 /eta(冇 stop-eta endpoint,批量發)
+// - GMB:planGraph 站座標 + /stop-route + /eta/stop(一站兩炮)
+// 另附 localStorage 結果 cache,畀「一開 tab 即有嘢睇」。
 import { fetchStopEta } from '../api/kmb'
+import { fetchCtbEta } from '../api/ctb'
+import { fetchGmbStopAll } from '../api/gmb'
 import { getStopMap } from './store'
 import { distanceMeters } from './geo'
 import { minutesUntil } from './time'
+import { loadGraph, nearStops, type Indexed } from './planGraph'
+
+export type NearbyCo = 'kmb' | 'ctb' | 'gmb'
 
 export interface NearbyRow {
-  co: 'kmb'
+  co: NearbyCo
   route: string
   dir: 'I' | 'O'
   serviceType: string
@@ -17,22 +25,30 @@ export interface NearbyRow {
   mins: number[] // 下一班、下下一班…(最多 3 班)
 }
 
-const NEAR_STOPS = 8
+const KMB_STOPS = 8
+const GRAPH_STOPS = 5 // ctb/gmb 每次查幾多個站
+const MAX_ROUTE_CALLS = 24 // ctb 逐路線上限(防止爆 request)
 
-export async function nearbyBuses(lat: number, lng: number): Promise<NearbyRow[]> {
+function sortRows(rows: NearbyRow[]): NearbyRow[] {
+  return rows
+    .map((r) => ({ ...r, mins: r.mins.slice(0, 3) }))
+    .sort((a, b) => (a.mins[0] ?? 999) - (b.mins[0] ?? 999) || a.dist - b.dist)
+}
+
+// ---- KMB(照舊:官方 stop-eta)----
+async function nearbyKmb(lat: number, lng: number): Promise<NearbyRow[]> {
   const stopMap = await getStopMap()
   if (stopMap.size === 0) throw new Error('未能載入車站資料,請重試')
   const nearest = [...stopMap.values()]
     .map((s) => ({ s, d: distanceMeters(lat, lng, Number(s.lat), Number(s.long)) }))
     .sort((a, b) => a.d - b.d)
-    .slice(0, NEAR_STOPS)
+    .slice(0, KMB_STOPS)
 
   const now = Date.now()
   const batches = await Promise.all(
     nearest.map(async ({ s, d }) => {
       try {
         const etas = await fetchStopEta(s.stop)
-        // 同一站同一路線(方向/班次)嘅多班 ETA 聚合成一行
         const groups = new Map<string, NearbyRow>()
         for (const e of etas) {
           if (!e.eta) continue
@@ -63,8 +79,154 @@ export async function nearbyBuses(lat: number, lng: number): Promise<NearbyRow[]
       }
     }),
   )
-  return batches
-    .flat()
-    .map((r) => ({ ...r, mins: r.mins.slice(0, 3) }))
-    .sort((a, b) => (a.mins[0] ?? 999) - (b.mins[0] ?? 999) || a.dist - b.dist)
+  return sortRows(batches.flat())
+}
+
+// ---- planGraph 站(ctb / gmb 共用)----
+interface GraphStop {
+  id: string
+  dist: number
+  name: string
+}
+
+async function graphNearStops(ix: Indexed, lat: number, lng: number, co: string): Promise<GraphStop[]> {
+  const near = nearStops(ix, lat, lng, 500, 40)
+  const out: GraphStop[] = []
+  for (const n of near) {
+    const rs = ix.stopRoutes.get(n.id) ?? []
+    if (!rs.some(({ ri }) => ix.routeByIdx[ri].co === co)) continue
+    out.push({ id: n.id, dist: n.dist, name: ix.graph.stops[n.id]?.[2] ?? n.id })
+    if (out.length >= GRAPH_STOPS) break
+  }
+  return out
+}
+
+// ---- CTB(逐路線 ETA,批量限流)----
+async function nearbyCtb(lat: number, lng: number): Promise<NearbyRow[]> {
+  const ix = await loadGraph()
+  const stops = await graphNearStops(ix, lat, lng, 'ctb')
+  if (!stops.length) return []
+
+  // 收集 (站, 路線) 對,cap 總數
+  const jobs: { st: GraphStop; route: string; bound: 'I' | 'O'; dest: string }[] = []
+  for (const st of stops) {
+    const seen = new Set<string>()
+    for (const { ri } of ix.stopRoutes.get(st.id) ?? []) {
+      const r = ix.routeByIdx[ri]
+      if (r.co !== 'ctb') continue
+      const k = `${r.r}|${r.b}`
+      if (seen.has(k)) continue
+      seen.add(k)
+      jobs.push({ st, route: r.r, bound: r.b, dest: r.d })
+      if (jobs.length >= MAX_ROUTE_CALLS) break
+    }
+    if (jobs.length >= MAX_ROUTE_CALLS) break
+  }
+
+  const now = Date.now()
+  const rows: NearbyRow[] = []
+  // 8 個一批
+  for (let i = 0; i < jobs.length; i += 8) {
+    const part = await Promise.all(
+      jobs.slice(i, i + 8).map(async (j) => {
+        try {
+          const etas = await fetchCtbEta(j.st.id, j.route, j.bound)
+          const mins = etas
+            .map((e) => (e.eta ? minutesUntil(e.eta, now) : null))
+            .filter((m): m is number => m != null)
+            .sort((a, b) => a - b)
+          if (!mins.length) return null
+          const row: NearbyRow = {
+            co: 'ctb',
+            route: j.route,
+            dir: j.bound,
+            serviceType: '1',
+            dest: etas[0]?.dest_tc || j.dest,
+            stopId: j.st.id,
+            stopName: j.st.name,
+            dist: j.st.dist,
+            mins,
+          }
+          return row
+        } catch {
+          return null
+        }
+      }),
+    )
+    rows.push(...part.filter((x): x is NearbyRow => x !== null))
+  }
+  return sortRows(rows)
+}
+
+// ---- GMB(/eta/stop 一站全路線)----
+async function nearbyGmb(lat: number, lng: number): Promise<NearbyRow[]> {
+  const ix = await loadGraph()
+  const stops = await graphNearStops(ix, lat, lng, 'gmb')
+  if (!stops.length) return []
+
+  const batches = await Promise.all(
+    stops.map(async (st) => {
+      const all = await fetchGmbStopAll(st.id)
+      return all.map<NearbyRow>((g) => {
+        const bound = g.routeSeq === 2 ? 'I' : 'O'
+        // 由 planGraph 對返目的地名
+        const pr = (ix.stopRoutes.get(st.id) ?? [])
+          .map(({ ri }) => ix.routeByIdx[ri])
+          .find((r) => r.co === 'gmb' && r.r === g.routeCode && r.b === bound)
+        return {
+          co: 'gmb',
+          route: g.routeCode,
+          dir: bound,
+          serviceType: '1',
+          dest: pr?.d ?? '',
+          stopId: st.id,
+          stopName: st.name,
+          dist: st.dist,
+          mins: g.minsList,
+        }
+      })
+    }),
+  )
+  // 同一路線喺幾個站出現 → 留最近嗰個站
+  const best = new Map<string, NearbyRow>()
+  for (const r of batches.flat()) {
+    const k = `${r.route}|${r.dir}`
+    const cur = best.get(k)
+    if (!cur || r.dist < cur.dist) best.set(k, r)
+  }
+  return sortRows([...best.values()])
+}
+
+export async function nearbyBuses(lat: number, lng: number, co: NearbyCo): Promise<NearbyRow[]> {
+  if (co === 'ctb') return nearbyCtb(lat, lng)
+  if (co === 'gmb') return nearbyGmb(lat, lng)
+  return nearbyKmb(lat, lng)
+}
+
+// ---- 結果 cache(即開即有)----
+interface NearbyCache {
+  ts: number
+  lat: number
+  lng: number
+  rows: NearbyRow[]
+}
+
+const CACHE_TTL = 15 * 60 * 1000
+
+export function readNearbyCache(co: NearbyCo): NearbyCache | null {
+  try {
+    const c = JSON.parse(localStorage.getItem(`kkcx.nearby.${co}`) || 'null') as NearbyCache | null
+    if (c && Date.now() - c.ts < CACHE_TTL && Array.isArray(c.rows) && c.rows.length) return c
+  } catch {
+    /* ignore */
+  }
+  return null
+}
+
+export function writeNearbyCache(co: NearbyCo, lat: number, lng: number, rows: NearbyRow[]): void {
+  try {
+    localStorage.setItem(`kkcx.nearby.${co}`, JSON.stringify({ ts: Date.now(), lat, lng, rows }))
+  } catch {
+    /* ignore */
+  }
 }

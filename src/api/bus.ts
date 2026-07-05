@@ -95,20 +95,49 @@ async function batchMap<T, R>(items: T[], size: number, fn: (x: T) => Promise<R>
 const DAY = 24 * 60 * 60 * 1000
 let routeMem: Route[] | null = null
 
-export async function getAllRoutes(): Promise<Route[]> {
+function saveRoutes(all: Route[]): void {
+  try {
+    localStorage.setItem('bus.routes', JSON.stringify({ ts: Date.now(), data: all }))
+  } catch {
+    /* 容量不足靜默 */
+  }
+}
+
+/**
+ * stale-while-revalidate:7 日內嘅 cache 即刻回(app 即開即用);
+ * 過咗 1 日就背景刷新,完成後經 onRefresh 靜靜更新 UI。
+ */
+export async function getAllRoutes(onRefresh?: (rs: Route[]) => void): Promise<Route[]> {
   if (routeMem) return routeMem
   try {
     const raw = localStorage.getItem('bus.routes')
     if (raw) {
       const c = JSON.parse(raw) as { ts: number; data: Route[] }
-      if (Date.now() - c.ts < DAY) {
+      const age = Date.now() - c.ts
+      if (age < 7 * DAY && c.data.length > 0) {
         routeMem = c.data
+        if (age >= DAY) {
+          void fetchAllFresh()
+            .then((all) => {
+              routeMem = all
+              saveRoutes(all)
+              onRefresh?.(all)
+            })
+            .catch(() => {})
+        }
         return c.data
       }
     }
   } catch {
     /* ignore */
   }
+  const all = await fetchAllFresh()
+  routeMem = all
+  saveRoutes(all)
+  return all
+}
+
+async function fetchAllFresh(): Promise<Route[]> {
   const [k, c] = await Promise.all([
     kmb
       .fetchRoutes()
@@ -141,12 +170,6 @@ export async function getAllRoutes(): Promise<Route[]> {
   const all = [...k, ...c, ...lr, ...nl, ...gm]
   // 兩邊都失敗(離線/CORS)→ 唔好快取空陣列毒化一日,直接拋錯俾 App 顯示重試
   if (all.length === 0) throw new Error('路線資料載入失敗,請稍後重試')
-  routeMem = all
-  try {
-    localStorage.setItem('bus.routes', JSON.stringify({ ts: Date.now(), data: all }))
-  } catch {
-    /* 容量不足靜默 */
-  }
   return all
 }
 

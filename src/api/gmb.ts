@@ -87,3 +87,46 @@ interface RawEta {
   timestamp?: string
   remarks_tc?: string
 }
+
+/** 一個 GMB 站所有路線嘅下幾班(附近 tab 用):stop-route + eta/stop 兩炮搞掂 */
+export interface GmbStopRow {
+  routeCode: string
+  routeSeq: number // 1=O, 2=I
+  minsList: number[] // 下一班、下下班…(分鐘)
+}
+
+export async function fetchGmbStopAll(stopId: string): Promise<GmbStopRow[]> {
+  const sr = await stopRoutes(stopId)
+  if (!sr.length) return []
+  try {
+    const res = await fetch(`${BASE}/eta/stop/${stopId}`, { signal: AbortSignal.timeout(15000) })
+    if (!res.ok) throw new Error()
+    const json = (await res.json()) as {
+      data?:
+        | { route_id: number | string; route_seq: number | string; eta?: RawEta[] }[]
+        | { routes?: { route_id: number | string; route_seq: number | string; eta?: RawEta[] }[] }
+    }
+    const data = json.data
+    const rows = Array.isArray(data) ? data : (data?.routes ?? [])
+    const out: GmbStopRow[] = []
+    for (const r of rows) {
+      const match = sr.find(
+        (e) => String(e.route_id) === String(r.route_id) && Number(e.route_seq) === Number(r.route_seq),
+      )
+      if (!match) continue
+      const code = String(match.route_code ?? match.route_no ?? '')
+      if (!code) continue
+      const minsList = (r.eta ?? [])
+        .map((e) =>
+          e.diff != null ? Number(e.diff) : e.timestamp ? Math.round((new Date(e.timestamp).getTime() - Date.now()) / 60000) : null,
+        )
+        .filter((m): m is number => m != null && m > -2)
+        .sort((a, b) => a - b)
+      if (!minsList.length) continue
+      out.push({ routeCode: code, routeSeq: Number(r.route_seq), minsList })
+    }
+    return out
+  } catch {
+    return []
+  }
+}
