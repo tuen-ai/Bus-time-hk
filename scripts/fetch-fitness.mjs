@@ -14,27 +14,40 @@ const MIRRORS = [
   'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ]
 
-// 名有 24/7 兼似健身房(fitness_centre / sports_centre / gym 字眼)
+// 名/品牌有 24/7 兼似健身房。用 bbox(唔用 area —— 部分 mirror 解唔到 area)
+const BBOX = '22.15,113.83,22.58,114.45' // 香港
 const QUERY = `
-[out:json][timeout:60];
-area["ISO3166-1"="HK"]->.hk;
+[out:json][timeout:50];
 (
-  nwr["leisure"="fitness_centre"]["name"~"24/7",i](area.hk);
-  nwr["leisure"="sports_centre"]["name"~"24/7",i](area.hk);
-  nwr["name"~"24/7 ?Fitness",i](area.hk);
+  nwr["leisure"="fitness_centre"]["name"~"24/7",i](${BBOX});
+  nwr["leisure"="fitness_centre"]["brand"~"24/7",i](${BBOX});
+  nwr["name"~"24/7 ?Fitness",i](${BBOX});
+  nwr["brand"~"24/7 ?Fitness",i](${BBOX});
 );
 out center tags;
 `
 
 async function tryMirror(url) {
-  const res = await fetch(url, {
-    method: 'POST',
-    body: new URLSearchParams({ data: QUERY }),
-    headers: { 'User-Agent': 'kkcx-build/1.0 (transit app poi bake)' },
-    signal: AbortSignal.timeout(90000),
-  })
-  if (!res.ok) throw new Error(`${res.status}`)
-  return res.json()
+  // 504/429 屬過載,隔 10 秒多試一次
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt) await new Promise((r) => setTimeout(r, 10000))
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        body: new URLSearchParams({ data: QUERY }),
+        headers: { 'User-Agent': 'kkcx-build/1.0 (transit app poi bake)' },
+        signal: AbortSignal.timeout(70000),
+      })
+      if (!res.ok) throw new Error(`${res.status}`)
+      const j = await res.json()
+      console.log(`  raw elements: ${(j.elements ?? []).length}`)
+      if (!(j.elements ?? []).length) throw new Error('0 elements')
+      return j
+    } catch (e) {
+      if (attempt) throw e
+      console.log(`  retry(${e.message})…`)
+    }
+  }
 }
 
 async function main() {
