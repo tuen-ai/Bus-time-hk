@@ -132,32 +132,15 @@ async function fetchOfficial() {
       // 1) Next.js flight chunks
       const flight = decodeNextFlight(html)
       if (flight) {
-        const hasGeo = /lat/i.test(flight) && /(lng|longitude)/i.test(flight)
-        console.log(`  next_f decode: ${flight.length} chars, 含 lat/lng: ${hasGeo}`)
         harvestFromText(flight, found)
         try {
           harvestCoords(JSON.parse(flight), found)
         } catch {
           /* not pure json */
         }
-        if (!found.length) {
-          // 揾 flight 內嘅 API endpoint / store 相關 path
-          const eps = new Set()
-          for (const m of flight.matchAll(/["'`](\/(?:[a-z0-9_-]+\/)*[a-z0-9_-]*(?:store|branch|location|shop|find[-_]?us|outlet|centre|club|gym)[a-z0-9_/-]*)["'`?]/gi)) eps.add(m[1])
-          for (const m of flight.matchAll(/(https?:\/\/[a-z0-9.-]+\/[^\s"'`\\]*(?:api|store|graphql)[^\s"'`\\]*)/gi)) eps.add(m[1])
-          console.log(`  [debug] flight 內 endpoint 提示(${eps.size}):`)
-          for (const e of [...eps].slice(0, 25)) console.log(`    ${e}`)
-          // store 附近片段
-          const at = flight.search(/store|branch|outlet|分店/i)
-          if (at >= 0) console.log(`  [debug] "store" 附近:${flight.slice(at - 20, at + 260).replace(/\s+/g, ' ')}`)
-          // JS chunk 檔(client bundle,API 可能 hardcode 喺度)
-          const chunks = [...html.matchAll(/\/_next\/static\/chunks\/[a-z0-9/_.-]+\.js/gi)].map((m) => m[0])
-          console.log(`  [debug] JS chunks: ${chunks.length}(頭 5:${chunks.slice(0, 5).join(', ')})`)
-        }
       }
       // 2) 傳統 embedded JSON blobs
       const blobs = extractJsonBlobs(html)
-      if (blobs.length) console.log(`  embedded JSON blobs: ${blobs.length}`)
       for (const b of blobs) harvestCoords(b, found)
       // 後備:直接由 HTML regex 搵 lat/lng 對
       if (found.length < 5) {
@@ -180,18 +163,7 @@ async function fetchOfficial() {
       }
       console.log(`  抽到座標:${uniq.length} 個`)
       if (uniq.length >= 20) return uniq
-      if (uniq.length) console.log(`  (少於 20,可能只係部分;繼續試其他來源)`)
-      // dump 診斷:HTML 係 CSR SPA → 揾 store/api endpoint 提示
-      const urlSet = new Set()
-      for (const m of html.matchAll(/["'`(]((?:https?:)?\/\/?[^"'`)\s]*(?:api|store|branch|location|find[-_]?us|graphql|\.json)[^"'`)\s]*)/gi)) {
-        urlSet.add(m[1])
-      }
-      const urls = [...urlSet].slice(0, 40)
-      console.log(`  [debug] 似 API/store 嘅 URL(${urlSet.size}):`)
-      for (const u of urls) console.log(`    ${u}`)
-      // Next.js App Router build id(用嚟砌 /_next/data/<id>/...json)
-      const bid = /"buildId"\s*:\s*"([^"]+)"/.exec(html) || /\/_next\/static\/([^/"']+)\/_/.exec(html)
-      if (bid) console.log(`  [debug] buildId: ${bid[1]}`)
+      // 官方站(Next 15 App Router)分店 list 由 client 動態載入,SSR HTML 冇座標 —— 略過
     } catch (e) {
       console.log(`  ✗ ${e.message}`)
     }
