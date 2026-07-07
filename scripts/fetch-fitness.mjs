@@ -132,12 +132,27 @@ async function fetchOfficial() {
       // 1) Next.js flight chunks
       const flight = decodeNextFlight(html)
       if (flight) {
-        console.log(`  next_f decode: ${flight.length} chars, 含 lat/lng: ${/lat/i.test(flight) && /(lng|longitude)/i.test(flight)}`)
+        const hasGeo = /lat/i.test(flight) && /(lng|longitude)/i.test(flight)
+        console.log(`  next_f decode: ${flight.length} chars, 含 lat/lng: ${hasGeo}`)
         harvestFromText(flight, found)
         try {
-          harvestCoords(JSON.parse(flight), found) // 萬一某 chunk 本身係 JSON
+          harvestCoords(JSON.parse(flight), found)
         } catch {
           /* not pure json */
+        }
+        if (!found.length) {
+          // 揾 flight 內嘅 API endpoint / store 相關 path
+          const eps = new Set()
+          for (const m of flight.matchAll(/["'`](\/(?:[a-z0-9_-]+\/)*[a-z0-9_-]*(?:store|branch|location|shop|find[-_]?us|outlet|centre|club|gym)[a-z0-9_/-]*)["'`?]/gi)) eps.add(m[1])
+          for (const m of flight.matchAll(/(https?:\/\/[a-z0-9.-]+\/[^\s"'`\\]*(?:api|store|graphql)[^\s"'`\\]*)/gi)) eps.add(m[1])
+          console.log(`  [debug] flight 內 endpoint 提示(${eps.size}):`)
+          for (const e of [...eps].slice(0, 25)) console.log(`    ${e}`)
+          // store 附近片段
+          const at = flight.search(/store|branch|outlet|分店/i)
+          if (at >= 0) console.log(`  [debug] "store" 附近:${flight.slice(at - 20, at + 260).replace(/\s+/g, ' ')}`)
+          // JS chunk 檔(client bundle,API 可能 hardcode 喺度)
+          const chunks = [...html.matchAll(/\/_next\/static\/chunks\/[a-z0-9/_.-]+\.js/gi)].map((m) => m[0])
+          console.log(`  [debug] JS chunks: ${chunks.length}(頭 5:${chunks.slice(0, 5).join(', ')})`)
         }
       }
       // 2) 傳統 embedded JSON blobs
