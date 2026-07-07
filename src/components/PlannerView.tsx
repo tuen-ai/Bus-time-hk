@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import type { PickedPlace } from './LocationPicker'
 
 // 地圖揀點(Leaflet)按需載入
@@ -33,6 +33,8 @@ export interface LegRouteKey {
 
 interface Props {
   onOpenLeg?: (k: LegRouteKey) => void
+  /** 外部帶入嘅終點(例如附近 tab「帶我去」) */
+  initialDest?: { label: string; lat: number; lng: number } | null
 }
 
 function renderLegs(legs: Leg[], onOpenLeg?: (k: LegRouteKey) => void) {
@@ -85,9 +87,14 @@ function epLabel(e: Endpoint): string {
   return ''
 }
 
-export default function PlannerView({ onOpenLeg }: Props) {
+export default function PlannerView({ onOpenLeg, initialDest }: Props) {
   const [origin, setOrigin] = useState<Endpoint>('mylocation')
-  const [dest, setDest] = useState<Endpoint>(null)
+  const [dest, setDest] = useState<Endpoint>(initialDest ?? null)
+
+  // 外部「帶我去」變咗 → 更新終點
+  useEffect(() => {
+    if (initialDest) setDest(initialDest)
+  }, [initialDest])
   const [picking, setPicking] = useState<Picking>(null)
   const [places, setPlaces] = useState<SavedPlace[]>(getPlaces())
   const [results, setResults] = useState<Journey[] | null>(null)

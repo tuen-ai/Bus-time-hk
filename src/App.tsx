@@ -33,6 +33,14 @@ export default function App() {
   const [dark, setDark] = useState(() => localStorage.getItem('kmb.theme') === 'dark')
 
   const [showBackup, setShowBackup] = useState(false)
+  // 「帶我去」(例如 24/7 分店)→ 跳去規劃 tab 並預設終點
+  const [planDest, setPlanDest] = useState<{ label: string; lat: number; lng: number } | null>(null)
+
+  const planTo = (t: { label: string; lat: number; lng: number }) => {
+    setPlanDest(t)
+    setSelected(null)
+    setTab('plan')
+  }
 
   const openRoute = (r: Route, stopId?: string) => {
     setInitialStop(stopId)
@@ -211,13 +219,13 @@ export default function App() {
             onBack={() => setSelected(null)}
           />
         ) : tab === 'nearby' ? (
-          <NearbyView onOpen={openNearby} />
+          <NearbyView onOpen={openNearby} onPlanTo={planTo} />
         ) : tab === 'mtr' ? (
           <Suspense fallback={<MascotState mood="busy" text="載入鐵路資料…" />}>
             <MtrView />
           </Suspense>
         ) : tab === 'plan' ? (
-          <PlannerView onOpenLeg={openLeg} />
+          <PlannerView onOpenLeg={openLeg} initialDest={planDest} />
         ) : (
           <>
             <div className="co-filter">

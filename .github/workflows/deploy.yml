@@ -38,6 +38,11 @@ jobs:
         run: node scripts/fetch-tsm.mjs
         continue-on-error: true
 
+      # 24/7 Fitness 分店(OpenStreetMap);失敗不致命
+      - name: Bake fitness locations
+        run: node scripts/fetch-fitness.mjs
+        continue-on-error: true
+
       - run: npm run build
 
       # 自動啟用 Pages(若尚未啟用)

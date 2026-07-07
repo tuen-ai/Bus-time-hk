@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import {
   nearbyBuses,
   readNearbyCache,
@@ -9,17 +9,29 @@ import {
 import { getPosition, describeGeoError, formatDistance } from '../lib/geo'
 import { coClass, CO_COLOR, coLabel } from '../api/bus'
 import { MascotState } from './Mascots'
+import type { PlanTo } from './FitnessView'
+
+// 健身房地圖(Leaflet)按需載入
+const FitnessView = lazy(() => import('./FitnessView'))
 
 const CO_TABS: NearbyCo[] = ['kmb', 'ctb', 'gmb']
+type Tab = NearbyCo | 'fit'
 // KMB 一炮一站好平;CTB 逐路線好貴 → 刷新頻率分開
 const REFRESH_MS: Record<NearbyCo, number> = { kmb: 5_000, ctb: 12_000, gmb: 12_000 }
 const timeLabel = (m: number) => (m <= 0 ? '即將' : `${m}分`)
 
-export default function NearbyView({ onOpen }: { onOpen: (r: NearbyRow) => void }) {
-  const [co, setCo] = useState<NearbyCo>(() => {
+export default function NearbyView({
+  onOpen,
+  onPlanTo,
+}: {
+  onOpen: (r: NearbyRow) => void
+  onPlanTo: (t: PlanTo) => void
+}) {
+  const [tab, setTab] = useState<Tab>(() => {
     const s = localStorage.getItem('kkcx.nearby.co')
-    return s === 'ctb' || s === 'gmb' ? s : 'kmb'
+    return s === 'ctb' || s === 'gmb' || s === 'fit' ? s : 'kmb'
   })
+  const co: NearbyCo = tab === 'fit' ? 'kmb' : tab
   const [rows, setRows] = useState<NearbyRow[]>([])
   const [stale, setStale] = useState(false) // 顯示緊上次結果
   const [busy, setBusy] = useState(false)
@@ -60,7 +72,8 @@ export default function NearbyView({ onOpen }: { onOpen: (r: NearbyRow) => void 
 
   // 開 tab / 換營辦商:cache 即顯 + 自動定位刷新
   useEffect(() => {
-    localStorage.setItem('kkcx.nearby.co', co)
+    localStorage.setItem('kkcx.nearby.co', tab)
+    if (tab === 'fit') return
     showCoNow(co)
     let alive = true
     ;(async () => {
@@ -81,16 +94,17 @@ export default function NearbyView({ onOpen }: { onOpen: (r: NearbyRow) => void 
     return () => {
       alive = false
     }
-  }, [co, refresh, showCoNow])
+  }, [tab, co, refresh, showCoNow])
 
   // 定時刷新(用已知位置)
   useEffect(() => {
+    if (tab === 'fit') return
     const id = setInterval(() => {
       const c = coords.current
       if (c) void refresh(co, c)
     }, REFRESH_MS[co])
     return () => clearInterval(id)
-  }, [co, refresh])
+  }, [tab, co, refresh])
 
   const relocate = async () => {
     setBusy(true)
@@ -106,28 +120,46 @@ export default function NearbyView({ onOpen }: { onOpen: (r: NearbyRow) => void 
     }
   }
 
+  const FIT_COLOR = '#7d3c98'
+
   return (
     <div>
       <div className="co-filter">
         {CO_TABS.map((c) => {
-          const active = co === c
+          const active = tab === c
           const color = CO_COLOR[c]
           return (
             <button
               key={c}
               className={`co-chip ${active ? 'on' : ''}`}
               style={active ? { background: color, borderColor: color } : { color, borderColor: color }}
-              onClick={() => setCo(c)}
+              onClick={() => setTab(c)}
             >
               {coLabel(c)}
             </button>
           )
         })}
-        <button className="back-btn" style={{ marginLeft: 'auto' }} onClick={() => void relocate()}>
-          ↻ 重新定位
+        <button
+          className={`co-chip ${tab === 'fit' ? 'on' : ''}`}
+          style={tab === 'fit' ? { background: FIT_COLOR, borderColor: FIT_COLOR } : { color: FIT_COLOR, borderColor: FIT_COLOR }}
+          onClick={() => setTab('fit')}
+        >
+          🏋️ 24/7
         </button>
+        {tab !== 'fit' && (
+          <button className="back-btn" style={{ marginLeft: 'auto' }} onClick={() => void relocate()}>
+            ↻ 重新定位
+          </button>
+        )}
       </div>
 
+      {tab === 'fit' && (
+        <Suspense fallback={<MascotState mood="busy" text="載入分店地圖…" />}>
+          <FitnessView onPlanTo={onPlanTo} />
+        </Suspense>
+      )}
+      {tab !== 'fit' && (
+        <>
       {stale && <div className="muted small" style={{ margin: '0 2px 8px' }}>⏳ 顯示緊上次結果,更新緊…</div>}
       {busy && rows.length === 0 && !error && <MascotState mood="busy" text="📡 搵緊你附近嘅車…" />}
       {error && rows.length === 0 && (
@@ -174,6 +206,8 @@ export default function NearbyView({ onOpen }: { onOpen: (r: NearbyRow) => void 
         <p className="small muted" style={{ textAlign: 'center' }}>
           每 {REFRESH_MS[co] / 1000} 秒自動刷新 · 位置只喺你部機運算,唔會上傳
         </p>
+      )}
+        </>
       )}
     </div>
   )

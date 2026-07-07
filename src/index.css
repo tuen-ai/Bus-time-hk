@@ -303,6 +303,36 @@ input:focus-visible {
   font-size: 0.95rem;
 }
 
+/* ---- 24/7 健身分店 ---- */
+.gym-icon .gym {
+  font-size: 20px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+  transition: transform 0.15s;
+}
+.gym-icon .gym.on {
+  transform: scale(1.5);
+}
+.gym-pick {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: 1.2rem;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.goto-btn {
+  border: 1.5px solid var(--red);
+  color: var(--red-dark);
+  background: var(--card);
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 /* ---- 備份面板 ---- */
 .backup-overlay {
   position: fixed;
