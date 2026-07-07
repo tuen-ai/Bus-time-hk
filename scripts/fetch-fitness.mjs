@@ -114,10 +114,17 @@ async function fetchOfficial() {
       console.log(`  抽到座標:${uniq.length} 個`)
       if (uniq.length >= 20) return uniq
       if (uniq.length) console.log(`  (少於 20,可能只係部分;繼續試其他來源)`)
-      // dump 診斷
-      const at = html.search(/lat/i)
-      if (at >= 0) console.log(`  [debug] "lat" 附近:${html.slice(at - 40, at + 160).replace(/\s+/g, ' ')}`)
-      else console.log(`  [debug] HTML 頭:${html.slice(0, 500).replace(/\s+/g, ' ')}`)
+      // dump 診斷:HTML 係 CSR SPA → 揾 store/api endpoint 提示
+      const urlSet = new Set()
+      for (const m of html.matchAll(/["'`(]((?:https?:)?\/\/?[^"'`)\s]*(?:api|store|branch|location|find[-_]?us|graphql|\.json)[^"'`)\s]*)/gi)) {
+        urlSet.add(m[1])
+      }
+      const urls = [...urlSet].slice(0, 40)
+      console.log(`  [debug] 似 API/store 嘅 URL(${urlSet.size}):`)
+      for (const u of urls) console.log(`    ${u}`)
+      // Next.js App Router build id(用嚟砌 /_next/data/<id>/...json)
+      const bid = /"buildId"\s*:\s*"([^"]+)"/.exec(html) || /\/_next\/static\/([^/"']+)\/_/.exec(html)
+      if (bid) console.log(`  [debug] buildId: ${bid[1]}`)
     } catch (e) {
       console.log(`  ✗ ${e.message}`)
     }
