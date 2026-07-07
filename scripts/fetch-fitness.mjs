@@ -82,15 +82,67 @@ function extractJsonBlobs(html) {
   return blobs
 }
 
+/** Next.js App Router flight chunks(self.__next_f.push([n,"...escaped json..."]))
+ *  拼埋 decode 返完整 RSC 文字 */
+function decodeNextFlight(html) {
+  let big = ''
+  for (const m of html.matchAll(/self\.__next_f\.push\(\[\d+,\s*("(?:[^"\\]|\\.)*")\s*\]\)/g)) {
+    try {
+      big += JSON.parse(m[1])
+    } catch {
+      /* ignore chunk */
+    }
+  }
+  return big
+}
+
+/** 由 decode 文字用「座標錨 + 就近 name/address」抽分店 */
+function harvestFromText(text, out) {
+  // name 喺前
+  const pats = [
+    /"(?:name|title|store_name|branch|shop_name)"\s*:\s*"([^"]{2,70})"[\s\S]{0,400}?"(?:lat|latitude)"\s*:\s*"?(-?2[0-9]\.\d{3,})"?[\s\S]{0,150}?"(?:lng|lon|longitude)"\s*:\s*"?(11[0-9]\.\d{3,})"?/g,
+    // 座標喺前,name 喺後
+    /"(?:lat|latitude)"\s*:\s*"?(2[0-9]\.\d{3,})"?[\s\S]{0,150}?"(?:lng|lon|longitude)"\s*:\s*"?(11[0-9]\.\d{3,})"?[\s\S]{0,400}?"(?:name|title|store_name|branch|shop_name|address)"\s*:\s*"([^"]{2,70})"/g,
+  ]
+  const grab = (name, lat, lng, addrHint) => {
+    const la = Number(lat)
+    const ln = Number(lng)
+    if (!inHK(la, ln)) return
+    out.push({ n: name || '', addr: addrHint || '', lat: la, lng: ln })
+  }
+  const n0 = out.length
+  for (const m of text.matchAll(pats[0])) grab(m[1], m[2], m[3])
+  // pat0 冇結果先試 pat1(避免 name↔座標 交叉錯配)
+  if (out.length === n0) for (const m of text.matchAll(pats[1])) grab(m[3], m[1], m[2])
+  // 純座標兜底(冇名都要)
+  if (!out.length) {
+    for (const m of text.matchAll(/"(?:lat|latitude)"\s*:\s*"?(2[0-9]\.\d{3,})"?[\s\S]{0,120}?"(?:lng|lon|longitude)"\s*:\s*"?(11[0-9]\.\d{3,})"?/g)) {
+      grab('', m[1], m[2])
+    }
+  }
+}
+
 async function fetchOfficial() {
   for (const url of OFFICIAL_URLS) {
     try {
       console.log(`官方:嘗試 ${url}`)
       const html = await getText(url)
       console.log(`  HTML ${html.length} bytes`)
-      const blobs = extractJsonBlobs(html)
-      console.log(`  embedded JSON blobs: ${blobs.length}`)
       const found = []
+      // 1) Next.js flight chunks
+      const flight = decodeNextFlight(html)
+      if (flight) {
+        console.log(`  next_f decode: ${flight.length} chars, 含 lat/lng: ${/lat/i.test(flight) && /(lng|longitude)/i.test(flight)}`)
+        harvestFromText(flight, found)
+        try {
+          harvestCoords(JSON.parse(flight), found) // 萬一某 chunk 本身係 JSON
+        } catch {
+          /* not pure json */
+        }
+      }
+      // 2) 傳統 embedded JSON blobs
+      const blobs = extractJsonBlobs(html)
+      if (blobs.length) console.log(`  embedded JSON blobs: ${blobs.length}`)
       for (const b of blobs) harvestCoords(b, found)
       // 後備:直接由 HTML regex 搵 lat/lng 對
       if (found.length < 5) {
