@@ -378,6 +378,20 @@ async function fetchOsm() {
   return []
 }
 
+// 香港常見地區(由地址抽,做分店標籤令清單分得清)
+const AREAS = [
+  '上水', '粉嶺', '大埔', '太和', '大圍', '沙田', '馬鞍山', '火炭', '烏溪沙',
+  '荃灣', '葵芳', '葵涌', '青衣', '屯門', '元朗', '天水圍', '洪水橋',
+  '將軍澳', '坑口', '調景嶺', '西貢', '觀塘', '牛頭角', '九龍灣', '藍田', '油塘',
+  '黃大仙', '鑽石山', '慈雲山', '樂富', '九龍城', '土瓜灣', '紅磡', '何文田',
+  '深水埗', '長沙灣', '美孚', '荔枝角', '石硤尾', '又一城',
+  '旺角', '太子', '油麻地', '佐敦', '尖沙咀', '奧運', '大角咀',
+  '中環', '上環', '西環', '堅尼地城', '金鐘', '灣仔', '銅鑼灣', '天后', '炮台山',
+  '北角', '鰂魚涌', '太古', '西灣河', '筲箕灣', '杏花邨', '柴灣', '小西灣',
+  '香港仔', '鴨脷洲', '黃竹坑', '東涌',
+]
+const areaOf = (addr) => AREAS.find((a) => addr.includes(a))
+
 function normalise(raw) {
   const seen = new Set()
   const out = []
@@ -386,13 +400,14 @@ function normalise(raw) {
     const key = `${Math.round(r.lat * 3000)}:${Math.round(r.lng * 3000)}` // ~35m 去重
     if (seen.has(key)) continue
     seen.add(key)
-    out.push({
-      n: (r.n || '24/7 Fitness').replace(/\s+/g, ' ').trim(),
-      en: '',
-      lat: Number(r.lat.toFixed(5)),
-      lng: Number(r.lng.toFixed(5)),
-      addr: (r.addr || '').replace(/\s+/g, ' ').trim(),
-    })
+    const addr = (r.addr || '').replace(/\s+/g, ' ').trim()
+    let name = (r.n || '').replace(/\s+/g, ' ').trim()
+    // 分店名 generic → 用地區標籤(例:24/7 Fitness · 旺角)
+    if (!name || /^24\s*\/\s*7 ?fitness$/i.test(name)) {
+      const area = areaOf(addr)
+      name = area ? `24/7 Fitness · ${area}` : '24/7 Fitness'
+    }
+    out.push({ n: name, en: '', lat: Number(r.lat.toFixed(5)), lng: Number(r.lng.toFixed(5)), addr })
   }
   return out
 }
