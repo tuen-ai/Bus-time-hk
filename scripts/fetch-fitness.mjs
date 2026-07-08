@@ -222,6 +222,7 @@ function parseBlogEntries(html) {
   return out
 }
 
+let alsDebugged = false
 async function geocodeAls(q) {
   for (const host of ['https://www.als.gov.hk', 'https://www.als.ogcio.gov.hk']) {
     try {
@@ -229,8 +230,19 @@ async function geocodeAls(q) {
         headers: { Accept: 'application/json', 'Accept-Language': 'zh-Hant,en' },
         signal: AbortSignal.timeout(12000),
       })
-      if (!res.ok) throw new Error(String(res.status))
-      const j = await res.json()
+      if (!res.ok) {
+        if (!alsDebugged) {
+          alsDebugged = true
+          console.log(`  [debug] ALS ${host} → HTTP ${res.status}`)
+        }
+        throw new Error(String(res.status))
+      }
+      const body = await res.text()
+      if (!alsDebugged) {
+        alsDebugged = true
+        console.log(`  [debug] ALS ${host} 回應頭:${body.slice(0, 200).replace(/\s+/g, ' ')}`)
+      }
+      const j = JSON.parse(body)
       const g = j?.SuggestedAddress?.[0]?.Address?.PremisesAddress?.GeospatialInformation?.[0]
       const lat = Number(g?.Latitude)
       const lng = Number(g?.Longitude)
@@ -239,6 +251,27 @@ async function geocodeAls(q) {
     } catch {
       /* 試下一個 host */
     }
+  }
+  return null
+}
+
+// Nominatim(OSM 官方 geocoder,香港中文地址覆蓋較好)。須 UA + ≤1 req/s。
+let nomiDebugged = false
+async function geocodeNominatim(q) {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' 香港')}&format=json&limit=1&countrycodes=hk&accept-language=zh-HK`,
+      { headers: { 'User-Agent': 'kkcx-build/1.0 (HK transit app; poi geocode)' }, signal: AbortSignal.timeout(15000) },
+    )
+    if (!res.ok) {
+      if (!nomiDebugged) { nomiDebugged = true; console.log(`  [debug] Nominatim → HTTP ${res.status}`) }
+      return null
+    }
+    const arr = await res.json()
+    const f = arr?.[0]
+    if (f && inHK(Number(f.lat), Number(f.lon))) return { lat: Number(f.lat), lng: Number(f.lon) }
+  } catch {
+    /* ignore */
   }
   return null
 }
@@ -280,20 +313,17 @@ async function fetchBlog() {
   if (!entries.length) return []
   console.log(`合共 ${entries.length} 條唯一地址,開始 geocode…`)
   const out = []
-  let ok = 0
-  let alsOk = 0
+  const stat = { als: 0, nomi: 0, photon: 0 }
   for (let i = 0; i < entries.length && i < 200; i++) {
     const e = entries[i]
     let g = await geocodeAls(e.addr)
-    if (g) alsOk++
-    if (!g) g = await geocodePhoton(e.addr)
-    if (g) {
-      ok++
-      out.push({ n: e.name, addr: e.addr, lat: g.lat, lng: g.lng })
-    }
-    await new Promise((r) => setTimeout(r, 250)) // 溫柔啲
+    if (g) stat.als++
+    if (!g) { g = await geocodeNominatim(e.addr); if (g) stat.nomi++ }
+    if (!g) { g = await geocodePhoton(e.addr); if (g) stat.photon++ }
+    if (g) out.push({ n: e.name, addr: e.addr, lat: g.lat, lng: g.lng })
+    await new Promise((r) => setTimeout(r, 1100)) // Nominatim ≤1 req/s
   }
-  console.log(`geocode 成功 ${ok}/${Math.min(entries.length, 200)}(ALS ${alsOk})`)
+  console.log(`geocode 成功 ${out.length}/${Math.min(entries.length, 200)}(ALS ${stat.als} · Nominatim ${stat.nomi} · Photon ${stat.photon})`)
   return out
 }
 
