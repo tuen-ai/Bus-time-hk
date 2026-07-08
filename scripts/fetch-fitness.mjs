@@ -171,6 +171,132 @@ async function fetchOfficial() {
   return null
 }
 
+// ---- Blog 分店清單 + geocode(官方抓唔到時用)----
+const BLOG_URLS = [
+  'https://www.hongkongcard.com/blogs/247fitness-hk-shop-list',
+  'https://gymbeastics.com/24-7-fitness/',
+]
+
+const stripTags = (html) =>
+  html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/[ \t]+/g, ' ')
+
+// 香港地址:含 道/街/路/廣場… + 號/樓/地下/G/F
+const ADDR_RE =
+  /([^,，。;；\n]{0,26}?(?:道|街|路|徑|廣場|中心|大廈|商場|工業|坊|里|花園|邨|苑)[^,，。;；\n]{0,34}?(?:\d+[-–\d]*\s*號|地下|地庫|[1-9]\d?\s*[樓層]|[GＧ1-9]\s*\/\s*[FＦ]|[舖鋪]\d))/
+
+/** 由 blog table / 純文字行抽 { name, addr } */
+function parseBlogEntries(html) {
+  const out = []
+  const seen = new Set()
+  const add = (name, addr) => {
+    addr = addr.trim().replace(/\s+/g, ' ')
+    if (!addr || seen.has(addr)) return
+    seen.add(addr)
+    out.push({ name: (name || '24/7 Fitness').trim().replace(/\s+/g, ' ').slice(0, 40), addr })
+  }
+  // 1) table rows
+  for (const tr of html.matchAll(/<tr[\s\S]*?<\/tr>/gi)) {
+    const cells = [...tr[0].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)].map((m) => stripTags(m[1]).trim())
+    if (cells.length < 2) continue
+    const addrCell = cells.find((c) => ADDR_RE.test(c))
+    if (!addrCell) continue
+    const nameCell = cells.find((c) => c !== addrCell && /店|分店|24\s*\/\s*7|Fitness/i.test(c))
+    add(nameCell || cells[0], (ADDR_RE.exec(addrCell) || [addrCell])[0])
+  }
+  // 2) 純文字行兜底
+  if (out.length < 10) {
+    const text = stripTags(html)
+    for (const m of text.matchAll(new RegExp(ADDR_RE.source, 'g'))) {
+      const addr = m[1]
+      const before = text.slice(Math.max(0, m.index - 40), m.index)
+      const nameM = /([一-鿿A-Za-z0-9]{2,20}?(?:店|分店))\s*$/.exec(before)
+      add(nameM ? nameM[1] : '24/7 Fitness', addr)
+    }
+  }
+  return out
+}
+
+async function geocodeAls(q) {
+  for (const host of ['https://www.als.gov.hk', 'https://www.als.ogcio.gov.hk']) {
+    try {
+      const res = await fetch(`${host}/lookup?q=${encodeURIComponent(q)}&n=1`, {
+        headers: { Accept: 'application/json', 'Accept-Language': 'zh-Hant,en' },
+        signal: AbortSignal.timeout(12000),
+      })
+      if (!res.ok) throw new Error(String(res.status))
+      const j = await res.json()
+      const g = j?.SuggestedAddress?.[0]?.Address?.PremisesAddress?.GeospatialInformation?.[0]
+      const lat = Number(g?.Latitude)
+      const lng = Number(g?.Longitude)
+      if (inHK(lat, lng)) return { lat, lng }
+      return null
+    } catch {
+      /* 試下一個 host */
+    }
+  }
+  return null
+}
+
+async function geocodePhoton(q) {
+  try {
+    const res = await fetch(
+      `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1&bbox=113.83,22.15,114.45,22.58`,
+      { signal: AbortSignal.timeout(12000) },
+    )
+    if (!res.ok) return null
+    const j = await res.json()
+    const c = j?.features?.[0]?.geometry?.coordinates
+    if (c && inHK(Number(c[1]), Number(c[0]))) return { lat: Number(c[1]), lng: Number(c[0]) }
+  } catch {
+    /* ignore */
+  }
+  return null
+}
+
+async function fetchBlog() {
+  const entries = []
+  const seen = new Set()
+  for (const url of BLOG_URLS) {
+    try {
+      console.log(`blog:嘗試 ${url}`)
+      const html = await getText(url)
+      const es = parseBlogEntries(html)
+      console.log(`  抽到 ${es.length} 條地址`)
+      for (const e of es) {
+        if (seen.has(e.addr)) continue
+        seen.add(e.addr)
+        entries.push(e)
+      }
+    } catch (e) {
+      console.log(`  ✗ ${e.message}`)
+    }
+  }
+  if (!entries.length) return []
+  console.log(`合共 ${entries.length} 條唯一地址,開始 geocode…`)
+  const out = []
+  let ok = 0
+  let alsOk = 0
+  for (let i = 0; i < entries.length && i < 200; i++) {
+    const e = entries[i]
+    let g = await geocodeAls(e.addr)
+    if (g) alsOk++
+    if (!g) g = await geocodePhoton(e.addr)
+    if (g) {
+      ok++
+      out.push({ n: e.name, addr: e.addr, lat: g.lat, lng: g.lng })
+    }
+    await new Promise((r) => setTimeout(r, 250)) // 溫柔啲
+  }
+  console.log(`geocode 成功 ${ok}/${Math.min(entries.length, 200)}(ALS ${alsOk})`)
+  return out
+}
+
 // ---- OSM 後備 ----
 const OSM_MIRRORS = [
   'https://overpass-api.de/api/interpreter',
@@ -240,15 +366,26 @@ function normalise(raw) {
 }
 
 async function main() {
-  let raw = await fetchOfficial()
-  let source = '官方'
-  if (!raw || raw.length < 20) {
-    console.log('官方唔夠,改用 OSM 後備')
-    const osm = await fetchOsm()
-    raw = (raw ?? []).concat(osm)
-    source = raw.length && osm.length ? '官方+OSM' : 'OSM'
+  // 1) 官方 SSR(最理想,但 Next 動態載入多數抓唔到)
+  let raw = (await fetchOfficial()) ?? []
+  const src = []
+  if (raw.length >= 20) src.push('官方')
+  // 2) blog 地址 + geocode(主力齊全來源)
+  if (raw.length < 20) {
+    const blog = await fetchBlog()
+    if (blog.length) {
+      raw = raw.concat(blog)
+      src.push('blog+geocode')
+    }
   }
-  const out = normalise(raw ?? [])
+  // 3) OSM 保底(補漏 + 座標最準)
+  const osm = await fetchOsm()
+  if (osm.length) {
+    raw = raw.concat(osm)
+    src.push('OSM')
+  }
+  const out = normalise(raw)
+  const source = src.join('+') || '無'
   console.log(`最終 ${out.length} 間(來源:${source})`)
   for (const o of out.slice(0, 6)) console.log(` - ${o.n || '(無名)'} @ ${o.lat},${o.lng}`)
   if (out.length < 3) {
