@@ -243,9 +243,10 @@ async function geocodeAls(q) {
         console.log(`  [debug] ALS ${host} 回應頭:${body.slice(0, 200).replace(/\s+/g, ' ')}`)
       }
       const j = JSON.parse(body)
-      const g = j?.SuggestedAddress?.[0]?.Address?.PremisesAddress?.GeospatialInformation?.[0]
-      const lat = Number(g?.Latitude)
-      const lng = Number(g?.Longitude)
+      let gi = j?.SuggestedAddress?.[0]?.Address?.PremisesAddress?.GeospatialInformation
+      if (Array.isArray(gi)) gi = gi[0] // ALS 有時係 object 有時 array
+      const lat = Number(gi?.Latitude)
+      const lng = Number(gi?.Longitude)
       if (inHK(lat, lng)) return { lat, lng }
       return null
     } catch {
@@ -316,12 +317,13 @@ async function fetchBlog() {
   const stat = { als: 0, nomi: 0, photon: 0 }
   for (let i = 0; i < entries.length && i < 200; i++) {
     const e = entries[i]
-    let g = await geocodeAls(e.addr)
+    let usedSlow = false
+    let g = await geocodeAls(e.addr) // ALS 官方最準,無 rate limit
     if (g) stat.als++
-    if (!g) { g = await geocodeNominatim(e.addr); if (g) stat.nomi++ }
-    if (!g) { g = await geocodePhoton(e.addr); if (g) stat.photon++ }
+    if (!g) { usedSlow = true; g = await geocodeNominatim(e.addr); if (g) stat.nomi++ }
+    if (!g) { usedSlow = true; g = await geocodePhoton(e.addr); if (g) stat.photon++ }
     if (g) out.push({ n: e.name, addr: e.addr, lat: g.lat, lng: g.lng })
-    await new Promise((r) => setTimeout(r, 1100)) // Nominatim ≤1 req/s
+    await new Promise((r) => setTimeout(r, usedSlow ? 1100 : 200)) // 用到 Nominatim 先守 1 req/s
   }
   console.log(`geocode 成功 ${out.length}/${Math.min(entries.length, 200)}(ALS ${stat.als} · Nominatim ${stat.nomi} · Photon ${stat.photon})`)
   return out

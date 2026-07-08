@@ -24,8 +24,9 @@ async function als(q: string): Promise<GeoPlace[]> {
       const out: GeoPlace[] = []
       for (const s of data.SuggestedAddress ?? []) {
         const pa = s.Address?.PremisesAddress
-        // GeospatialInformation 係陣列,取第一組
-        const g = pa?.GeospatialInformation?.[0]
+        // GeospatialInformation 可能係 object 或 array —— 兩者都要處理
+        const giRaw = pa?.GeospatialInformation
+        const g = Array.isArray(giRaw) ? giRaw[0] : giRaw
         const lat = Number(g?.Latitude)
         const lng = Number(g?.Longitude)
         if (!lat || !lng) continue
@@ -93,8 +94,12 @@ export async function geocode(q: string): Promise<GeoPlace[]> {
 interface AlsItem {
   Address?: { PremisesAddress?: AlsPremises }
 }
+interface AlsGeo {
+  Latitude?: string
+  Longitude?: string
+}
 interface AlsPremises {
-  GeospatialInformation?: { Latitude?: string; Longitude?: string }[]
+  GeospatialInformation?: AlsGeo | AlsGeo[]
   ChiPremisesAddress?: {
     BuildingName?: string
     ChiEstate?: { EstateName?: string }
