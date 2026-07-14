@@ -12,6 +12,7 @@ import AlertBanners from './components/AlertBanners'
 import SmartSuggest from './components/SmartSuggest'
 import StampCard from './components/StampCard'
 import BackupPanel from './components/BackupPanel'
+import DisplayMode from './components/DisplayMode'
 import { PandaLogo, MascotWelcome, MascotState } from './components/Mascots'
 import { recordUse } from './lib/usage'
 import { addStamp } from './lib/stamps'
@@ -33,6 +34,34 @@ export default function App() {
   const [dark, setDark] = useState(() => localStorage.getItem('kmb.theme') === 'dark')
 
   const [showBackup, setShowBackup] = useState(false)
+  // 📺 門口顯示模式:#display 直達 / localStorage 記住(iPad 重載都會自動返去)
+  const [showDisplay, setShowDisplay] = useState(
+    () => window.location.hash === '#display' || localStorage.getItem('kkcx.display') === '1',
+  )
+  const enterDisplay = () => {
+    localStorage.setItem('kkcx.display', '1')
+    setShowBackup(false)
+    setShowDisplay(true)
+  }
+  const exitDisplay = () => {
+    localStorage.removeItem('kkcx.display')
+    if (window.location.hash === '#display') {
+      history.replaceState(null, '', window.location.pathname + window.location.search)
+    }
+    setShowDisplay(false)
+  }
+
+  // app 開住時 hash 轉做 #display(例如撳主畫面書籤)都要入到
+  useEffect(() => {
+    const onHash = () => {
+      if (window.location.hash === '#display') {
+        localStorage.setItem('kkcx.display', '1')
+        setShowDisplay(true)
+      }
+    }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
   // 「帶我去」(例如 24/7 分店)→ 跳去規劃 tab 並預設終點
   const [planDest, setPlanDest] = useState<{ label: string; lat: number; lng: number } | null>(null)
 
@@ -309,7 +338,8 @@ export default function App() {
       </main>
 
       <AlertBanners />
-      {showBackup && <BackupPanel onClose={() => setShowBackup(false)} />}
+      {showBackup && <BackupPanel onClose={() => setShowBackup(false)} onEnterDisplay={enterDisplay} />}
+      {showDisplay && <DisplayMode onExit={exitDisplay} />}
 
       <footer className="footer">
         到站資料:運輸署 / 九巴 ·{' '}

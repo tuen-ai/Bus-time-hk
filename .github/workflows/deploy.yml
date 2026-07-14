@@ -4,6 +4,9 @@ on:
   push:
     branches: [claude/hk-bus-eta-web-g7yxbq]
   workflow_dispatch:
+  # 每 3 小時重新部署,保持新聞/路況幾何新鮮(HK 06/09/12/15/18/21 時)
+  schedule:
+    - cron: '0 22,1,4,7,10,13 * * *'
 
 permissions:
   contents: read
@@ -41,6 +44,11 @@ jobs:
       # 24/7 Fitness 分店(OpenStreetMap);失敗不致命
       - name: Bake fitness locations
         run: node scripts/fetch-fitness.mjs
+        continue-on-error: true
+
+      # 香港新聞標題(RTHK RSS,配合 cron 每 3 小時更新);失敗不致命
+      - name: Bake news headlines
+        run: node scripts/fetch-news.mjs
         continue-on-error: true
 
       - run: npm run build

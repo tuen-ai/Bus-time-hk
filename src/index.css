@@ -333,6 +333,225 @@ input:focus-visible {
   flex-shrink: 0;
 }
 
+/* ---- 📺 門口顯示模式(iPad 橫擺 kiosk)---- */
+.dmode {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: var(--bg);
+  color: var(--ink, var(--text));
+  overflow: hidden;
+  cursor: pointer;
+  --dm-green: #3ccaa6;
+  --dm-soon: #ff8f43;
+}
+.dmode.night {
+  --bg: #16070f;
+  --card: #241019;
+  --line: #3d2030;
+  --text: #ffe3f1;
+  --muted: #c79bb3;
+  background: #16070f;
+  color: #ffe3f1;
+}
+.dm-top {
+  display: flex;
+  align-items: center;
+  gap: 2vw;
+  padding: 1.6vw 2.5vw 1.2vw;
+  background: linear-gradient(135deg, #ffa6cd, #ff4f95);
+  color: #fff;
+  border-radius: 0 0 2.2vw 2.2vw;
+}
+.dmode.night .dm-top {
+  background: linear-gradient(135deg, #7a2e55, #b02566);
+}
+.dm-logo {
+  width: 4.8vw;
+  height: 4.8vw;
+  background: #fff;
+  border-radius: 1.3vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.dm-logo-svg {
+  width: 3.6vw;
+  height: 3.6vw;
+}
+.dm-clock {
+  font-size: 5.4vw;
+  font-weight: 800;
+  letter-spacing: 0.15vw;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.dm-date {
+  font-size: 1.7vw;
+  opacity: 0.95;
+  margin-top: 0.3vw;
+  white-space: nowrap;
+}
+.dm-quote {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 1.5vw;
+  padding: 1vw 1.7vw;
+  font-size: 2vw;
+  font-weight: 800;
+  line-height: 1.45;
+  max-width: 44vw;
+}
+.dm-src {
+  font-size: 1.5vw;
+  opacity: 0.85;
+  margin-left: 0.6vw;
+  white-space: nowrap;
+}
+.dm-wx {
+  margin-left: auto;
+  text-align: right;
+  flex-shrink: 0;
+}
+.dm-wx-t {
+  font-size: 3.7vw;
+  font-weight: 800;
+  line-height: 1;
+}
+.dm-wx-s {
+  font-size: 1.5vw;
+  opacity: 0.95;
+  margin-top: 0.35vw;
+}
+.dm-warn {
+  display: inline-block;
+  background: #d97706;
+  padding: 0.15vw 1vw;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 1.35vw;
+  margin-top: 0.5vw;
+}
+.dm-rows {
+  padding: 1.4vw 2.2vw;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2vw;
+}
+.dm-row {
+  display: flex;
+  align-items: center;
+  gap: 1.9vw;
+  background: var(--card);
+  border: 0.17vw solid var(--line);
+  border-radius: 2vw;
+  padding: 1.3vw 2.2vw;
+  box-shadow: 0 0.35vw 1.2vw rgba(244, 63, 142, 0.08);
+}
+.dm-badge.route-badge {
+  min-width: 11vw;
+  text-align: center;
+  justify-content: center;
+  padding: 1vw 0.9vw;
+  border-radius: 1.5vw;
+  font-size: 3.7vw;
+  letter-spacing: 0.1vw;
+}
+.dm-info {
+  flex: 1;
+  min-width: 0;
+}
+.dm-dest {
+  font-size: 2.7vw;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dm-stop {
+  font-size: 1.7vw;
+  color: var(--muted);
+  margin-top: 0.15vw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dm-etas {
+  display: flex;
+  align-items: baseline;
+  gap: 1.5vw;
+  flex-shrink: 0;
+}
+.dm-m1 {
+  font-size: 6.4vw;
+  font-weight: 800;
+  color: var(--dm-green);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.dm-m1 small {
+  font-size: 2.5vw;
+  font-weight: 800;
+}
+.dm-m1.soon {
+  color: var(--dm-soon);
+}
+.dm-m1.na {
+  font-size: 2.4vw;
+  color: var(--muted);
+}
+.dm-mn {
+  font-size: 2.5vw;
+  color: var(--muted);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.dm-empty {
+  text-align: center;
+  color: var(--muted);
+  font-size: 2.2vw;
+  padding: 6vw 8vw;
+  line-height: 1.7;
+}
+.dm-pair {
+  position: absolute;
+  right: 1.9vw;
+  bottom: 4.6vw;
+  display: flex;
+  gap: 0.5vw;
+}
+.dm-mascot {
+  width: 8.8vw;
+  height: 8.8vw;
+}
+.dm-foot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 1.2vw;
+  padding: 0.9vw 2.5vw;
+  color: var(--muted);
+  font-size: 1.5vw;
+}
+.dm-news-tag {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.dm-news {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 56vw;
+  color: var(--ink, var(--text));
+}
+.dm-upd {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
 /* ---- 備份面板 ---- */
 .backup-overlay {
   position: fixed;

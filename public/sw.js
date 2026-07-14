@@ -1,5 +1,5 @@
 // 簡單 service worker:快取 app shell,API 請求一律走網絡(保持 ETA 即時)。
-const CACHE = 'kmb-eta-v10'
+const CACHE = 'kmb-eta-v11'
 
 self.addEventListener('install', (e) => {
   self.skipWaiting()
@@ -29,7 +29,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // tsm/ 路況、fitness.json 分店:每次部署會更新 → network-first,離線先用快取
-  if (url.pathname.includes('/tsm/') || url.pathname.endsWith('fitness.json')) {
+  if (url.pathname.includes('/tsm/') || url.pathname.endsWith('fitness.json') || url.pathname.endsWith('news.json')) {
     event.respondWith(
       fetch(request)
         .then((res) => {
