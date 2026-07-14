@@ -75,3 +75,41 @@ export function quoteOfToday(now = new Date()): Quote {
   )
   return QUOTES[days % QUOTES.length]
 }
+
+// ── 金句偏好(設定入面揀)──
+// auto = 每日自動轉;fixed = 固定顯示句庫入面某一句;custom = 自己寫
+export type QuotePref =
+  | { mode: 'auto' }
+  | { mode: 'fixed'; idx: number }
+  | { mode: 'custom'; q: string; by: string }
+
+const PREF_KEY = 'kkcx.quote'
+
+export function getQuotePref(): QuotePref {
+  try {
+    const raw = localStorage.getItem(PREF_KEY)
+    if (!raw) return { mode: 'auto' }
+    const p = JSON.parse(raw) as QuotePref
+    if (p.mode === 'fixed' && QUOTES[p.idx]) return p
+    if (p.mode === 'custom' && p.q) return p
+    return { mode: 'auto' }
+  } catch {
+    return { mode: 'auto' }
+  }
+}
+
+export function setQuotePref(p: QuotePref) {
+  try {
+    localStorage.setItem(PREF_KEY, JSON.stringify(p))
+  } catch {
+    /* private mode 存唔到就算 */
+  }
+}
+
+/** 顯示模式實際用嘅句子:跟偏好,預設每日輪換 */
+export function quoteForDisplay(now = new Date()): Quote {
+  const p = getQuotePref()
+  if (p.mode === 'fixed') return QUOTES[p.idx]
+  if (p.mode === 'custom') return { q: p.q, by: p.by || '自己' }
+  return quoteOfToday(now)
+}

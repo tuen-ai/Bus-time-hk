@@ -341,7 +341,11 @@ input:focus-visible {
   background: var(--bg);
   color: var(--ink, var(--text));
   overflow: hidden;
-  cursor: pointer;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
   --dm-green: #3ccaa6;
   --dm-soon: #ff8f43;
 }
@@ -359,6 +363,8 @@ input:focus-visible {
   align-items: center;
   gap: 2vw;
   padding: 1.6vw 2.5vw 1.2vw;
+  /* iOS 全屏後 status bar 浮喺頂 —— 頂欄讓開瀏海/狀態欄 */
+  padding-top: calc(1.6vw + env(safe-area-inset-top, 0px));
   background: linear-gradient(135deg, #ffa6cd, #ff4f95);
   color: #fff;
   border-radius: 0 0 2.2vw 2.2vw;
@@ -533,8 +539,36 @@ input:focus-visible {
   align-items: center;
   gap: 1.2vw;
   padding: 0.9vw 2.5vw;
+  /* 讓開 home indicator 白線 */
+  padding-bottom: calc(0.9vw + env(safe-area-inset-bottom, 0px));
   color: var(--muted);
   font-size: 1.5vw;
+}
+/* 🔒 誤觸提示 toast */
+.dm-lock {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  font-size: 2.2vw;
+  font-weight: 800;
+  padding: 1.6vw 2.8vw;
+  border-radius: 2vw;
+  pointer-events: none;
+  animation: dmLockPop 0.25s ease-out;
+}
+@keyframes dmLockPop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 .dm-news-tag {
   font-weight: 700;
@@ -586,6 +620,23 @@ input:focus-visible {
 .backup-msg {
   font-size: 0.9rem;
   font-weight: 700;
+}
+/* 是日金句偏好 */
+.qp-modes {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.qp-select,
+.qp-input {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  font-family: inherit;
 }
 
 /* ---- MTR ---- */
