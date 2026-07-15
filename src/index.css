@@ -420,22 +420,22 @@ input:focus-visible {
   flex-shrink: 0;
 }
 .dm-wx-t {
-  font-size: 3.7vw;
+  font-size: 5.2vw;
   font-weight: 800;
   line-height: 1;
 }
 .dm-wx-s {
-  font-size: 1.5vw;
+  font-size: 2vw;
   opacity: 0.95;
-  margin-top: 0.35vw;
+  margin-top: 0.4vw;
 }
 .dm-warn {
   display: inline-block;
   background: #d97706;
-  padding: 0.15vw 1vw;
+  padding: 0.2vw 1.1vw;
   border-radius: 999px;
   font-weight: 700;
-  font-size: 1.35vw;
+  font-size: 1.8vw;
   margin-top: 0.5vw;
 }
 .dm-rows {
@@ -443,6 +443,9 @@ input:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 1.2vw;
+  /* 卡片浮喺公仔之上,ETA 數字唔會被遮 */
+  position: relative;
+  z-index: 1;
 }
 .dm-row {
   display: flex;
@@ -489,25 +492,25 @@ input:focus-visible {
   flex-shrink: 0;
 }
 .dm-m1 {
-  font-size: 6.4vw;
+  font-size: 7.8vw;
   font-weight: 800;
   color: var(--dm-green);
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 .dm-m1 small {
-  font-size: 2.5vw;
+  font-size: 3vw;
   font-weight: 800;
 }
 .dm-m1.soon {
   color: var(--dm-soon);
 }
 .dm-m1.na {
-  font-size: 2.4vw;
+  font-size: 2.8vw;
   color: var(--muted);
 }
 .dm-mn {
-  font-size: 2.5vw;
+  font-size: 3vw;
   color: var(--muted);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -521,14 +524,16 @@ input:focus-visible {
 }
 .dm-pair {
   position: absolute;
-  right: 1.9vw;
-  bottom: 4.6vw;
+  right: 1.5vw;
+  bottom: calc(0.4vw + env(safe-area-inset-bottom, 0px));
   display: flex;
   gap: 0.5vw;
+  z-index: 0;
+  pointer-events: none;
 }
 .dm-mascot {
-  width: 8.8vw;
-  height: 8.8vw;
+  width: 7.6vw;
+  height: 7.6vw;
 }
 .dm-foot {
   position: absolute;
@@ -578,11 +583,10 @@ input:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 56vw;
+  max-width: 46vw;
   color: var(--ink, var(--text));
 }
 .dm-upd {
-  margin-left: auto;
   white-space: nowrap;
 }
 
