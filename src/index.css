@@ -492,25 +492,25 @@ input:focus-visible {
   flex-shrink: 0;
 }
 .dm-m1 {
-  font-size: 7.8vw;
+  font-size: 6.4vw;
   font-weight: 800;
   color: var(--dm-green);
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 .dm-m1 small {
-  font-size: 3vw;
+  font-size: 2.5vw;
   font-weight: 800;
 }
 .dm-m1.soon {
   color: var(--dm-soon);
 }
 .dm-m1.na {
-  font-size: 2.8vw;
+  font-size: 2.4vw;
   color: var(--muted);
 }
 .dm-mn {
-  font-size: 3vw;
+  font-size: 2.5vw;
   color: var(--muted);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
