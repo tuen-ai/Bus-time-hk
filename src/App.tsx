@@ -13,6 +13,8 @@ import SmartSuggest from './components/SmartSuggest'
 import StampCard from './components/StampCard'
 import BackupPanel from './components/BackupPanel'
 import DisplayMode from './components/DisplayMode'
+// 藍牙小屏推送:只揀開先載(Web Bluetooth,唔加重首屏)
+const ClockPush = lazy(() => import('./components/ClockPush'))
 import { PandaLogo, MascotWelcome, MascotState } from './components/Mascots'
 import { recordUse } from './lib/usage'
 import { addStamp } from './lib/stamps'
@@ -49,6 +51,13 @@ export default function App() {
       history.replaceState(null, '', window.location.pathname + window.location.search)
     }
     setShowDisplay(false)
+  }
+
+  // 🖥️ 藍牙小屏推送(SKD-CLOCK)
+  const [showClock, setShowClock] = useState(false)
+  const enterClock = () => {
+    setShowBackup(false)
+    setShowClock(true)
   }
 
   // app 開住時 hash 轉做 #display(例如撳主畫面書籤)都要入到
@@ -338,8 +347,19 @@ export default function App() {
       </main>
 
       <AlertBanners />
-      {showBackup && <BackupPanel onClose={() => setShowBackup(false)} onEnterDisplay={enterDisplay} />}
+      {showBackup && (
+        <BackupPanel
+          onClose={() => setShowBackup(false)}
+          onEnterDisplay={enterDisplay}
+          onEnterClock={enterClock}
+        />
+      )}
       {showDisplay && <DisplayMode onExit={exitDisplay} />}
+      {showClock && (
+        <Suspense fallback={null}>
+          <ClockPush onExit={() => setShowClock(false)} />
+        </Suspense>
+      )}
 
       <footer className="footer">
         到站資料:運輸署 / 九巴 ·{' '}
