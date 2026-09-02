@@ -49,27 +49,32 @@ export interface RouteStopInfo {
   lng: number
 }
 
-export const coLabel = (co: Co): string =>
-  co === 'ctb'
-    ? '城巴'
-    : co === 'lrt'
-      ? '輕鐵'
-      : co === 'nlb'
-        ? '嶼巴'
-        : co === 'gmb'
-          ? '綠van'
-          : '九巴'
+const CO_LABEL: Record<Co, string> = {
+  kmb: '九巴',
+  ctb: '城巴',
+  lrt: '輕鐵',
+  nlb: '嶼巴',
+  gmb: '綠van',
+}
 
-export const coClass = (co: Co): string =>
-  co === 'ctb'
-    ? 'co-ctb'
-    : co === 'lrt'
-      ? 'co-lrt'
-      : co === 'nlb'
-        ? 'co-nlb'
-        : co === 'gmb'
-          ? 'co-gmb'
-          : ''
+export const coLabel = (co: Co): string => CO_LABEL[co] ?? '九巴'
+
+/** route-badge 顏色 class(九巴用預設粉紅,唔加 class) */
+export const coClass = (co: Co): string => (co === 'kmb' ? '' : `co-${co}`)
+
+/** 路線唯一鍵(co|route|bound|serviceType)—— 收藏、推薦、規劃 leg 都用呢個對返 Route */
+export interface RouteKeyLike {
+  co: Co
+  route: string
+  bound: 'I' | 'O'
+  serviceType: string
+}
+
+export const routeKey = (k: RouteKeyLike): string =>
+  `${k.co}|${k.route}|${k.bound}|${k.serviceType}`
+
+export const routeKeyOf = (r: Route): string =>
+  `${r.co}|${r.route}|${r.bound}|${r.service_type}`
 
 export const CO_COLOR: Record<Co, string> = {
   kmb: '#c8102e',

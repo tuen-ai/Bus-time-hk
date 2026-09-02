@@ -1,5 +1,6 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { getWeather, type Weather } from '../api/weather'
+import { usePolling } from '../hooks/usePolling'
 
 // 面板連 Leaflet 地圖 —— 撳開先載入
 const WeatherPanel = lazy(() => import('./WeatherPanel'))
@@ -18,11 +19,8 @@ export default function WeatherBanner() {
   const [w, setW] = useState<Weather | null>(null)
   const [open, setOpen] = useState(false)
 
-  useEffect(() => {
-    getWeather()
-      .then(setW)
-      .catch(() => {})
-  }, [])
+  // api 層 5 分鐘快取;呢度 tick 只係令警告/氣溫唔會開住成日都唔變
+  usePolling(() => getWeather().then(setW).catch(() => {}), 5 * 60_000)
 
   if (!w) return null
   const hasWarn = w.warnings.length > 0

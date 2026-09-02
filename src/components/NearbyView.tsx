@@ -10,6 +10,7 @@ import { getPosition, describeGeoError, formatDistance } from '../lib/geo'
 import { coClass, CO_COLOR, coLabel } from '../api/bus'
 import { MascotState } from './Mascots'
 import type { PlanTo } from './FitnessView'
+import { usePolling } from '../hooks/usePolling'
 
 // 健身房地圖(Leaflet)按需載入
 const FitnessView = lazy(() => import('./FitnessView'))
@@ -96,15 +97,15 @@ export default function NearbyView({
     }
   }, [tab, co, refresh, showCoNow])
 
-  // 定時刷新(用已知位置)
-  useEffect(() => {
-    if (tab === 'fit') return
-    const id = setInterval(() => {
+  // 定時刷新(用已知位置);背景分頁暫停
+  usePolling(
+    () => {
       const c = coords.current
       if (c) void refresh(co, c)
-    }, REFRESH_MS[co])
-    return () => clearInterval(id)
-  }, [tab, co, refresh])
+    },
+    REFRESH_MS[co],
+    { enabled: tab !== 'fit', key: co, immediate: false }, // 首次由上面嘅 effect 負責
+  )
 
   const relocate = async () => {
     setBusy(true)

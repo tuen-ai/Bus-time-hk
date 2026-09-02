@@ -10,6 +10,11 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="可可出行" />
+    <!-- 首屏就會打嘅 API / 地圖 tile 網域先 handshake,慳返首次 ETA 嘅 DNS+TLS 時間 -->
+    <link rel="preconnect" href="https://data.etabus.gov.hk" crossorigin />
+    <link rel="preconnect" href="https://rt.data.gov.hk" crossorigin />
+    <link rel="preconnect" href="https://data.weather.gov.hk" crossorigin />
+    <link rel="dns-prefetch" href="https://a.basemaps.cartocdn.com" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="./icon.svg" />
     <link rel="apple-touch-icon" href="./icon.svg" />

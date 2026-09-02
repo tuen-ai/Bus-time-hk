@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { getEta, type Eta, type Route } from '../api/bus'
 import { clockLabel, etaLabel } from '../lib/time'
 import { speak, speechSupported } from '../lib/speech'
+import { usePolling } from '../hooks/usePolling'
 
 const REFRESH_MS = 5_000
 
@@ -31,14 +32,20 @@ export default function EtaPanel({ route, stopId }: Props) {
     }
   }, [route, stopId])
 
-  useEffect(() => {
-    setLoading(true)
-    load()
-    const id = setInterval(load, REFRESH_MS)
-    return () => clearInterval(id)
-  }, [load])
+  // 換咗站/路線 → 先出 skeleton
+  useEffect(() => setLoading(true), [load])
+  // 背景分頁自動暫停,返嚟即刻補一次
+  usePolling(load, REFRESH_MS, { key: load })
 
-  if (loading) return <div className="eta-panel muted">載入到站時間…</div>
+  if (loading) {
+    return (
+      <div className="eta-panel" aria-busy="true">
+        <div className="skel-row"><span className="skel w-eta" /><span className="skel w-clock" /></div>
+        <div className="skel-row"><span className="skel w-eta" /><span className="skel w-clock" /></div>
+        <div className="skel-row"><span className="skel w-eta" /><span className="skel w-clock" /></div>
+      </div>
+    )
+  }
   if (error) return <div className="eta-panel error">⚠️ {error}</div>
 
   const hasAny = etas.some((e) => e.eta)

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { fetchSchedule, type StationSchedule, type TrainArrival } from '../api/mtr'
 import { stationNameTc } from '../lib/mtrData'
+import { usePolling } from '../hooks/usePolling'
 
 const REFRESH_MS = 15_000
 
@@ -42,33 +43,32 @@ export default function MtrSchedulePanel({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // 換站就 abort 舊請求,免舊站資料蓋過新站
+  const ctrlRef = useRef<AbortController | null>(null)
   useEffect(() => {
-    let alive = true
-    const ctrl = new AbortController()
-    const load = async () => {
+    setLoading(true)
+    return () => ctrlRef.current?.abort()
+  }, [line, station])
+
+  usePolling(
+    async () => {
+      ctrlRef.current?.abort()
+      const ctrl = (ctrlRef.current = new AbortController())
       try {
         const s = await fetchSchedule(line, station, ctrl.signal)
-        if (alive) {
-          setSched(s)
-          setError(null)
-        }
+        if (ctrl.signal.aborted) return
+        setSched(s)
+        setError(null)
       } catch (e) {
-        if (alive && (e as Error)?.name !== 'AbortError') {
-          setError(e instanceof Error ? e.message : '載入失敗')
-        }
+        if (ctrl.signal.aborted || (e as Error)?.name === 'AbortError') return
+        setError(e instanceof Error ? e.message : '載入失敗')
       } finally {
-        if (alive) setLoading(false)
+        if (!ctrl.signal.aborted) setLoading(false)
       }
-    }
-    setLoading(true)
-    load()
-    const id = setInterval(load, REFRESH_MS)
-    return () => {
-      alive = false
-      ctrl.abort()
-      clearInterval(id)
-    }
-  }, [line, station])
+    },
+    REFRESH_MS,
+    { key: `${line}|${station}` },
+  )
 
   if (loading) return <div className="muted pad">載入班次…</div>
   if (error) return <div className="error pad">⚠️ {error}</div>

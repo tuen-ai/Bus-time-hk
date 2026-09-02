@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { getRouteStops, coLabel, coClass, type Route } from '../api/bus'
-import { isFavorite, toggleFavorite, type Favorite } from '../lib/store'
+import { favKey, getFavorites, toggleFavorite, type Favorite } from '../lib/store'
 import EtaPanel from './EtaPanel'
 import type { MapStop } from './RouteMap'
 
@@ -40,7 +40,9 @@ export default function RouteStopsView({
   const [error, setError] = useState<string | null>(null)
   const [openStop, setOpenStop] = useState<string | null>(initialOpenStop ?? null)
   const [fares, setFares] = useState<number[] | null>(null)
-  const [, setFavTick] = useState(0) // 撳收藏星後強制重繪(更新星標狀態)
+  const [favTick, setFavTick] = useState(0) // 撳收藏星後重讀收藏
+  // 收藏 key Set:一次 JSON.parse,唔係每個站每次 render 都讀 localStorage
+  const favSet = useMemo(() => new Set(getFavorites().map(favKey)), [favTick])
   const [alarmStopId, setAlarmStopId] = useState<string | null>(getAlarm()?.stopId ?? null)
 
   useEffect(() => subscribeAlarm((a) => setAlarmStopId(a?.stopId ?? null)), [])
@@ -72,6 +74,8 @@ export default function RouteStopsView({
   useEffect(() => {
     let alive = true
     setLoading(true)
+    setError(null)
+    setStops([])
     ;(async () => {
       try {
         const rs = await getRouteStops(route)
@@ -188,7 +192,7 @@ export default function RouteStopsView({
       <ol className="stop-list">
         {stops.map((row, idx) => {
           const fav = makeFav(row)
-          const faved = isFavorite(fav)
+          const faved = favSet.has(favKey(fav))
           const open = openStop === row.stopId
           const fare = fares && idx < fares.length ? fares[idx] : null
           return (

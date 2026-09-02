@@ -1,5 +1,16 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
-import { getAllRoutes, coLabel, coClass, CO_COLOR, SEARCH_OPERATORS, type Route, type Co } from './api/bus'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  getAllRoutes,
+  coLabel,
+  coClass,
+  routeKey,
+  routeKeyOf,
+  CO_COLOR,
+  SEARCH_OPERATORS,
+  type Route,
+  type Co,
+  type RouteKeyLike,
+} from './api/bus'
 import Favorites from './components/Favorites'
 import RouteStopsView from './components/RouteStopsView'
 import NearbyView from './components/NearbyView'
@@ -18,11 +29,27 @@ const ClockPush = lazy(() => import('./components/ClockPush'))
 import { PandaLogo, MascotWelcome, MascotState } from './components/Mascots'
 import { recordUse } from './lib/usage'
 import { addStamp } from './lib/stamps'
+import { loadGraph } from './lib/planGraph'
 import type { NearbyRow } from './lib/nearby'
 import { routeBadges } from './lib/routeMeta'
 import type { Favorite } from './lib/store'
 
 type Tab = 'search' | 'nearby' | 'mtr' | 'plan'
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'search', label: '🔍 搜尋' },
+  { id: 'nearby', label: '📍 附近' },
+  { id: 'mtr', label: '🚇 鐵路' },
+  { id: 'plan', label: '🧭 規劃' },
+]
+
+const THEME_KEY = 'kmb.theme'
+// 未揀過就跟系統深色設定
+const initialDark = (): boolean => {
+  const saved = localStorage.getItem(THEME_KEY)
+  if (saved === 'dark' || saved === 'light') return saved === 'dark'
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
+}
 
 export default function App() {
   const [routes, setRoutes] = useState<Route[]>([])
@@ -33,7 +60,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('search')
   const [coFilter, setCoFilter] = useState<Co | 'all'>('all')
   const [initialStop, setInitialStop] = useState<string | undefined>()
-  const [dark, setDark] = useState(() => localStorage.getItem('kmb.theme') === 'dark')
+  const [dark, setDark] = useState(initialDark)
 
   const [showBackup, setShowBackup] = useState(false)
   // 📺 門口顯示模式:#display 直達 / localStorage 記住(iPad 重載都會自動返去)
@@ -88,14 +115,31 @@ export default function App() {
     addStamp()
   }
 
-  const openNearby = (row: NearbyRow) => {
-    const r = routes.find(
-      (x) =>
-        x.co === row.co &&
-        x.route === row.route &&
-        x.bound === row.dir &&
-        x.service_type === row.serviceType,
+  // co|route|bound|serviceType → Route[](GMB 同號跨區可能多於一條);收藏/附近/規劃 leg 都靠呢個對返
+  const routeIndex = useMemo(() => {
+    const m = new Map<string, Route[]>()
+    for (const r of routes) {
+      const k = routeKeyOf(r)
+      const arr = m.get(k)
+      if (arr) arr.push(r)
+      else m.set(k, [r])
+    }
+    return m
+  }, [routes])
+
+  const findRoute = (k: RouteKeyLike, dest?: string): Route | undefined => {
+    const cands = routeIndex.get(routeKey(k)) ?? []
+    if (cands.length <= 1 || !dest) return cands[0]
+    // 用目的地名 tiebreak(兩邊字串來源唔同,寬鬆 includes 匹配)
+    return (
+      cands.find((x) => x.dest_tc === dest) ??
+      cands.find((x) => x.dest_tc.includes(dest) || dest.includes(x.dest_tc)) ??
+      cands[0]
     )
+  }
+
+  const openNearby = (row: NearbyRow) => {
+    const r = findRoute({ co: row.co, route: row.route, bound: row.dir, serviceType: row.serviceType })
     if (r) {
       setTab('search')
       openRoute(r, row.stopId)
@@ -104,32 +148,13 @@ export default function App() {
 
   // 規劃方案 ride leg → 開返對應路線(planGraph co 名 lightRail ↔ app lrt)
   const openLeg = (k: LegRouteKey) => {
-    const co = k.co === 'lightRail' ? 'lrt' : k.co
-    const cands = routes.filter(
-      (x) =>
-        x.co === co &&
-        x.route === k.route &&
-        x.bound === k.bound &&
-        x.service_type === k.serviceType,
-    )
-    // GMB 同號跨區可能多個 → 用目的地名 tiebreak(兩邊字串來源唔同,寬鬆 includes 匹配)
-    const r =
-      cands.length > 1 && k.dest
-        ? cands.find((x) => x.dest_tc === k.dest) ??
-          cands.find((x) => x.dest_tc.includes(k.dest!) || k.dest!.includes(x.dest_tc)) ??
-          cands[0]
-        : cands[0]
+    const co = (k.co === 'lightRail' ? 'lrt' : k.co) as Co
+    const r = findRoute({ co, route: k.route, bound: k.bound, serviceType: k.serviceType }, k.dest)
     if (r) openRoute(r, k.boardStopId)
   }
 
   const openFavorite = (f: Favorite) => {
-    const r = routes.find(
-      (x) =>
-        x.co === f.co &&
-        x.route === f.route &&
-        x.bound === f.bound &&
-        x.service_type === f.serviceType,
-    )
+    const r = findRoute(f)
     if (r) {
       setTab('search')
       openRoute(r, f.stopId)
@@ -138,8 +163,37 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? 'dark' : 'light'
-    localStorage.setItem('kmb.theme', dark ? 'dark' : 'light')
+    localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light')
+    // 瀏覽器 UI(地址列/狀態欄)顏色跟主題
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#1a0f17' : '#ff4f95')
   }, [dark])
+
+  // 量度 topbar 實際高度 → tabs sticky 貼喺佢正下方(iOS 瀏海 safe-area 令高度唔固定)
+  const topbarRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const el = topbarRef.current
+    if (!el) return
+    const apply = () => document.documentElement.style.setProperty('--topbar-h', `${el.offsetHeight}px`)
+    apply()
+    const ro = new ResizeObserver(apply)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  // 捲落去就收細 topbar(慳返手機螢幕空間)
+  const [compact, setCompact] = useState(false)
+  useEffect(() => {
+    let raf = 0
+    const onScroll = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => setCompact(window.scrollY > 48))
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      cancelAnimationFrame(raf)
+    }
+  }, [])
 
   const loadRoutes = () => {
     setLoading(true)
@@ -160,7 +214,7 @@ export default function App() {
 
   // 首屏著地後 idle 預載規劃圖(2.3MB chunk),第一次撳「搵路線」唔使等
   useEffect(() => {
-    const warm = () => void import('./lib/planGraph').then((m) => m.loadGraph()).catch(() => {})
+    const warm = () => void loadGraph().catch(() => {})
     const idle = (window as unknown as { requestIdleCallback?: (fn: () => void, o?: { timeout: number }) => number })
       .requestIdleCallback
     const id = idle ? idle(warm, { timeout: 8000 }) : window.setTimeout(warm, 4000)
@@ -184,17 +238,30 @@ export default function App() {
       .slice(0, 80)
   }, [routes, query, coFilter])
 
+  const variants = useMemo(
+    () => (selected ? routes.filter((r) => r.route === selected.route && r.co === selected.co) : []),
+    [routes, selected],
+  )
+
+  const goHome = () => {
+    setSelected(null)
+    setTab('search')
+    window.scrollTo({ top: 0 })
+  }
+
   return (
     <div className="app">
-      <header className="topbar">
+      <header ref={topbarRef} className={`topbar ${compact ? 'compact' : ''}`}>
         <span className="topbar-deco" style={{ top: 8, left: '38%' }}>♡</span>
         <span className="topbar-deco" style={{ top: 30, left: '54%' }}>✦</span>
         <span className="topbar-deco" style={{ bottom: 8, left: '46%' }}>♡</span>
         <span className="topbar-deco" style={{ top: 14, left: '66%' }}>🎀</span>
         <span className="topbar-deco" style={{ bottom: 10, left: '30%' }}>✨</span>
         <div className="topbar-row">
-          <h1 onClick={() => { setSelected(null); setTab('search') }}>
-            <PandaLogo />可可出行
+          <h1>
+            <button className="topbar-home" onClick={goHome} aria-label="返回首頁">
+              <PandaLogo />可可出行
+            </button>
           </h1>
           <span className="topbar-btns">
             <button
@@ -219,31 +286,17 @@ export default function App() {
       <WeatherBanner />
 
       {!selected && (
-        <nav className="tabs">
-          <button
-            className={tab === 'search' ? 'tab on' : 'tab'}
-            onClick={() => setTab('search')}
-          >
-            🔍 搜尋
-          </button>
-          <button
-            className={tab === 'nearby' ? 'tab on' : 'tab'}
-            onClick={() => setTab('nearby')}
-          >
-            📍 附近
-          </button>
-          <button
-            className={tab === 'mtr' ? 'tab on' : 'tab'}
-            onClick={() => setTab('mtr')}
-          >
-            🚇 鐵路
-          </button>
-          <button
-            className={tab === 'plan' ? 'tab on' : 'tab'}
-            onClick={() => setTab('plan')}
-          >
-            🧭 規劃
-          </button>
+        <nav className="tabs" aria-label="主要功能">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              className={tab === t.id ? 'tab on' : 'tab'}
+              aria-current={tab === t.id ? 'page' : undefined}
+              onClick={() => setTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
         </nav>
       )}
 
@@ -251,7 +304,7 @@ export default function App() {
         {selected ? (
           <RouteStopsView
             route={selected}
-            variants={routes.filter((r) => r.route === selected.route && r.co === selected.co)}
+            variants={variants}
             initialOpenStop={initialStop}
             onSwitch={(r) => openRoute(r)}
             onBack={() => setSelected(null)}
@@ -285,7 +338,13 @@ export default function App() {
 
             <div className="search">
               <input
+                type="search"
                 inputMode="text"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="search"
+                aria-label="搜尋路線號碼"
                 placeholder="輸入路線號碼,例如 1A、269D、N269"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -329,14 +388,17 @@ export default function App() {
                 >
                   <span className={`route-badge ${coClass(r.co)}`}>{r.route}</span>
                   <span className="route-line">
-                    <span className={`tag tag-co tag-${r.co}`}>{coLabel(r.co)}</span>
-                    <span className="muted small"> 往</span> {r.dest_tc}
-                    <span className="muted small ml"> 由 {r.orig_tc}</span>
-                    {routeBadges(r.route, r.service_type).map((b) => (
-                      <span key={b.kind} className={`tag tag-${b.kind}`}>
-                        {b.label}
-                      </span>
-                    ))}
+                    <span className="route-dest-line">
+                      <span className={`tag tag-co tag-${r.co}`}>{coLabel(r.co)}</span>
+                      <span className="muted small">往</span>
+                      <span className="route-dest-name">{r.dest_tc}</span>
+                      {routeBadges(r.route, r.service_type).map((b) => (
+                        <span key={b.kind} className={`tag tag-${b.kind}`}>
+                          {b.label}
+                        </span>
+                      ))}
+                    </span>
+                    <span className="muted small route-orig">由 {r.orig_tc}</span>
                   </span>
                   <span className="chev">›</span>
                 </button>

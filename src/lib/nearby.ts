@@ -3,7 +3,7 @@
 // - CTB:planGraph 站座標 + 逐路線 /eta(冇 stop-eta endpoint,批量發)
 // - GMB:planGraph 站座標 + /stop-route + /eta/stop(一站兩炮)
 // 另附 localStorage 結果 cache,畀「一開 tab 即有嘢睇」。
-import { fetchStopEta } from '../api/kmb'
+import { fetchStopEta, type Stop } from '../api/kmb'
 import { fetchCtbEta } from '../api/ctb'
 import { fetchGmbStopAll } from '../api/gmb'
 import { getStopMap } from './store'
@@ -52,13 +52,24 @@ function sortRows(rows: NearbyRow[]): NearbyRow[] {
 }
 
 // ---- KMB(照舊:官方 stop-eta)----
-async function nearbyKmb(lat: number, lng: number): Promise<NearbyRow[]> {
-  const stopMap = await getStopMap()
-  if (stopMap.size === 0) throw new Error('未能載入車站資料,請重試')
-  const nearest = [...stopMap.values()]
+// 同一位置每 5 秒刷新一次 → 6000+ 個站嘅距離排序記住,唔使每次重計
+let nearestMemo: { key: string; list: { s: Stop; d: number }[] } | null = null
+
+function nearestKmbStops(stopMap: Map<string, Stop>, lat: number, lng: number) {
+  const key = `${lat.toFixed(5)},${lng.toFixed(5)}`
+  if (nearestMemo?.key === key) return nearestMemo.list
+  const list = [...stopMap.values()]
     .map((s) => ({ s, d: distanceMeters(lat, lng, Number(s.lat), Number(s.long)) }))
     .sort((a, b) => a.d - b.d)
     .slice(0, KMB_STOPS)
+  nearestMemo = { key, list }
+  return list
+}
+
+async function nearbyKmb(lat: number, lng: number): Promise<NearbyRow[]> {
+  const stopMap = await getStopMap()
+  if (stopMap.size === 0) throw new Error('未能載入車站資料,請重試')
+  const nearest = nearestKmbStops(stopMap, lat, lng)
 
   const now = Date.now()
   const batches = await Promise.all(

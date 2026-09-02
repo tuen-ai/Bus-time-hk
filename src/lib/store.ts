@@ -1,5 +1,6 @@
 // localStorage 緩存:靜態資料(站點)一日有效;收藏無限期。
 import { fetchStops, type Stop } from '../api/kmb'
+import type { Co } from '../api/bus'
 
 const DAY = 24 * 60 * 60 * 1000
 
@@ -28,25 +29,34 @@ function writeCache<T>(key: string, data: T): void {
   }
 }
 
+let stopMapP: Promise<Map<string, Stop>> | null = null
+
 /** 取得站點 Map: stopId -> Stop(每日緩存)。fetch 失敗時回傳空 Map,
- *  令站名 fallback 做 stopId、座標 0,但路線同 ETA 仍可用。 */
-export async function getStopMap(): Promise<Map<string, Stop>> {
-  let stops = readCache<Stop[]>('kmb.stops', DAY)
-  if (!stops) {
-    try {
-      stops = await fetchStops()
-    } catch {
-      return new Map()
-    }
-    if (stops.length > 0) writeCache('kmb.stops', stops) // 唔好快取空陣列
+ *  令站名 fallback 做 stopId、座標 0,但路線同 ETA 仍可用。
+ *  記憶體亦記住結果 —— 6000+ 個站每次開路線都 JSON.parse 一次好貴。 */
+export function getStopMap(): Promise<Map<string, Stop>> {
+  if (!stopMapP) {
+    stopMapP = (async () => {
+      let stops = readCache<Stop[]>('kmb.stops', DAY)
+      if (!stops) {
+        try {
+          stops = await fetchStops()
+        } catch {
+          stopMapP = null // 下次再試
+          return new Map<string, Stop>()
+        }
+        if (stops.length > 0) writeCache('kmb.stops', stops) // 唔好快取空陣列
+      }
+      return new Map(stops.map((s) => [s.stop, s]))
+    })()
   }
-  return new Map(stops.map((s) => [s.stop, s]))
+  return stopMapP
 }
 
 // ---- 收藏(路線 + 方向 + 班次 + 站)----
 
 export interface Favorite {
-  co: 'kmb' | 'ctb' | 'lrt' | 'nlb' | 'gmb'
+  co: Co
   route: string
   bound: 'I' | 'O'
   serviceType: string

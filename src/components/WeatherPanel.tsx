@@ -5,6 +5,7 @@ import type { Weather } from '../api/weather'
 import { fetchTsm, type TsmData, type TsmLevel } from '../api/tsm'
 import { fetchTrafficNews, type Notice } from '../api/stn'
 import { TILE_URL, TILE_ATTRIB } from '../lib/mapConfig'
+import { usePolling } from '../hooks/usePolling'
 
 const LEVEL_COLOR: Record<TsmLevel, string> = {
   good: '#2fbf9a',
@@ -18,17 +19,12 @@ export default function WeatherPanel({ w }: { w: Weather }) {
   const [news, setNews] = useState<Notice[]>([])
   const [showAllNews, setShowAllNews] = useState(false)
 
+  usePolling(() => fetchTsm().then(setTsm), REFRESH_MS)
   useEffect(() => {
     let alive = true
-    const load = () => {
-      fetchTsm().then((d) => alive && setTsm(d))
-    }
-    load()
     fetchTrafficNews().then((n) => alive && setNews(n))
-    const id = setInterval(load, REFRESH_MS)
     return () => {
       alive = false
-      clearInterval(id)
     }
   }, [])
 

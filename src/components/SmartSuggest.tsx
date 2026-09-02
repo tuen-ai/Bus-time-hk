@@ -1,6 +1,6 @@
 // 智能首頁:依時段/星期推薦你常搭嘅路線(本機統計,唔上傳)。
 import { useMemo } from 'react'
-import { coClass, coLabel, type Route } from '../api/bus'
+import { coClass, coLabel, routeKey, routeKeyOf, type Route } from '../api/bus'
 import { suggest } from '../lib/usage'
 
 interface Props {
@@ -11,17 +11,9 @@ interface Props {
 export default function SmartSuggest({ routes, onOpen }: Props) {
   const items = useMemo(() => {
     if (!routes.length) return []
+    const byKey = new Map(routes.map((r) => [routeKeyOf(r), r]))
     return suggest()
-      .map((s) => ({
-        s,
-        r: routes.find(
-          (x) =>
-            x.co === s.co &&
-            x.route === s.route &&
-            x.bound === s.bound &&
-            x.service_type === s.serviceType,
-        ),
-      }))
+      .map((s) => ({ s, r: byKey.get(routeKey({ ...s, bound: s.bound as 'I' | 'O' })) }))
       .filter((x): x is { s: (typeof x)['s']; r: Route } => !!x.r)
   }, [routes])
 
@@ -33,7 +25,7 @@ export default function SmartSuggest({ routes, onOpen }: Props) {
       <div className="suggest-row">
         {items.map(({ s, r }) => (
           <button
-            key={`${s.co}|${s.route}|${s.bound}|${s.serviceType}`}
+            key={routeKey({ ...s, bound: s.bound as 'I' | 'O' })}
             className="suggest-card"
             onClick={() => onOpen(r, s.stopId)}
           >

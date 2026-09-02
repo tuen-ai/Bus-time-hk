@@ -12,6 +12,8 @@
   --radius-sm: 13px;
   --shadow-sm: 0 1px 3px rgba(244, 63, 142, 0.1), 0 1px 2px rgba(244, 63, 142, 0.08);
   --shadow: 0 4px 18px rgba(244, 63, 142, 0.16);
+  --topbar-h: 84px; /* JS 量度後覆蓋(ResizeObserver) */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   font-family: system-ui, -apple-system, 'PingFang HK', 'Microsoft JhengHei',
     'Noto Sans CJK HK', sans-serif;
 }
@@ -24,7 +26,6 @@
   --line: #3d2030;
   --red: #ff7ab6;
   --red-dark: #ff5fa2;
-  --line: #3d2030;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
 }
@@ -83,8 +84,31 @@ input:focus-visible {
   border-radius: 0 0 24px 24px;
   box-shadow: var(--shadow);
   overflow: hidden;
+  transition: padding 0.25s var(--ease);
+}
+/* 捲落去:收細 topbar,副題收埋,慳返手機螢幕空間 */
+.topbar.compact {
+  padding-bottom: 10px;
+}
+.topbar-sub {
+  display: block;
+  font-size: 0.72rem;
+  opacity: 0.85;
+  letter-spacing: 0.5px;
+  max-height: 20px;
+  transition: max-height 0.25s var(--ease), opacity 0.2s, margin 0.25s var(--ease);
+}
+.topbar.compact .topbar-sub {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  margin-top: -4px;
+}
+.topbar.compact .topbar-deco {
+  opacity: 0;
 }
 .topbar-deco {
+  transition: opacity 0.2s;
   position: absolute;
   pointer-events: none;
   opacity: 0.55;
@@ -103,10 +127,18 @@ input:focus-visible {
   font-size: 1.3rem;
   font-weight: 800;
   letter-spacing: 0.5px;
-  cursor: pointer;
+}
+.topbar-home {
   display: flex;
   align-items: center;
   gap: 9px;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
 .topbar-logo {
   width: 34px;
@@ -1038,12 +1070,13 @@ input:focus-visible {
   background: var(--card);
   border-bottom: 1px solid var(--line);
   position: sticky;
-  top: 64px;
+  top: var(--topbar-h);
   z-index: 9;
 }
 .tab {
   flex: 1;
-  padding: 10px;
+  min-height: 44px; /* 手指目標 */
+  padding: 10px 6px;
   border: none;
   background: none;
   color: var(--muted);
@@ -1056,14 +1089,10 @@ input:focus-visible {
   border-bottom-color: var(--red);
   font-weight: 700;
 }
+.tab:active {
+  color: var(--red-dark);
+}
 /* ---- Nearby buses ---- */
-.nearby-cta {
-  text-align: center;
-  padding: 40px 20px;
-}
-.cta-emoji {
-  font-size: 3rem;
-}
 .primary-btn {
   background: var(--red);
   color: #fff;
@@ -1075,11 +1104,6 @@ input:focus-visible {
   cursor: pointer;
   margin-top: 8px;
 }
-.nearby-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
 .nearby-list {
   list-style: none;
   margin: 0;
@@ -1087,6 +1111,19 @@ input:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+.nearby-row,
+.suggest-card {
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+button.nearby-row:active,
+.suggest-card:active,
+.fav-open:active {
+  transform: scale(0.985);
+}
+.stop-main:active {
+  background: color-mix(in srgb, var(--red) 6%, transparent);
+  border-radius: 10px;
 }
 .nearby-row {
   width: 100%;
@@ -1221,19 +1258,10 @@ input:focus-visible {
 .primary-btn:disabled {
   opacity: 0.5;
 }
-.plan-soon {
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
-  border-radius: var(--radius);
-  padding: 14px;
-  font-size: 0.92rem;
-  line-height: 1.6;
+.primary-btn:not(:disabled):active {
+  transform: scale(0.98);
+  filter: brightness(0.95);
 }
-:root[data-theme='dark'] .plan-soon {
-  background: #2a1d0e;
-  border-color: #5a3d18;
-}
-
 /* journey result cards */
 .jcard {
   background: var(--card);
@@ -1292,10 +1320,12 @@ input:focus-visible {
   justify-content: center;
   min-width: 36px;
   padding: 4px 8px;
+  border: none;
   border-radius: 8px;
   color: #fff;
   font-weight: 800;
   font-size: 0.92rem;
+  cursor: default;
 }
 .leg-walk {
   color: var(--muted);
@@ -1306,9 +1336,10 @@ input:focus-visible {
   color: var(--muted);
   font-size: 0.78rem;
 }
-.leg-badge {
-  border: none;
-  cursor: default;
+.legs .arrow {
+  color: var(--muted);
+  font-weight: 700;
+  padding: 0 1px;
 }
 .leg-badge.tappable {
   cursor: pointer;
@@ -1505,6 +1536,21 @@ input:focus-visible {
   padding: 9px 14px;
   list-style: none;
 }
+.maphint {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 500;
+  background: rgba(17, 24, 39, 0.78);
+  color: #fff;
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+  pointer-events: none;
+}
 .pin-fixed {
   position: absolute;
   left: 50%;
@@ -1585,12 +1631,6 @@ input:focus-visible {
   border-radius: 6px;
   margin-left: 2px;
 }
-.topbar-sub {
-  font-size: 0.72rem;
-  opacity: 0.85;
-  letter-spacing: 0.5px;
-}
-
 .content {
   flex: 1;
   padding: 14px;
@@ -1633,16 +1673,23 @@ input:focus-visible {
   width: 100%;
   padding: 15px 40px 15px 16px;
   font-size: 1.05rem;
+  font-family: inherit;
+  color: var(--text);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--card);
   outline: none;
+  appearance: none;
+  -webkit-appearance: none;
   box-shadow: var(--shadow-sm);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .search input:focus {
   border-color: var(--red);
-  box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.15);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 22%, transparent);
+}
+.search input::-webkit-search-cancel-button {
+  display: none;
 }
 .search .clear {
   position: absolute;
@@ -1687,6 +1734,27 @@ input:focus-visible {
 }
 .route-line {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.route-dest-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.route-dest-line .tag {
+  margin-left: 0;
+}
+.route-dest-name {
+  font-weight: 700;
+}
+.route-orig {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .route-badge {
   display: inline-flex;
@@ -1900,16 +1968,46 @@ input:focus-visible {
   margin-top: 4px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px 8px;
 }
 .refresh-btn {
   border: 1px solid var(--line);
   background: var(--card);
   color: var(--muted);
   border-radius: 8px;
-  padding: 2px 8px;
+  padding: 3px 8px;
+  min-height: 24px;
   font-size: 0.72rem;
   cursor: pointer;
+  white-space: nowrap;
+}
+.refresh-btn:active {
+  background: var(--line);
+}
+
+/* ETA skeleton(載入中唔跳版) */
+.skel-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.skel {
+  display: inline-block;
+  height: 14px;
+  border-radius: 7px;
+  background: linear-gradient(90deg, var(--line) 25%, color-mix(in srgb, var(--line) 45%, var(--card)) 50%, var(--line) 75%);
+  background-size: 200% 100%;
+  animation: skel-shimmer 1.2s linear infinite;
+}
+.skel.w-eta { width: 72px; height: 18px; }
+.skel.w-clock { width: 44px; }
+@keyframes skel-shimmer {
+  to { background-position: -200% 0 }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skel { animation: none }
 }
 
 /* ---- Favorites ---- */

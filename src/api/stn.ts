@@ -1,6 +1,8 @@
 // 運輸署「特別交通消息」Special Traffic News(事故/封路/改道/擠塞)
 // feed: resource.data.one.gov.hk/td/tc/specialtrafficnews.xml(XML,免 key)
 // 多數消息只有「地區」無座標 → 只能做地區層級比對。
+import { memoAsync } from '../lib/cache'
+
 const FEED = 'https://resource.data.one.gov.hk/td/tc/specialtrafficnews.xml'
 
 export interface Notice {
@@ -13,7 +15,6 @@ export interface Notice {
 }
 
 const TTL = 3 * 60 * 1000
-let cache: { ts: number; data: Notice[] } | null = null
 
 // 喺一個 element 入面,順序試多個 tag 名,取第一個有值嘅
 function pick(el: Element, names: string[]): string {
@@ -47,16 +48,16 @@ function parse(xml: string): Notice[] {
   })
 }
 
-/** 取得現時生效嘅特別交通消息(3 分鐘快取)。失敗回空陣列(graceful)。 */
-export async function fetchTrafficNews(): Promise<Notice[]> {
-  if (cache && Date.now() - cache.ts < TTL) return cache.data
-  try {
-    const res = await fetch(FEED)
-    if (!res.ok) throw new Error(String(res.status))
-    const notices = parse(await res.text()).filter((n) => n.detail || n.heading)
-    cache = { ts: Date.now(), data: notices }
-    return notices
-  } catch {
-    return cache?.data ?? []
-  }
-}
+/** 取得現時生效嘅特別交通消息(3 分鐘快取;路線頁 + 地圖同時要都只 fetch 一次)。
+ *  失敗回空陣列(graceful)。 */
+export const fetchTrafficNews: () => Promise<Notice[]> = memoAsync(
+  () =>
+    fetch(FEED, { signal: AbortSignal.timeout(15000) })
+      .then((res) => {
+        if (!res.ok) throw new Error(String(res.status))
+        return res.text()
+      })
+      .then((xml) => parse(xml).filter((n) => n.detail || n.heading))
+      .catch(() => [] as Notice[]),
+  TTL,
+)

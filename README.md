@@ -34,6 +34,7 @@
 - React 18 + TypeScript + Vite
 - 無第三方 UI / 狀態管理庫,手寫 CSS
 - 部署為純靜態檔案
+- 所有定時刷新(到站 / 附近 / 港鐵 / 路況)喺分頁轉去背景時自動暫停,返嚟即刻補一次(`src/hooks/usePolling.ts`);同一個 API 多處同時要都只會發一次請求(`src/lib/cache.ts`)
 
 ## API
 

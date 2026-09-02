@@ -17,7 +17,8 @@ export interface Weather {
   updatedAt: number
 }
 
-let cache: { ts: number; data: Weather } | null = null
+import { memoAsync } from '../lib/cache'
+
 const TTL = 5 * 60 * 1000
 
 async function getJson<T>(dataType: string): Promise<T> {
@@ -26,9 +27,10 @@ async function getJson<T>(dataType: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
-export async function getWeather(): Promise<Weather> {
-  if (cache && Date.now() - cache.ts < TTL) return cache.data
+/** 天氣摘要(5 分鐘快取;同時多個 caller 共用一次請求) */
+export const getWeather: () => Promise<Weather> = memoAsync(fetchWeather, TTL)
 
+async function fetchWeather(): Promise<Weather> {
   type WarnSum = Record<string, { name?: string; code?: string; actionCode?: string }>
   type Current = {
     temperature?: { data?: { place: string; value: number }[] }
@@ -54,7 +56,5 @@ export async function getWeather(): Promise<Weather> {
     rainfall[r.place] = r.max ?? 0
   }
 
-  const data: Weather = { tempC, humidity, warnings, rainfall, updatedAt: Date.now() }
-  cache = { ts: Date.now(), data }
-  return data
+  return { tempC, humidity, warnings, rainfall, updatedAt: Date.now() }
 }

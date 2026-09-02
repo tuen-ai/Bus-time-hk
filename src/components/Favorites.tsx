@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { getFavorites, toggleFavorite, type Favorite } from '../lib/store'
+import { favKey, getFavorites, toggleFavorite, type Favorite } from '../lib/store'
 import { coClass, type Route } from '../api/bus'
 import EtaPanel from './EtaPanel'
 
@@ -21,7 +21,7 @@ export default function Favorites({ onOpen }: { onOpen: (f: Favorite) => void })
     <section className="favs">
       <h2 className="section-title">★ 收藏</h2>
       {favs.map((f) => (
-        <div key={`${f.co}|${f.route}|${f.bound}|${f.serviceType}|${f.stopId}`} className="fav-card">
+        <div key={favKey(f)} className="fav-card">
           <div className="fav-head">
             <button className="fav-open" onClick={() => onOpen(f)}>
               <span className={`route-badge sm ${coClass(f.co)}`}>{f.route}</span>
