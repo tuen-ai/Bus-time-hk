@@ -33,6 +33,7 @@ import { loadGraph } from './lib/planGraph'
 import type { NearbyRow } from './lib/nearby'
 import { routeBadges } from './lib/routeMeta'
 import type { Favorite } from './lib/store'
+import { useBackLayer } from './hooks/useBackLayer'
 
 type Tab = 'search' | 'nearby' | 'mtr' | 'plan'
 
@@ -75,7 +76,7 @@ export default function App() {
   const exitDisplay = () => {
     localStorage.removeItem('kkcx.display')
     if (window.location.hash === '#display') {
-      history.replaceState(null, '', window.location.pathname + window.location.search)
+      history.replaceState(history.state, '', window.location.pathname + window.location.search)
     }
     setShowDisplay(false)
   }
@@ -114,6 +115,13 @@ export default function App() {
     recordUse({ co: r.co, route: r.route, bound: r.bound, serviceType: r.service_type, stopId })
     addStamp()
   }
+
+  // 撳返回鍵(Android / 瀏覽器上一頁 / 邊緣滑動)時,逐層退返上一個畫面,唔好即刻閂咗成個 app。
+  // 註冊次序 = 畫面由淺到深;門口顯示模式由 DisplayMode 自己註冊(鎖定層)。
+  useBackLayer(tab !== 'search', () => setTab('search'))
+  useBackLayer(selected !== null, () => setSelected(null))
+  useBackLayer(showBackup, () => setShowBackup(false))
+  useBackLayer(showClock, () => setShowClock(false))
 
   // co|route|bound|serviceType → Route[](GMB 同號跨區可能多於一條);收藏/附近/規劃 leg 都靠呢個對返
   const routeIndex = useMemo(() => {

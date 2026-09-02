@@ -16,6 +16,7 @@ import { leaveAtFor, setReminder, fmtClock } from '../lib/reminder'
 import { primeAudio, askNotify } from '../lib/chime'
 import { taxiFareEstimate } from '../lib/taxi'
 import { addStamp } from '../lib/stamps'
+import { useBackLayer } from '../hooks/useBackLayer'
 
 const LEG_COLOR: Record<string, string> = {
   kmb: '#c8102e', ctb: '#0e7490', nlb: '#00857c', gmb: '#167a3a', lightRail: '#7d3c98',
@@ -107,6 +108,9 @@ export default function PlannerView({ onOpenLeg, initialDest }: Props) {
     o: { lat: number; lng: number }
     d: { lat: number; lng: number }
   } | null>(null) // 的士估價用
+
+  // 揀地點(全屏地圖)撳返回 = 取消,唔好退埋出 app
+  useBackLayer(picking !== null, () => setPicking(null))
 
   const coordsOf = async (e: Endpoint): Promise<{ lat: number; lng: number } | null> => {
     if (e === 'mylocation') {

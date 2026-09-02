@@ -9,6 +9,7 @@ import { quoteForDisplay } from '../data/quotes'
 import { minutesUntil } from '../lib/time'
 import { PandaFace, BearFace } from './Mascots'
 import { getStamps, unlocked } from '../lib/stamps'
+import { useBackLayer } from '../hooks/useBackLayer'
 
 const ETA_MS = 10_000
 const NEWS_ROTATE_MS = 12_000
@@ -142,16 +143,20 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
       onExit()
     }, 3000)
   }
+  const showLockHint = useCallback(() => {
+    setLockHint(true)
+    window.setTimeout(() => setLockHint(false), 2200)
+  }, [])
   const holdEnd = () => {
     if (holdRef.current != null) {
       clearTimeout(holdRef.current)
       holdRef.current = null
     }
-    if (!heldRef.current) {
-      setLockHint(true)
-      window.setTimeout(() => setLockHint(false), 2200)
-    }
+    if (!heldRef.current) showLockHint()
   }
+
+  // 鎖定嘅 kiosk 畫面:撳返回鍵唔會退出,亦唔會閂咗成個 app —— 只彈提示叫你長按 3 秒
+  useBackLayer(true, onExit, { locked: true, onBlocked: showLockHint })
 
   const quote = quoteForDisplay(now)
   const night = isNight(now)
