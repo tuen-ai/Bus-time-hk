@@ -1,0 +1,38 @@
+/* 收藏 */
+/* ---- Favorites ---- */
+.favs {
+  margin-bottom: 18px;
+}
+.section-title {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 6px 2px 10px;
+}
+.fav-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow-sm);
+}
+.fav-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fav-info {
+  flex: 1;
+}
+.fav-open {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+  color: var(--text);
+}

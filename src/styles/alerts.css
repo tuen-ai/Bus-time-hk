@@ -1,0 +1,182 @@
+/* 底部浮動提示、落車鬧鐘鐘仔、地圖揀點 picker */
+/* ---- 底部浮動提示(出門倒數/落車鬧鐘)---- */
+.banners-spacer {
+  height: 120px;
+}
+.banners {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: max(12px, env(safe-area-inset-bottom));
+  width: min(536px, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1000;
+}
+.fbanner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card);
+  border: 2px solid var(--red);
+  border-radius: 18px;
+  padding: 11px 14px;
+  box-shadow: var(--shadow);
+  font-size: 0.92rem;
+}
+.fbanner.urgent {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+  animation: banner-pulse 1s ease-in-out infinite;
+}
+@keyframes banner-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fbanner.urgent {
+    animation: none;
+  }
+}
+.fb-icon {
+  font-size: 1.3rem;
+}
+.fb-text {
+  flex: 1;
+  min-width: 0;
+}
+.fb-count {
+  font-variant-numeric: tabular-nums;
+  margin-left: 4px;
+}
+.fb-x {
+  border: none;
+  background: var(--line);
+  color: var(--muted);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.fbanner.urgent .fb-x {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+/* ---- 落車鬧鐘鐘仔 ---- */
+.bell {
+  background: none;
+  border: none;
+  font-size: 1.15rem;
+  cursor: pointer;
+  padding: 8px 2px;
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+.bell.on {
+  filter: none;
+  opacity: 1;
+  animation: bell-ring 2.2s ease-in-out infinite;
+}
+@keyframes bell-ring {
+  0%,
+  86%,
+  100% {
+    transform: rotate(0);
+  }
+  88% {
+    transform: rotate(14deg);
+  }
+  92% {
+    transform: rotate(-12deg);
+  }
+  96% {
+    transform: rotate(8deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bell.on {
+    animation: none;
+  }
+}
+
+/* picker */
+.geo-results {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.geo-item {
+  width: 100%;
+  text-align: left;
+  background: var(--card);
+  border: none;
+  border-bottom: 1px solid var(--line);
+  padding: 11px 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.geo-label {
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.geo-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+.geo-loading {
+  padding: 9px 14px;
+  list-style: none;
+}
+.maphint {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 500;
+  background: rgba(17, 24, 39, 0.78);
+  color: #fff;
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.pin-fixed {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -100%);
+  font-size: 2.3rem;
+  z-index: 500;
+  pointer-events: none;
+}
+.addr-sel {
+  padding: 11px 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin: 10px 0;
+}

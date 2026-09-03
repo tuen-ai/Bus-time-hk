@@ -1,0 +1,82 @@
+/* 公仔同裝飾 */
+/* ---- Mascots & decorations ---- */
+.welcome {
+  text-align: center;
+  padding: 14px 0 4px;
+  position: relative;
+}
+.mascot-pair {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin: 6px 0 2px;
+}
+.mascot {
+  width: 116px;
+  height: 116px;
+  filter: drop-shadow(0 6px 14px rgba(244, 63, 142, 0.25));
+  animation: mascot-bob 3s ease-in-out infinite;
+}
+.mascot.b {
+  animation-delay: 1.5s;
+}
+@keyframes mascot-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mascot {
+    animation: none;
+  }
+}
+.welcome-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--red-dark);
+  margin: 10px 0 4px;
+}
+.welcome-sub {
+  color: var(--muted);
+  font-size: 0.98rem;
+}
+.confetti {
+  margin: 12px 0 2px;
+  font-size: 1.1rem;
+  letter-spacing: 6px;
+  user-select: none;
+}
+.welcome-float {
+  position: absolute;
+  font-size: 1.3rem;
+  opacity: 0.85;
+  pointer-events: none;
+  user-select: none;
+}
+.mascot.sm {
+  width: 76px;
+  height: 76px;
+}
+.mascot-state {
+  text-align: center;
+  padding: 22px 0 10px;
+}
+.mascot-state-text {
+  color: var(--muted);
+  margin-top: 8px;
+  font-size: 0.95rem;
+}
+.wx-mood {
+  margin-top: 8px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--red-dark);
+}
+.topbar-btns {
+  display: flex;
+  gap: 8px;
+}

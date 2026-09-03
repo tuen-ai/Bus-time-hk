@@ -1,4 +1,8 @@
 // ETA 時間顯示工具
+import type { Eta } from '../api/bus'
+
+/** 按 eta_seq 排序,取未來 3 班 */
+export const nextEtas = (data: Eta[]): Eta[] => [...data].sort((a, b) => a.eta_seq - b.eta_seq).slice(0, 3)
 
 /** 將 ETA timestamp 轉成「仲有 X 分鐘」。已過/即將到站顯示「即將到達」。 */
 export function minutesUntil(eta: string | null, now: number = Date.now()): number | null {

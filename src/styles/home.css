@@ -1,0 +1,103 @@
+/* 首頁:智能推薦、集印卡、的士估算 */
+/* ---- 智能首頁推薦 ---- */
+.suggest {
+  margin-bottom: 6px;
+}
+.suggest-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.suggest-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: var(--card);
+  border: 2px solid var(--red);
+  border-radius: var(--radius);
+  padding: 11px 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(255, 95, 162, 0.18);
+  font-size: 1rem;
+}
+.suggest-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.suggest-dest {
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ---- 集印卡 ---- */
+.stamp-card {
+  background: var(--card);
+  border: 2px dashed var(--line);
+  border-radius: var(--radius);
+  padding: 13px 14px;
+  margin-top: 16px;
+}
+.stamp-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-weight: 800;
+  color: var(--red-dark);
+}
+.stamp-week {
+  display: flex;
+  gap: 6px;
+  margin: 10px 0 6px;
+}
+.stamp-dot {
+  flex: 1;
+  text-align: center;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 6px 0 7px;
+  font-size: 1rem;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stamp-dot i {
+  font-style: normal;
+  font-size: 0.66rem;
+}
+.stamp-dot.got {
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+  border-color: var(--red);
+}
+.stamp-unlocks {
+  margin: 4px 0 6px;
+}
+.stamp-bar {
+  height: 8px;
+  background: var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.stamp-bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #ff8fc0, #ff4f95);
+  border-radius: 999px;
+}
+
+/* ---- 的士估算 ---- */
+.taxi-row {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 11px 14px;
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+}

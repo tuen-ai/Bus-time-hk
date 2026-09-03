@@ -1,0 +1,50 @@
+/* 工具 class、出錯畫面、頁尾 */
+/* ---- utility ---- */
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 0.8rem;
+}
+.ml {
+  margin-left: 6px;
+}
+.pad {
+  padding: 18px 4px;
+}
+.error {
+  color: var(--red-dark);
+}
+
+.crash {
+  max-width: 420px;
+  margin: 18vh auto 0;
+  padding: 24px 20px;
+  text-align: center;
+}
+.crash-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--red-dark);
+  margin: 10px 0 6px;
+}
+.crash-detail {
+  font-size: 0.78rem;
+  color: var(--muted);
+  word-break: break-all;
+  margin: 8px 0 14px;
+}
+.crash .primary-btn + .preset-chip {
+  margin-top: 8px;
+}
+
+.footer {
+  padding: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  text-align: center;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+.footer a {
+  color: var(--red);
+}

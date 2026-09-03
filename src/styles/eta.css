@@ -1,0 +1,95 @@
+/* ETA 面板 + skeleton */
+/* ---- ETA panel ---- */
+.eta-panel {
+  padding: 4px 4px 14px 42px;
+}
+.eta-list {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.eta-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.eta-mins {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--green);
+  min-width: 92px;
+}
+.eta-mins.soon {
+  color: var(--soon);
+}
+.eta-clock {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.eta-rmk {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.eta-updated {
+  font-size: 0.72rem;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+.refresh-btn {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 3px 8px;
+  min-height: 24px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.refresh-btn:active {
+  background: var(--line);
+}
+
+/* ETA skeleton(載入中唔跳版) */
+.skel-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.skel {
+  display: inline-block;
+  height: 14px;
+  border-radius: 7px;
+  background: linear-gradient(
+    90deg,
+    var(--line) 25%,
+    color-mix(in srgb, var(--line) 45%, var(--card)) 50%,
+    var(--line) 75%
+  );
+  background-size: 200% 100%;
+  animation: skel-shimmer 1.2s linear infinite;
+}
+.skel.w-eta {
+  width: 72px;
+  height: 18px;
+}
+.skel.w-clock {
+  width: 44px;
+}
+@keyframes skel-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skel {
+    animation: none;
+  }
+}

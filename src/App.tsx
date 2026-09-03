@@ -1,17 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  getAllRoutes,
-  coLabel,
-  coClass,
-  routeKey,
-  routeKeyOf,
-  CO_COLOR,
-  SEARCH_OPERATORS,
-  type Route,
-  type Co,
-  type RouteKeyLike,
-} from './api/bus'
-import Favorites from './components/Favorites'
+import { getAllRoutes, routeKey, routeKeyOf, type Route, type Co, type RouteKeyLike } from './api/bus'
+import SearchView from './components/SearchView'
 import RouteStopsView from './components/RouteStopsView'
 import NearbyView from './components/NearbyView'
 
@@ -20,18 +9,15 @@ const MtrView = lazy(() => import('./components/MtrView'))
 import PlannerView, { type LegRouteKey } from './components/PlannerView'
 import WeatherBanner from './components/WeatherBanner'
 import AlertBanners from './components/AlertBanners'
-import SmartSuggest from './components/SmartSuggest'
-import StampCard from './components/StampCard'
 import BackupPanel from './components/BackupPanel'
 import DisplayMode from './components/DisplayMode'
 // 藍牙小屏推送:只揀開先載(Web Bluetooth,唔加重首屏)
 const ClockPush = lazy(() => import('./components/ClockPush'))
-import { PandaLogo, MascotWelcome, MascotState } from './components/Mascots'
+import { PandaLogo, MascotState } from './components/Mascots'
 import { recordUse } from './lib/usage'
 import { addStamp } from './lib/stamps'
 import { loadGraph } from './lib/planGraph'
 import type { NearbyRow } from './lib/nearby'
-import { routeBadges } from './lib/routeMeta'
 import type { Favorite } from './lib/store'
 import { useBackLayer } from './hooks/useBackLayer'
 
@@ -56,10 +42,8 @@ export default function App() {
   const [routes, setRoutes] = useState<Route[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<Route | null>(null)
   const [tab, setTab] = useState<Tab>('search')
-  const [coFilter, setCoFilter] = useState<Co | 'all'>('all')
   const [initialStop, setInitialStop] = useState<string | undefined>()
   const [dark, setDark] = useState(initialDark)
 
@@ -232,27 +216,6 @@ export default function App() {
     }
   }, [])
 
-  const matches = useMemo(() => {
-    const raw = query.trim()
-    const q = raw.toUpperCase()
-    if (!q) return []
-    // 純英數 = 路線號(prefix);有中文 / 其他字 = 搵目的地或起點站名
-    const byNumber = /^[A-Z0-9]+$/.test(q)
-    return routes
-      .filter((r) =>
-        byNumber ? r.route.toUpperCase().startsWith(q) : r.dest_tc.includes(raw) || r.orig_tc.includes(raw),
-      )
-      .filter((r) => coFilter === 'all' || r.co === coFilter)
-      .sort(
-        (a, b) =>
-          a.route.localeCompare(b.route, undefined, { numeric: true }) ||
-          a.co.localeCompare(b.co) ||
-          a.bound.localeCompare(b.bound) ||
-          a.service_type.localeCompare(b.service_type),
-      )
-      .slice(0, 80)
-  }, [routes, query, coFilter])
-
   const variants = useMemo(
     () => (selected ? routes.filter((r) => r.route === selected.route && r.co === selected.co) : []),
     [routes, selected],
@@ -336,93 +299,14 @@ export default function App() {
         ) : tab === 'plan' ? (
           <PlannerView onOpenLeg={openLeg} initialDest={planDest} />
         ) : (
-          <>
-            <div className="co-filter">
-              {(['all', ...SEARCH_OPERATORS] as (Co | 'all')[]).map((c) => {
-                const active = coFilter === c
-                const color = c === 'all' ? '#374151' : CO_COLOR[c]
-                return (
-                  <button
-                    key={c}
-                    className={`co-chip ${active ? 'on' : ''}`}
-                    style={active ? { background: color, borderColor: color } : { color, borderColor: color }}
-                    onClick={() => setCoFilter(c)}
-                  >
-                    {c === 'all' ? '全部' : coLabel(c)}
-                  </button>
-                )
-              })}
-            </div>
-
-            <div className="search">
-              <input
-                type="search"
-                inputMode="text"
-                autoCapitalize="characters"
-                autoCorrect="off"
-                spellCheck={false}
-                enterKeyHint="search"
-                aria-label="搜尋路線號碼"
-                placeholder="路線號碼或地方,例如 1A、269D、尖沙咀"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-              {query && (
-                <button className="clear" onClick={() => setQuery('')} aria-label="清除">
-                  ✕
-                </button>
-              )}
-            </div>
-
-            {loading && <MascotState mood="busy" text="熊貓幫緊你載入路線資料…" />}
-            {error && (
-              <div className="error pad">
-                ⚠️ {error}{' '}
-                <button className="refresh-btn" onClick={loadRoutes}>
-                  重試
-                </button>
-              </div>
-            )}
-
-            {!query && !loading && !error && (
-              <>
-                <SmartSuggest routes={routes} onOpen={openRoute} />
-                <MascotWelcome title="今日去邊度呢? 💕" sub="輸入路線號碼,即刻睇到站時間~" />
-              </>
-            )}
-            {!query && !loading && <Favorites onOpen={openFavorite} />}
-            {!query && !loading && !error && <StampCard />}
-
-            {query && matches.length === 0 && !loading && (
-              <MascotState mood="sad" text={`搵唔到「${query}」,試下轉車種 filter,或者打路線號 / 目的地?`} />
-            )}
-
-            <div className="route-results">
-              {matches.map((r, i) => (
-                <button
-                  key={`${r.co}|${r.route}|${r.bound}|${r.service_type}|${r.uid ?? ''}|${i}`}
-                  className="route-card"
-                  onClick={() => openRoute(r)}
-                >
-                  <span className={`route-badge ${coClass(r.co)}`}>{r.route}</span>
-                  <span className="route-line">
-                    <span className="route-dest-line">
-                      <span className={`tag tag-co tag-${r.co}`}>{coLabel(r.co)}</span>
-                      <span className="muted small">往</span>
-                      <span className="route-dest-name">{r.dest_tc}</span>
-                      {routeBadges(r.route, r.service_type).map((b) => (
-                        <span key={b.kind} className={`tag tag-${b.kind}`}>
-                          {b.label}
-                        </span>
-                      ))}
-                    </span>
-                    <span className="muted small route-orig">由 {r.orig_tc}</span>
-                  </span>
-                  <span className="chev">›</span>
-                </button>
-              ))}
-            </div>
-          </>
+          <SearchView
+            routes={routes}
+            loading={loading}
+            error={error}
+            onRetry={loadRoutes}
+            onOpen={openRoute}
+            onOpenFavorite={openFavorite}
+          />
         )}
       </main>
 

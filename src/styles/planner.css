@@ -1,0 +1,230 @@
+/* 行程規劃 + 幾點前要到 */
+/* ---- Journey planner ---- */
+.plan-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 14px;
+  position: relative;
+}
+.plan-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 14px 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  background: var(--card);
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--text);
+}
+.plan-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.plan-dot.o {
+  background: var(--green);
+}
+.plan-dot.d {
+  background: var(--red);
+}
+.plan-ph {
+  color: var(--muted);
+}
+.plan-val {
+  font-weight: 700;
+}
+.swap {
+  position: absolute;
+  right: 24px;
+  top: 56px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+.preset-chips {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 12px;
+  flex-wrap: wrap;
+}
+.preset-chip {
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 999px;
+  padding: 9px 14px;
+  min-height: 40px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: var(--text);
+}
+.preset-chip.on {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+.primary-btn.full {
+  width: 100%;
+}
+.primary-btn:disabled {
+  opacity: 0.5;
+}
+.primary-btn:not(:disabled):active {
+  transform: scale(0.98);
+  filter: brightness(0.95);
+}
+/* journey result cards */
+.jcard {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 13px 14px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 10px;
+}
+.jcard.best {
+  border-color: var(--red);
+  border-width: 2px;
+}
+.jhead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+.jtime {
+  font-size: 1.4rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.jmeta {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.jfare {
+  margin-left: auto;
+  background: linear-gradient(135deg, #ffb066, #ff8f43);
+  color: #fff;
+  font-weight: 800;
+  padding: 4px 13px;
+  border-radius: 999px;
+  font-size: 0.95rem;
+}
+.tagbest {
+  background: linear-gradient(135deg, #ff8fc0, #ff4f95);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.legs {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.leg-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.92rem;
+  cursor: default;
+}
+.leg-walk {
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.leg-n {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.legs .arrow {
+  color: var(--muted);
+  font-weight: 700;
+  padding: 0 1px;
+}
+.leg-badge.tappable {
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+.leg-badge.tappable:active {
+  transform: scale(0.94);
+}
+
+/* ---- 幾點前要到(逆向出門倒數)---- */
+.arrive-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 2px 12px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.arrive-row input[type='time'] {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+.leaveby {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--red) 9%, transparent);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.leaveby b {
+  font-variant-numeric: tabular-nums;
+}
+.leaveby.missed {
+  background: color-mix(in srgb, var(--soon) 14%, transparent);
+  color: var(--soon);
+  font-weight: 700;
+}
+.remind-btn {
+  margin-left: auto;
+  border: 1.5px solid var(--red);
+  color: var(--red-dark);
+  background: var(--card);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.remind-ok {
+  margin-left: auto;
+  color: var(--green);
+  font-weight: 700;
+  font-size: 0.85rem;
+}

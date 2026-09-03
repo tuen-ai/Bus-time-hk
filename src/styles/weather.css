@@ -1,0 +1,185 @@
+/* 天氣列、天氣+路況面板、雨點特效 */
+/* ---- Weather bar ---- */
+.weather-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 14px;
+  background: var(--card);
+  border: none;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.82rem;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+}
+.wx-more {
+  margin-left: auto;
+  font-weight: 700;
+  color: var(--red-dark);
+  white-space: nowrap;
+}
+
+/* ---- 天氣+路況面板 ---- */
+.wx-panel {
+  padding: 10px 14px 14px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+}
+.wx-stats {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.wx-stat {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wx-stat-v {
+  font-size: 1.3rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.wx-stat-l {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.wx-sec {
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: var(--red-dark);
+  margin: 10px 2px 8px;
+}
+.tsm-map-wrap {
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.tsm-map {
+  height: 260px;
+  margin-bottom: 0;
+}
+.tsm-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 8px 2px 0;
+  flex-wrap: wrap;
+}
+.tsm-legend i {
+  display: inline-block;
+  width: 14px;
+  height: 5px;
+  border-radius: 3px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.wx-news {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+.wx-news li {
+  border-left: 3px solid var(--soon);
+  padding-left: 8px;
+}
+.weather-bar.has-warn {
+  background: #fff7ed;
+}
+:root[data-theme='dark'] .weather-bar.has-warn {
+  background: #2a1d0e;
+}
+.wx-temp {
+  font-weight: 700;
+}
+.wx-warn {
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 999px;
+  color: #fff;
+}
+.wx-warn.w-amber {
+  background: #d97706;
+}
+.wx-warn.w-red {
+  background: #dc2626;
+}
+.wx-warn.w-black {
+  background: #111827;
+}
+
+/* ---- Rain effect on map ---- */
+.map-stage {
+  position: relative;
+}
+.rain-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: var(--radius);
+  z-index: 450;
+}
+.rain-overlay::before {
+  content: '';
+  position: absolute;
+  inset: -40%;
+  background-image: repeating-linear-gradient(102deg, transparent 0 7px, rgba(120, 160, 220, 0.5) 7px 8px);
+  animation: rainfall 0.55s linear infinite;
+}
+.rain-light::before {
+  opacity: 0.3;
+  animation-duration: 0.8s;
+}
+.rain-moderate::before {
+  opacity: 0.5;
+}
+.rain-heavy::before {
+  opacity: 0.78;
+  animation-duration: 0.4s;
+}
+@keyframes rainfall {
+  to {
+    transform: translateY(60px);
+  }
+}
+.map-incident-chip {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 500;
+  background: rgba(217, 119, 6, 0.95);
+  color: #fff;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  pointer-events: none;
+}
+.rain-chip {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(17, 24, 39, 0.82);
+  color: #fff;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
