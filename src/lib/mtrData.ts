@@ -26,5 +26,4 @@ for (const line of MTR_LINES) {
   for (const s of line.stations) stationNameTc[s.code] = s.nameTc
 }
 
-export const getLine = (code: string): MtrLine | undefined =>
-  MTR_LINES.find((l) => l.code === code)
+export const getLine = (code: string): MtrLine | undefined => MTR_LINES.find((l) => l.code === code)

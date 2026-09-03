@@ -180,33 +180,31 @@ export default function RouteMap({ route, stops, focusStopId }: Props) {
   return (
     <div className="route-map-wrap">
       <div className="map-stage">
-      <MapContainer className="map" center={positions[0]} zoom={14} scrollWheelZoom>
-        <TileLayer url={TILE_URL} attribution={TILE_ATTRIB} />
-        <MapFocus bounds={bounds} focus={focus} />
-        <Polyline positions={positions} pathOptions={{ color: '#b91c1c', weight: 5, opacity: 0.85 }} />
-        {stops.map((s) => {
-          const on = s.stopId === focusStopId
-          return (
-            <CircleMarker
-              key={s.stopId}
-              center={[s.lat, s.lng]}
-              radius={on ? 7 : 4}
-              pathOptions={{
-                color: '#fff',
-                weight: 2,
-                fillColor: on ? '#f59e0b' : '#b91c1c',
-                fillOpacity: 1,
-              }}
-            />
-          )
-        })}
-        {buses.map((b, i) => (
-          <Marker key={b.seq} position={[b.lat, b.lng]} icon={busIcon(`${b.minsToNext}分`, i === 0)} />
-        ))}
-      </MapContainer>
-        {incidents > 0 && (
-          <div className="map-incident-chip">🚧 沿途 {incidents} 則交通消息</div>
-        )}
+        <MapContainer className="map" center={positions[0]} zoom={14} scrollWheelZoom>
+          <TileLayer url={TILE_URL} attribution={TILE_ATTRIB} />
+          <MapFocus bounds={bounds} focus={focus} />
+          <Polyline positions={positions} pathOptions={{ color: '#b91c1c', weight: 5, opacity: 0.85 }} />
+          {stops.map((s) => {
+            const on = s.stopId === focusStopId
+            return (
+              <CircleMarker
+                key={s.stopId}
+                center={[s.lat, s.lng]}
+                radius={on ? 7 : 4}
+                pathOptions={{
+                  color: '#fff',
+                  weight: 2,
+                  fillColor: on ? '#f59e0b' : '#b91c1c',
+                  fillOpacity: 1,
+                }}
+              />
+            )
+          })}
+          {buses.map((b, i) => (
+            <Marker key={b.seq} position={[b.lat, b.lng]} icon={busIcon(`${b.minsToNext}分`, i === 0)} />
+          ))}
+        </MapContainer>
+        {incidents > 0 && <div className="map-incident-chip">🚧 沿途 {incidents} 則交通消息</div>}
         {rain && (
           <div className={`rain-overlay rain-${rain.level}`} aria-hidden="true">
             <div className="rain-chip">

@@ -43,9 +43,7 @@ async function als(q: string): Promise<GeoPlace[]> {
 function chiLabel(pa?: AlsPremises): string {
   const c = pa?.ChiPremisesAddress
   if (!c) return ''
-  const street = c.ChiStreet
-    ? `${c.ChiStreet.StreetName ?? ''}${c.ChiStreet.BuildingNoFrom ?? ''}`
-    : ''
+  const street = c.ChiStreet ? `${c.ChiStreet.StreetName ?? ''}${c.ChiStreet.BuildingNoFrom ?? ''}` : ''
   return [c.BuildingName, c.ChiEstate?.EstateName, street, c.ChiDistrict?.DcDistrict]
     .filter(Boolean)
     .join(' ')

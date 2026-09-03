@@ -94,11 +94,21 @@ export default function WeatherPanel({ w }: { w: Weather }) {
             </MapContainer>
           </div>
           <div className="tsm-legend">
-            <span><i style={{ background: LEVEL_COLOR.good }} />暢順</span>
-            <span><i style={{ background: LEVEL_COLOR.avg }} />一般</span>
-            <span><i style={{ background: LEVEL_COLOR.bad }} />擠塞</span>
+            <span>
+              <i style={{ background: LEVEL_COLOR.good }} />
+              暢順
+            </span>
+            <span>
+              <i style={{ background: LEVEL_COLOR.avg }} />
+              一般
+            </span>
+            <span>
+              <i style={{ background: LEVEL_COLOR.bad }} />
+              擠塞
+            </span>
             <span className="muted small" style={{ marginLeft: 'auto' }}>
-              {tsm.capturedAt ? `資料時間 ${tsm.capturedAt.slice(11, 16) || tsm.capturedAt}` : ''} · 每2分鐘更新
+              {tsm.capturedAt ? `資料時間 ${tsm.capturedAt.slice(11, 16) || tsm.capturedAt}` : ''} ·
+              每2分鐘更新
             </span>
           </div>
         </>

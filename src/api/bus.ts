@@ -70,11 +70,9 @@ export interface RouteKeyLike {
   serviceType: string
 }
 
-export const routeKey = (k: RouteKeyLike): string =>
-  `${k.co}|${k.route}|${k.bound}|${k.serviceType}`
+export const routeKey = (k: RouteKeyLike): string => `${k.co}|${k.route}|${k.bound}|${k.serviceType}`
 
-export const routeKeyOf = (r: Route): string =>
-  `${r.co}|${r.route}|${r.bound}|${r.service_type}`
+export const routeKeyOf = (r: Route): string => `${r.co}|${r.route}|${r.bound}|${r.service_type}`
 
 export const CO_COLOR: Record<Co, string> = {
   kmb: '#c8102e',

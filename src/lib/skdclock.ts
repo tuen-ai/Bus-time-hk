@@ -201,7 +201,13 @@ export class SkdClock {
  * mode 1 紅板:純紅(R>0,G=0,B=0)→ bit 0;其餘 → bit 1(相反極性)。
  * MSB-first;每行補到 8 的倍數(補位讀落一行,對照源碼行為)。
  */
-function canvas2bytes(ctx: CanvasRenderingContext2D, width: number, height: number, mode: number, header: boolean): Uint8Array {
+function canvas2bytes(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  mode: number,
+  header: boolean,
+): Uint8Array {
   const d = ctx.getImageData(0, 0, width, height).data as unknown as (number | undefined)[]
   const bytes: number[] = []
   let bits: number[] = []

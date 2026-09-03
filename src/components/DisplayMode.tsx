@@ -89,7 +89,9 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
   // 天氣(5 分鐘 cache 喺 api 層)+ 新聞
   useEffect(() => {
     const load = () => {
-      getWeather().then(setWx).catch(() => {})
+      getWeather()
+        .then(setWx)
+        .catch(() => {})
       fetch('./news.json')
         .then((r) => (r.ok ? r.json() : null))
         .then((j: { items?: string[] } | null) => {
@@ -182,7 +184,9 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
     >
       {lockHint && <div className="dm-lock">🔒 已鎖定 · 長按 3 秒先會退出</div>}
       <div className="dm-top">
-        <div className="dm-logo"><PandaFace className="dm-logo-svg" /></div>
+        <div className="dm-logo">
+          <PandaFace className="dm-logo-svg" />
+        </div>
         <div>
           <div className="dm-clock">{clock}</div>
           <div className="dm-date">{dateStr} · 可可出行 ♡</div>
@@ -191,7 +195,11 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
           ✨ 是日名句:「{quote.q}」<span className="dm-src">——{quote.by}</span>
         </div>
         <div className="dm-wx">
-          {wx?.tempC != null && <div className="dm-wx-t">{rainy ? '🌧' : '☀️'} {Math.round(wx.tempC)}°</div>}
+          {wx?.tempC != null && (
+            <div className="dm-wx-t">
+              {rainy ? '🌧' : '☀️'} {Math.round(wx.tempC)}°
+            </div>
+          )}
           <div className="dm-wx-s">
             {wx?.humidity != null && <>濕度 {Math.round(wx.humidity)}%</>}
             {wl && <> · {wl}</>}
@@ -202,9 +210,7 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
 
       <div className="dm-rows">
         {favs.length === 0 && (
-          <div className="dm-empty">
-            先喺搜尋頁收藏(⭐)你常搭嘅「路線+車站」,呢度就會顯示佢哋嘅實時到站~
-          </div>
+          <div className="dm-empty">先喺搜尋頁收藏(⭐)你常搭嘅「路線+車站」,呢度就會顯示佢哋嘅實時到站~</div>
         )}
         {favs.map((f) => {
           const e = etas[`${f.co}|${f.route}|${f.bound}|${f.stopId}`]
@@ -228,7 +234,12 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
                       {m0 > 0 && <small>分</small>}
                     </div>
                     {e.mins.length > 1 && (
-                      <div className="dm-mn">{e.mins.slice(1).map((m) => `${m}分`).join(', ')}</div>
+                      <div className="dm-mn">
+                        {e.mins
+                          .slice(1)
+                          .map((m) => `${m}分`)
+                          .join(', ')}
+                      </div>
                     )}
                   </>
                 )}
@@ -239,7 +250,13 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
       </div>
 
       <div className="dm-pair">
-        <PandaFace className="dm-mascot" bow={un.includes('bow')} starEyes={un.includes('star')} umbrella={rainy} sweat={hot} />
+        <PandaFace
+          className="dm-mascot"
+          bow={un.includes('bow')}
+          starEyes={un.includes('star')}
+          umbrella={rainy}
+          sweat={hot}
+        />
         <BearFace className="dm-mascot" knight={un.includes('knight')} medal={un.includes('gold')} />
       </div>
 
@@ -251,7 +268,9 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
           </>
         )}
         <span className="dm-upd">
-          每 10 秒自動更新{updatedAt && ` · 最後更新 ${updatedAt.toLocaleTimeString('zh-HK', { hour12: false })}`} · 🔒 長按 3 秒退出
+          每 10 秒自動更新
+          {updatedAt && ` · 最後更新 ${updatedAt.toLocaleTimeString('zh-HK', { hour12: false })}`} · 🔒 長按 3
+          秒退出
         </span>
       </div>
     </div>

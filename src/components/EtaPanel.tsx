@@ -40,9 +40,18 @@ export default function EtaPanel({ route, stopId }: Props) {
   if (loading) {
     return (
       <div className="eta-panel" aria-busy="true">
-        <div className="skel-row"><span className="skel w-eta" /><span className="skel w-clock" /></div>
-        <div className="skel-row"><span className="skel w-eta" /><span className="skel w-clock" /></div>
-        <div className="skel-row"><span className="skel w-eta" /><span className="skel w-clock" /></div>
+        <div className="skel-row">
+          <span className="skel w-eta" />
+          <span className="skel w-clock" />
+        </div>
+        <div className="skel-row">
+          <span className="skel w-eta" />
+          <span className="skel w-clock" />
+        </div>
+        <div className="skel-row">
+          <span className="skel w-eta" />
+          <span className="skel w-clock" />
+        </div>
       </div>
     )
   }
@@ -71,9 +80,7 @@ export default function EtaPanel({ route, stopId }: Props) {
         <ul className="eta-list">
           {etas.map((e, i) => (
             <li key={`${e.eta ?? 'na'}-${e.eta_seq}-${i}`} className="eta-row">
-              <span className={`eta-mins ${etaIsSoon(e.eta) ? 'soon' : ''}`}>
-                {etaLabel(e.eta)}
-              </span>
+              <span className={`eta-mins ${etaIsSoon(e.eta) ? 'soon' : ''}`}>{etaLabel(e.eta)}</span>
               <span className="eta-clock">{clockLabel(e.eta)}</span>
               {e.rmk_tc && <span className="eta-rmk">{e.rmk_tc}</span>}
             </li>

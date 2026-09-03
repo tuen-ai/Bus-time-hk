@@ -5,12 +5,7 @@ import type { PickedPlace } from './LocationPicker'
 const LocationPicker = lazy(() => import('./LocationPicker'))
 import { getPosition, describeGeoError } from '../lib/geo'
 import { planJourneys, type Journey, type Leg } from '../lib/journey'
-import {
-  getPlaces,
-  savePlace,
-  PRESET_DEFS,
-  type SavedPlace,
-} from '../lib/places'
+import { getPlaces, savePlace, PRESET_DEFS, type SavedPlace } from '../lib/places'
 import { MascotWelcome, MascotState } from './Mascots'
 import { leaveAtFor, setReminder, fmtClock } from '../lib/reminder'
 import { primeAudio, askNotify } from '../lib/chime'
@@ -19,7 +14,11 @@ import { addStamp } from '../lib/stamps'
 import { useBackLayer } from '../hooks/useBackLayer'
 
 const LEG_COLOR: Record<string, string> = {
-  kmb: '#c8102e', ctb: '#0e7490', nlb: '#00857c', gmb: '#167a3a', lightRail: '#7d3c98',
+  kmb: '#c8102e',
+  ctb: '#0e7490',
+  nlb: '#00857c',
+  gmb: '#167a3a',
+  lightRail: '#7d3c98',
 }
 
 /** planner ride leg → 開返路線頁(實時 ETA)用嘅 key */
@@ -41,9 +40,18 @@ interface Props {
 function renderLegs(legs: Leg[], onOpenLeg?: (k: LegRouteKey) => void) {
   const items: ReactNode[] = []
   legs.forEach((l, i) => {
-    if (i > 0) items.push(<span key={`a${i}`} className="arrow">›</span>)
+    if (i > 0)
+      items.push(
+        <span key={`a${i}`} className="arrow">
+          ›
+        </span>,
+      )
     if (l.kind === 'walk') {
-      items.push(<span key={i} className="leg-walk">🚶{l.mins}分</span>)
+      items.push(
+        <span key={i} className="leg-walk">
+          🚶{l.mins}分
+        </span>,
+      )
     } else {
       const clickable = onOpenLeg && l.co && l.route && l.bound && l.serviceType
       items.push(
@@ -68,7 +76,12 @@ function renderLegs(legs: Leg[], onOpenLeg?: (k: LegRouteKey) => void) {
           {l.route}
         </button>,
       )
-      if (l.nStops) items.push(<span key={`n${i}`} className="leg-n">{l.nStops}站</span>)
+      if (l.nStops)
+        items.push(
+          <span key={`n${i}`} className="leg-n">
+            {l.nStops}站
+          </span>,
+        )
     }
   })
   return items
@@ -173,11 +186,7 @@ export default function PlannerView({ onOpenLeg, initialDest }: Props) {
   if (picking) {
     return (
       <Suspense fallback={<MascotState mood="busy" text="地圖載入中…" />}>
-        <LocationPicker
-          title={picking.title}
-          onConfirm={onPick}
-          onCancel={() => setPicking(null)}
-        />
+        <LocationPicker title={picking.title} onConfirm={onPick} onCancel={() => setPicking(null)} />
       </Suspense>
     )
   }
@@ -204,19 +213,21 @@ export default function PlannerView({ onOpenLeg, initialDest }: Props) {
   return (
     <div>
       <div className="plan-card">
-        <button
-          className="plan-field"
-          onClick={() => setPicking({ kind: 'origin', title: '揀起點' })}
-        >
+        <button className="plan-field" onClick={() => setPicking({ kind: 'origin', title: '揀起點' })}>
           <span className="plan-dot o" />
-          {origin ? <span className="plan-val">{epLabel(origin)}</span> : <span className="plan-ph">揀起點</span>}
+          {origin ? (
+            <span className="plan-val">{epLabel(origin)}</span>
+          ) : (
+            <span className="plan-ph">揀起點</span>
+          )}
         </button>
-        <button
-          className="plan-field"
-          onClick={() => setPicking({ kind: 'dest', title: '揀終點' })}
-        >
+        <button className="plan-field" onClick={() => setPicking({ kind: 'dest', title: '揀終點' })}>
           <span className="plan-dot d" />
-          {dest ? <span className="plan-val">{epLabel(dest)}</span> : <span className="plan-ph">輸入終點 / 喺地圖揀</span>}
+          {dest ? (
+            <span className="plan-val">{epLabel(dest)}</span>
+          ) : (
+            <span className="plan-ph">輸入終點 / 喺地圖揀</span>
+          )}
         </button>
         <button className="swap" onClick={swap} aria-label="對調起訖">
           ⇅
@@ -295,9 +306,7 @@ export default function PlannerView({ onOpenLeg, initialDest }: Props) {
                 <div className="jhead">
                   {i === 0 && <span className="tagbest">💖 最快</span>}
                   <span className="jtime">{j.mins}分</span>
-                  <span className="jmeta">
-                    · {j.transfers === 0 ? '直達' : `${j.transfers} 次轉乘`}
-                  </span>
+                  <span className="jmeta">· {j.transfers === 0 ? '直達' : `${j.transfers} 次轉乘`}</span>
                   {j.fare != null && <span className="jfare">${j.fare.toFixed(1)}</span>}
                 </div>
                 <div className="legs">{renderLegs(j.legs, onOpenLeg)}</div>
@@ -319,27 +328,34 @@ export default function PlannerView({ onOpenLeg, initialDest }: Props) {
                     )}
                   </div>
                 )}
-                {j.fareNote && <div className="muted small" style={{ marginTop: 4 }}>{j.fareNote}</div>}
+                {j.fareNote && (
+                  <div className="muted small" style={{ marginTop: 4 }}>
+                    {j.fareNote}
+                  </div>
+                )}
               </div>
             )
           })}
-          {planCoords && (() => {
-            const t = taxiFareEstimate(planCoords.o, planCoords.d)
-            return t ? (
-              <div className="taxi-row">
-                🚕 的士估算 <b>${t.fare}</b>
-                <span className="muted small"> · 約 {t.km} 公里 · 市區錶,未計隧道費,僅供參考</span>
-              </div>
-            ) : null
-          })()}
+          {planCoords &&
+            (() => {
+              const t = taxiFareEstimate(planCoords.o, planCoords.d)
+              return t ? (
+                <div className="taxi-row">
+                  🚕 的士估算 <b>${t.fare}</b>
+                  <span className="muted small"> · 約 {t.km} 公里 · 市區錶,未計隧道費,僅供參考</span>
+                </div>
+              ) : null
+            })()}
           <div className="muted small pad">
-            ⚠️ 時間/車費為估算(無時刻表),僅供參考。八達通轉乘優惠未計。撳路線號可以睇實時到站。
-            出門提醒要 app 開住先響。
+            ⚠️ 時間/車費為估算(無時刻表),僅供參考。八達通轉乘優惠未計。撳路線號可以睇實時到站。 出門提醒要 app
+            開住先響。
           </div>
         </>
       )}
 
-      <div className="section-title" style={{ marginTop: 18 }}>喜好地點</div>
+      <div className="section-title" style={{ marginTop: 18 }}>
+        喜好地點
+      </div>
       <div className="preset-chips">
         {PRESET_DEFS.map((d) => {
           const sp = presetOf(d.id)
@@ -348,11 +364,20 @@ export default function PlannerView({ onOpenLeg, initialDest }: Props) {
               key={d.id}
               className="preset-chip"
               onClick={() =>
-                setPicking({ kind: 'preset', presetId: d.id, icon: d.icon, title: `設定:${d.icon} ${d.label}` })
+                setPicking({
+                  kind: 'preset',
+                  presetId: d.id,
+                  icon: d.icon,
+                  title: `設定:${d.icon} ${d.label}`,
+                })
               }
             >
               {d.icon} {d.label}
-              {sp ? <span className="muted small"> · 已設</span> : <span className="muted small"> · 未設</span>}
+              {sp ? (
+                <span className="muted small"> · 已設</span>
+              ) : (
+                <span className="muted small"> · 未設</span>
+              )}
             </button>
           )
         })}

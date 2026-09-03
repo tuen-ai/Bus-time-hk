@@ -60,9 +60,7 @@ function monoPreview(canvas: HTMLCanvasElement, tri: boolean) {
 export default function ClockPush({ onExit }: { onExit: () => void }) {
   const supported = bluetoothSupported()
   const allFavs = useState<Favorite[]>(() => getFavorites())[0]
-  const [picked, setPicked] = useState<string[]>(() =>
-    getFavorites().slice(0, MAX_PICK).map(favKey),
-  )
+  const [picked, setPicked] = useState<string[]>(() => getFavorites().slice(0, MAX_PICK).map(favKey))
   const [status, setStatus] = useState<ClockStatus | null>(null)
   const [connected, setConnected] = useState(false)
   const [auto, setAuto] = useState(false)
@@ -165,24 +163,24 @@ export default function ClockPush({ onExit }: { onExit: () => void }) {
     <div className="clockpush">
       <div className="cp-head">
         <b>🖥️ 推送去藍牙小屏</b>
-        <button className="fb-x" onClick={onExit} aria-label="返回">✕</button>
+        <button className="fb-x" onClick={onExit} aria-label="返回">
+          ✕
+        </button>
       </div>
 
       {!supported ? (
         <div className="cp-warn">
-          <p>
-            呢部機/瀏覽器唔支援 Web Bluetooth,連唔到小屏。
-          </p>
+          <p>呢部機/瀏覽器唔支援 Web Bluetooth,連唔到小屏。</p>
           <p className="muted small">
-            👉 用 <b>Android 手機 Chrome</b> 或 <b>電腦 Chrome / Edge</b> 開呢版就得。
-            iPhone / iPad 想用,可以裝免費嘅 <b>Bluefy</b> 瀏覽器再開。
+            👉 用 <b>Android 手機 Chrome</b> 或 <b>電腦 Chrome / Edge</b> 開呢版就得。 iPhone / iPad
+            想用,可以裝免費嘅 <b>Bluefy</b> 瀏覽器再開。
           </p>
         </div>
       ) : (
         <>
           <p className="muted small">
-            揀最多 {MAX_PICK} 條收藏路線,連上你部 SKD-CLOCK e-ink 小屏,佢就會每分鐘顯示最新到站。
-            小屏建議插住 USB(e-ink 每分鐘 refresh,慳電但唔好靠電池長開)。
+            揀最多 {MAX_PICK} 條收藏路線,連上你部 SKD-CLOCK e-ink 小屏,佢就會每分鐘顯示最新到站。 小屏建議插住
+            USB(e-ink 每分鐘 refresh,慳電但唔好靠電池長開)。
           </p>
 
           <div className="cp-favs">
@@ -195,7 +193,9 @@ export default function ClockPush({ onExit }: { onExit: () => void }) {
               return (
                 <button key={k} className={`cp-fav ${on ? 'on' : ''}`} onClick={() => toggle(f)}>
                   <span className={`route-badge ${coClass(f.co)} cp-fav-badge`}>{f.route}</span>
-                  <span className="cp-fav-name">往 {f.dest} · {f.stopName}</span>
+                  <span className="cp-fav-name">
+                    往 {f.dest} · {f.stopName}
+                  </span>
                   <span className="cp-fav-tick">{on ? '✓' : ''}</span>
                 </button>
               )
@@ -203,7 +203,9 @@ export default function ClockPush({ onExit }: { onExit: () => void }) {
           </div>
 
           <div className="cp-preview-wrap">
-            <div className="cp-preview-label">小屏預覽(模擬 e-ink 黑白{status?.tri !== false ? '紅' : ''})</div>
+            <div className="cp-preview-label">
+              小屏預覽(模擬 e-ink 黑白{status?.tri !== false ? '紅' : ''})
+            </div>
             <canvas ref={previewRef} className="cp-preview" />
           </div>
 
@@ -226,10 +228,7 @@ export default function ClockPush({ onExit }: { onExit: () => void }) {
                 <button className="preset-chip" onClick={pushOnce} disabled={busy}>
                   {busy ? '推送中…' : '⬆️ 推送一次'}
                 </button>
-                <button
-                  className={`preset-chip ${auto ? 'on' : ''}`}
-                  onClick={() => setAuto((a) => !a)}
-                >
+                <button className={`preset-chip ${auto ? 'on' : ''}`} onClick={() => setAuto((a) => !a)}>
                   {auto ? '⏸ 停止自動' : '▶️ 每分鐘自動推'}
                 </button>
                 <button className="preset-chip" onClick={() => void clockRef.current?.disconnect()}>

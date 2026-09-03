@@ -9,9 +9,7 @@ self.addEventListener('install', (e) => {
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))),
-    ),
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))),
   )
   self.clients.claim()
 })
@@ -30,7 +28,11 @@ self.addEventListener('fetch', (event) => {
   }
 
   // tsm/ 路況、fitness.json 分店:每次部署會更新 → network-first,離線先用快取
-  if (url.pathname.includes('/tsm/') || url.pathname.endsWith('fitness.json') || url.pathname.endsWith('news.json')) {
+  if (
+    url.pathname.includes('/tsm/') ||
+    url.pathname.endsWith('fitness.json') ||
+    url.pathname.endsWith('news.json')
+  ) {
     event.respondWith(
       fetch(request)
         .then((res) => {

@@ -95,10 +95,21 @@ export default function LocationPicker({ title, initial, onConfirm, onCancel }: 
         <input
           value={q}
           placeholder="搜尋地址或地點(例:葵芳、葵涌廣場)"
-          onChange={(e) => { setPicked(false); setQ(e.target.value) }}
+          onChange={(e) => {
+            setPicked(false)
+            setQ(e.target.value)
+          }}
         />
         {q && (
-          <button className="clear" onClick={() => { setPicked(false); setQ(''); setResults([]) }} aria-label="清除">
+          <button
+            className="clear"
+            onClick={() => {
+              setPicked(false)
+              setQ('')
+              setResults([])
+            }}
+            aria-label="清除"
+          >
             ✕
           </button>
         )}
@@ -123,10 +134,17 @@ export default function LocationPicker({ title, initial, onConfirm, onCancel }: 
       <div className="map-stage">
         <MapContainer center={[center.lat, center.lng]} zoom={16} className="map" scrollWheelZoom>
           <TileLayer url={TILE_URL} attribution={TILE_ATTRIB} />
-          <CenterTracker onMove={(lat, lng) => { setCenter({ lat, lng }); setLabel('自訂位置(地圖)') }} />
+          <CenterTracker
+            onMove={(lat, lng) => {
+              setCenter({ lat, lng })
+              setLabel('自訂位置(地圖)')
+            }}
+          />
           <FlyTo pos={flyTo} />
         </MapContainer>
-        <div className="pin-fixed" aria-hidden="true">📍</div>
+        <div className="pin-fixed" aria-hidden="true">
+          📍
+        </div>
         <div className="maphint">拖動地圖,將 📍 對準位置</div>
       </div>
 

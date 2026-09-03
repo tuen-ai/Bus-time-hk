@@ -37,7 +37,9 @@ export default function BackupPanel({
       <div className="backup-card" onClick={(e) => e.stopPropagation()}>
         <div className="backup-head">
           <b>⚙️ 設定</b>
-          <button className="fb-x" onClick={onClose} aria-label="關閉">✕</button>
+          <button className="fb-x" onClick={onClose} aria-label="關閉">
+            ✕
+          </button>
         </div>
         {onEnterDisplay && (
           <>
@@ -45,9 +47,8 @@ export default function BackupPanel({
               📺 門口顯示模式(iPad 橫擺)
             </button>
             <p className="muted small">
-              大字時鐘 + 收藏路線實時到站 + 是日名句 + 新聞。iPad 加到主畫面後開
-              App 會自動返去顯示模式;設定 → 螢幕顯示 → 自動鎖定揀「永不」+ 插住電,
-              就係一部門口報站機~畫面已鎖定,長按 3 秒先退出。
+              大字時鐘 + 收藏路線實時到站 + 是日名句 + 新聞。iPad 加到主畫面後開 App 會自動返去顯示模式;設定 →
+              螢幕顯示 → 自動鎖定揀「永不」+ 插住電, 就係一部門口報站機~畫面已鎖定,長按 3 秒先退出。
             </p>
             <hr style={{ border: 'none', borderTop: '1px solid var(--line)' }} />
             <b className="small">✨ 是日金句</b>
@@ -66,11 +67,7 @@ export default function BackupPanel({
               </button>
               <button
                 className={`preset-chip ${qp.mode === 'custom' ? 'on' : ''}`}
-                onClick={() =>
-                  saveQp(
-                    qp.mode === 'custom' ? qp : { mode: 'custom', q: '', by: '' },
-                  )
-                }
+                onClick={() => saveQp(qp.mode === 'custom' ? qp : { mode: 'custom', q: '', by: '' })}
               >
                 ✍️ 自己寫
               </button>
@@ -118,8 +115,8 @@ export default function BackupPanel({
                   🖥️ 推送去藍牙小屏(SKD-CLOCK)
                 </button>
                 <p className="muted small">
-                  將收藏路線到站畫成圖,推去你部藍牙 e-ink 小屏,每分鐘自動更新。
-                  用桌面/安卓 Chrome 或 Edge 開至連到(iPhone/iPad 需要 Bluefy 瀏覽器)。
+                  將收藏路線到站畫成圖,推去你部藍牙 e-ink 小屏,每分鐘自動更新。 用桌面/安卓 Chrome 或 Edge
+                  開至連到(iPhone/iPad 需要 Bluefy 瀏覽器)。
                 </p>
               </>
             )}

@@ -24,9 +24,18 @@ const data = raw as RawData
 
 // 輕鐵路綫官方識別色(非 API 提供,自備)
 const LR_COLORS: Record<string, string> = {
-  '505': '#DA2127', '507': '#00A040', '610': '#551C24', '614': '#00B6F1',
-  '614P': '#00B6F1', '615': '#FFDD00', '615P': '#FFDD00', '705': '#73BF43',
-  '706': '#B07AB0', '751': '#FF9E18', '751P': '#FF9E18', '761P': '#9C3F97',
+  '505': '#DA2127',
+  '507': '#00A040',
+  '610': '#551C24',
+  '614': '#00B6F1',
+  '614P': '#00B6F1',
+  '615': '#FFDD00',
+  '615P': '#FFDD00',
+  '705': '#73BF43',
+  '706': '#B07AB0',
+  '751': '#FF9E18',
+  '751P': '#FF9E18',
+  '761P': '#9C3F97',
 }
 export const lrColor = (route: string): string => LR_COLORS[route] ?? '#7d3c98'
 
@@ -41,9 +50,7 @@ export const lrRoutes = (): Route[] =>
   }))
 
 const key = (route: string, bound: string, st: string) => `${route}|${bound}|${st}`
-const stopsByRoute = new Map<string, string[]>(
-  data.routes.map((r) => [key(r.route, r.bound, r.st), r.stops]),
-)
+const stopsByRoute = new Map<string, string[]>(data.routes.map((r) => [key(r.route, r.bound, r.st), r.stops]))
 
 export function lrRouteStops(route: string, bound: string, st: string): RouteStopInfo[] {
   const ids = stopsByRoute.get(key(route, bound, st)) ?? []

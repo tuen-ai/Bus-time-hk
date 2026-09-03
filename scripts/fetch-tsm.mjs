@@ -115,7 +115,9 @@ async function findLayer() {
       const info = JSON.parse(await get(`${CSDI_SERVICE}/${l.id}?f=pjson`))
       const fields = (info?.fields ?? []).map((f) => f.name)
       const idField = fields.find((f) => /^route.?_?id$/i.test(f))
-      console.log(` layer ${l.id} ${l.name} geometry=${info?.geometryType} fields=${fields.slice(0, 12).join(',')}`)
+      console.log(
+        ` layer ${l.id} ${l.name} geometry=${info?.geometryType} fields=${fields.slice(0, 12).join(',')}`,
+      )
       if (idField && /Polyline/i.test(info?.geometryType ?? '')) {
         return { layerId: l.id, idField }
       }
@@ -129,7 +131,9 @@ async function findLayer() {
 /** GeoJSON / esriJSON feature → [id, path] */
 function featureToLink(f, idField) {
   const props = f?.properties ?? f?.attributes ?? {}
-  const id = String(props[idField] ?? props[idField.toLowerCase()] ?? props[idField.toUpperCase()] ?? '').trim()
+  const id = String(
+    props[idField] ?? props[idField.toLowerCase()] ?? props[idField.toUpperCase()] ?? '',
+  ).trim()
   if (!id) return null
   const g = f?.geometry
   let coords = null
@@ -154,7 +158,11 @@ async function queryGeometries(serviceUrl, ids, layerId, idField) {
       )}&outFields=${idField}&returnGeometry=true&outSR=4326&f=${fmt}`
     let feats = null
     let lastErr = ''
-    for (const [fmt, quoted] of [['geojson', false], ['json', false], ['json', true]]) {
+    for (const [fmt, quoted] of [
+      ['geojson', false],
+      ['json', false],
+      ['json', true],
+    ]) {
       try {
         const j = JSON.parse(await get(mk(fmt, quoted), true))
         if (j?.error) throw new Error(JSON.stringify(j.error).slice(0, 160))
@@ -178,7 +186,8 @@ async function queryGeometries(serviceUrl, ids, layerId, idField) {
       links[r[0]] = r[1]
       matched++
     }
-    if (i % (BATCH * 10) === 0) console.log(`  進度 ${Math.min(i + BATCH, ids.length)}/${ids.length},已對到 ${matched}`)
+    if (i % (BATCH * 10) === 0)
+      console.log(`  進度 ${Math.min(i + BATCH, ids.length)}/${ids.length},已對到 ${matched}`)
   }
   return links
 }
@@ -205,7 +214,9 @@ async function findRoadNetZip() {
   // 只要 CENTERLINE(路中心線)—— 優先 GML(純文字免解壓),其次 KML/KMZ
   const pick =
     rs.find((r) => /cent(?:er|re)line/i.test(`${r.name} ${r.url}`) && /\.gml/i.test(r.url)) ??
-    rs.find((r) => /cent(?:er|re)line/i.test(`${r.name} ${r.url}`) && /kml|kmz/i.test(`${r.format} ${r.url}`)) ??
+    rs.find(
+      (r) => /cent(?:er|re)line/i.test(`${r.name} ${r.url}`) && /kml|kmz/i.test(`${r.format} ${r.url}`),
+    ) ??
     rs.find((r) => /gml/i.test(`${r.format} ${r.url}`))
   if (!pick) {
     console.log('CKAN 清單搵唔到 CENTERLINE,用已知 URL')
@@ -216,7 +227,10 @@ async function findRoadNetZip() {
 }
 
 async function download(url, dest) {
-  const res = await fetch(url, { signal: AbortSignal.timeout(600000), headers: { 'User-Agent': 'kkcx-build/1.0' } })
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(600000),
+    headers: { 'User-Agent': 'kkcx-build/1.0' },
+  })
   if (!res.ok) throw new Error(`${res.status} ${url}`)
   await new Promise((resolve, reject) => {
     const ws = createWriteStream(dest)
@@ -282,7 +296,10 @@ export function extractFromMarkup(buffer, wanted, raw) {
     }
     const co = /<[^>]*coordinates[^>]*>([\d\s.,eE+-]+)</.exec(block)
     if (co) {
-      const pairs = co[1].trim().split(/\s+/).map((p) => p.split(',').slice(0, 2).map(Number))
+      const pairs = co[1]
+        .trim()
+        .split(/\s+/)
+        .map((p) => p.split(',').slice(0, 2).map(Number))
       if (pairs.length >= 2) raw.set(idm[1], { pairs, posList: false })
     }
   }
@@ -312,10 +329,12 @@ export function finalizeLinks(raw) {
     if (toLatLng(b, a)) yx++
   }
   let swap
-  if (maxA > 852000 && maxB <= 852000) swap = false // E 極值(>852k 只可能係 E)
+  if (maxA > 852000 && maxB <= 852000)
+    swap = false // E 極值(>852k 只可能係 E)
   else if (maxB > 852000 && maxA <= 852000) swap = true
   // N 下限:香港陸上道路 N ≥ ~805k(再南係公海),E 可以低到 ~801k(港珠澳橋西端)
-  else if (minA < 805000 && minB >= 805000) swap = false // 第一列有 <805k → 係 E
+  else if (minA < 805000 && minB >= 805000)
+    swap = false // 第一列有 <805k → 係 E
   else if (minB < 805000 && minA >= 805000) swap = true
   else swap = yx > xy // 後備:投票
   if (xy || yx) {
@@ -351,7 +370,9 @@ async function roadNetFallback(idList) {
   } else {
     files = [dest]
   }
-  console.log(`待解析:${files.map((f) => `${f.split('/').pop()}(${(statSync(f).size / 1048576).toFixed(0)}MB)`).join(', ')}`)
+  console.log(
+    `待解析:${files.map((f) => `${f.split('/').pop()}(${(statSync(f).size / 1048576).toFixed(0)}MB)`).join(', ')}`,
+  )
   // 優先包含 CENTERLINE 字眼嘅檔
   files.sort((a, b) => (/cent(?:er|re)line/i.test(b) ? 1 : 0) - (/cent(?:er|re)line/i.test(a) ? 1 : 0))
   const raw = new Map() // id → { pairs, posList }(raw 座標,最後先定軸序)

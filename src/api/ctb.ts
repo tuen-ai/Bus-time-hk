@@ -84,11 +84,7 @@ export async function fetchCtbStop(stopId: string): Promise<Stop | null> {
 }
 
 /** CTB 指定站 + 路線到站時間 */
-export async function fetchCtbEta(
-  stopId: string,
-  route: string,
-  bound: 'I' | 'O',
-): Promise<Eta[]> {
+export async function fetchCtbEta(stopId: string, route: string, bound: 'I' | 'O'): Promise<Eta[]> {
   const data = await get<Record<string, unknown>[]>(`/eta/CTB/${stopId}/${route}`)
   return data
     .filter((e) => normDir(String(e.dir)) === bound)

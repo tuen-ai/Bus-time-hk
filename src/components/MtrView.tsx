@@ -27,10 +27,7 @@ export default function MtrView() {
   const line = getLine(lineCode) ?? MTR_LINES[0]
   const color = line.color
 
-  const geoStops = useMemo(
-    () => line.stations.filter((s) => s.lat != null && s.lng != null),
-    [line],
-  )
+  const geoStops = useMemo(() => line.stations.filter((s) => s.lat != null && s.lng != null), [line])
   const positions = useMemo<[number, number][]>(
     () => geoStops.map((s) => [s.lat as number, s.lng as number]),
     [geoStops],
@@ -105,12 +102,7 @@ export default function MtrView() {
                 {s.interchange.map((ic) => {
                   const l = getLine(ic)
                   return l ? (
-                    <span
-                      key={ic}
-                      className="mtr-ic"
-                      style={{ background: l.color }}
-                      title={l.nameTc}
-                    />
+                    <span key={ic} className="mtr-ic" style={{ background: l.color }} title={l.nameTc} />
                   ) : null
                 })}
                 <span className="chev">{open ? '▾' : '▸'}</span>

@@ -28,13 +28,7 @@ interface Props {
   onBack: () => void
 }
 
-export default function RouteStopsView({
-  route,
-  variants,
-  initialOpenStop,
-  onSwitch,
-  onBack,
-}: Props) {
+export default function RouteStopsView({ route, variants, initialOpenStop, onSwitch, onBack }: Props) {
   const [stops, setStops] = useState<StopRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -102,8 +96,7 @@ export default function RouteStopsView({
   const sortedVariants = useMemo(
     () =>
       [...variants].sort(
-        (a, b) =>
-          a.bound.localeCompare(b.bound) || a.service_type.localeCompare(b.service_type),
+        (a, b) => a.bound.localeCompare(b.bound) || a.service_type.localeCompare(b.service_type),
       ),
     [variants],
   )
@@ -184,7 +177,13 @@ export default function RouteStopsView({
       {!loading && mapStops.length > 0 && <TrafficAlert stops={mapStops} />}
 
       {!loading && mapStops.length > 1 && (
-        <Suspense fallback={<div className="map muted" style={{ display: 'grid', placeItems: 'center' }}>🗺️ 地圖載入中…</div>}>
+        <Suspense
+          fallback={
+            <div className="map muted" style={{ display: 'grid', placeItems: 'center' }}>
+              🗺️ 地圖載入中…
+            </div>
+          }
+        >
           <RouteMap route={route} stops={mapStops} focusStopId={openStop ?? undefined} />
         </Suspense>
       )}

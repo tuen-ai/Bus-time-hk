@@ -8,8 +8,7 @@ export function primeAudio(): void {
   try {
     type AC = typeof AudioContext
     const Ctor: AC | undefined =
-      window.AudioContext ??
-      (window as unknown as { webkitAudioContext?: AC }).webkitAudioContext
+      window.AudioContext ?? (window as unknown as { webkitAudioContext?: AC }).webkitAudioContext
     if (!Ctor) return
     if (!ctx) ctx = new Ctor()
     if (ctx.state === 'suspended') void ctx.resume()

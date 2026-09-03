@@ -28,8 +28,7 @@ export interface Indexed {
 }
 
 const CELL = 0.0045 // ~500m
-const gridKey = (lat: number, lng: number) =>
-  `${Math.floor(lat / CELL)}:${Math.floor(lng / CELL)}`
+const gridKey = (lat: number, lng: number) => `${Math.floor(lat / CELL)}:${Math.floor(lng / CELL)}`
 
 let cache: Promise<Indexed> | null = null
 

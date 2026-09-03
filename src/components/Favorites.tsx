@@ -30,11 +30,7 @@ export default function Favorites({ onOpen }: { onOpen: (f: Favorite) => void })
                 <div className="muted small">往 {f.dest} ›</div>
               </div>
             </button>
-            <button
-              className="star on"
-              aria-label="移除收藏"
-              onClick={() => setFavs(toggleFavorite(f))}
-            >
+            <button className="star on" aria-label="移除收藏" onClick={() => setFavs(toggleFavorite(f))}>
               ★
             </button>
           </div>

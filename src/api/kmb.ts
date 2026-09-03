@@ -68,8 +68,7 @@ async function get<T>(path: string): Promise<ApiEnvelope<T>> {
   return res.json() as Promise<ApiEnvelope<T>>
 }
 
-export const dirParam = (bound: 'I' | 'O'): Direction =>
-  bound === 'I' ? 'inbound' : 'outbound'
+export const dirParam = (bound: 'I' | 'O'): Direction => (bound === 'I' ? 'inbound' : 'outbound')
 
 /** 全部路線清單 */
 export async function fetchRoutes(): Promise<Route[]> {
@@ -87,19 +86,11 @@ export async function fetchRouteStops(
   bound: 'I' | 'O',
   serviceType: string,
 ): Promise<RouteStop[]> {
-  return (
-    await get<RouteStop[]>(
-      `/route-stop/${route}/${dirParam(bound)}/${serviceType}`,
-    )
-  ).data
+  return (await get<RouteStop[]>(`/route-stop/${route}/${dirParam(bound)}/${serviceType}`)).data
 }
 
 /** 指定站 + 路線 + 班次 嘅到站時間 */
-export async function fetchEta(
-  stopId: string,
-  route: string,
-  serviceType: string,
-): Promise<Eta[]> {
+export async function fetchEta(stopId: string, route: string, serviceType: string): Promise<Eta[]> {
   return (await get<Eta[]>(`/eta/${stopId}/${route}/${serviceType}`)).data
 }
 
@@ -109,9 +100,6 @@ export async function fetchStopEta(stopId: string): Promise<Eta[]> {
 }
 
 /** 一條路線(全部站)嘅到站時間,一次過攞 */
-export async function fetchRouteEta(
-  route: string,
-  serviceType: string,
-): Promise<Eta[]> {
+export async function fetchRouteEta(route: string, serviceType: string): Promise<Eta[]> {
   return (await get<Eta[]>(`/route-eta/${route}/${serviceType}`)).data
 }

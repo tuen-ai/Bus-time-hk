@@ -26,12 +26,7 @@ const maps: Record<Co, Record<string, string>> = {
 }
 
 /** (co, route, bound, serviceType) → gtfsId(用 build-time 精簡映射表) */
-export function gtfsIdFor(
-  co: Co,
-  route: string,
-  bound: 'I' | 'O',
-  serviceType: string,
-): string | null {
+export function gtfsIdFor(co: Co, route: string, bound: 'I' | 'O', serviceType: string): string | null {
   return maps[co][`${route}|${bound}|${serviceType}`] ?? null
 }
 
@@ -112,9 +107,7 @@ function sample<T>(arr: T[], n: number): T[] {
 }
 
 /** Fallback:用站坐標連成直線 */
-export function lineFromStops(
-  stops: { lng: number; lat: number }[],
-): Feature<LineString> | null {
+export function lineFromStops(stops: { lng: number; lat: number }[]): Feature<LineString> | null {
   const coords = stops.map((s) => [s.lng, s.lat])
   return coords.length >= 2 ? lineString(coords) : null
 }

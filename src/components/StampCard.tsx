@@ -36,7 +36,10 @@ export default function StampCard() {
       </div>
       {un.length > 0 && (
         <div className="stamp-unlocks muted small">
-          已解鎖:{MILESTONES.filter((m) => un.includes(m.id)).map((m) => `${m.emoji}${m.label}`).join(' · ')}
+          已解鎖:
+          {MILESTONES.filter((m) => un.includes(m.id))
+            .map((m) => `${m.emoji}${m.label}`)
+            .join(' · ')}
         </div>
       )}
       {next && (

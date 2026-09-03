@@ -41,13 +41,13 @@
 
 Base URL:`https://data.etabus.gov.hk/v1/transport/kmb`
 
-| 用途 | Endpoint |
-|------|----------|
-| 全部路線 | `/route/` |
-| 路線站序 | `/route-stop/{route}/{inbound\|outbound}/{service_type}` |
-| 站點資料 | `/stop` |
-| 指定路線到站時間 | `/eta/{stopId}/{route}/{service_type}` |
-| 一站所有路線到站時間 | `/stop-eta/{stopId}` |
+| 用途                 | Endpoint                                                 |
+| -------------------- | -------------------------------------------------------- |
+| 全部路線             | `/route/`                                                |
+| 路線站序             | `/route-stop/{route}/{inbound\|outbound}/{service_type}` |
+| 站點資料             | `/stop`                                                  |
+| 指定路線到站時間     | `/eta/{stopId}/{route}/{service_type}`                   |
+| 一站所有路線到站時間 | `/stop-eta/{stopId}`                                     |
 
 > 此 API 支援 CORS、無需認證、免費。資料只涵蓋九巴 / 龍運;城巴、新巴、嶼巴、綠 van、港鐵巴士為另外的 API。
 
@@ -82,6 +82,5 @@ npm run preview    # 預覽 build 結果
 - App 純前端,冇後端、冇帳號、冇追蹤;收藏、地點、印仔、通勤習慣全部只存喺你部機(localStorage / IndexedDB),備份檔由你自己匯出。
 - 規劃頁嘅地址搜尋會將你輸入嘅文字傳送到香港政府 ALS 地址查詢服務;ALS 冇結果時後備用 komoot Photon(第三方)。地圖底圖由 CARTO 提供,瀏覽器會向佢哋請求圖塊。
 - 其他所有實時資料都係瀏覽器直接向 data.gov.hk / 港鐵 / 天文台開放 API 請求。
-
 
 [運輸署 — 九巴/龍運巴士到站時間數據](https://data.gov.hk/tc-data/dataset/hk-td-tis_21-etakmb) · 使用須遵守 data.gov.hk 開放數據條款並註明來源。

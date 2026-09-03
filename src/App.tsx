@@ -243,11 +243,12 @@ export default function App() {
         byNumber ? r.route.toUpperCase().startsWith(q) : r.dest_tc.includes(raw) || r.orig_tc.includes(raw),
       )
       .filter((r) => coFilter === 'all' || r.co === coFilter)
-      .sort((a, b) =>
-        a.route.localeCompare(b.route, undefined, { numeric: true }) ||
-        a.co.localeCompare(b.co) ||
-        a.bound.localeCompare(b.bound) ||
-        a.service_type.localeCompare(b.service_type),
+      .sort(
+        (a, b) =>
+          a.route.localeCompare(b.route, undefined, { numeric: true }) ||
+          a.co.localeCompare(b.co) ||
+          a.bound.localeCompare(b.bound) ||
+          a.service_type.localeCompare(b.service_type),
       )
       .slice(0, 80)
   }, [routes, query, coFilter])
@@ -266,30 +267,33 @@ export default function App() {
   return (
     <div className="app">
       <header ref={topbarRef} className={`topbar ${compact ? 'compact' : ''}`}>
-        <span className="topbar-deco" style={{ top: 8, left: '38%' }}>♡</span>
-        <span className="topbar-deco" style={{ top: 30, left: '54%' }}>✦</span>
-        <span className="topbar-deco" style={{ bottom: 8, left: '46%' }}>♡</span>
-        <span className="topbar-deco" style={{ top: 14, left: '66%' }}>🎀</span>
-        <span className="topbar-deco" style={{ bottom: 10, left: '30%' }}>✨</span>
+        <span className="topbar-deco" style={{ top: 8, left: '38%' }}>
+          ♡
+        </span>
+        <span className="topbar-deco" style={{ top: 30, left: '54%' }}>
+          ✦
+        </span>
+        <span className="topbar-deco" style={{ bottom: 8, left: '46%' }}>
+          ♡
+        </span>
+        <span className="topbar-deco" style={{ top: 14, left: '66%' }}>
+          🎀
+        </span>
+        <span className="topbar-deco" style={{ bottom: 10, left: '30%' }}>
+          ✨
+        </span>
         <div className="topbar-row">
           <h1>
             <button className="topbar-home" onClick={goHome} aria-label="返回首頁">
-              <PandaLogo />可可出行
+              <PandaLogo />
+              可可出行
             </button>
           </h1>
           <span className="topbar-btns">
-            <button
-              className="theme-toggle"
-              onClick={() => setShowBackup(true)}
-              aria-label="備份與還原"
-            >
+            <button className="theme-toggle" onClick={() => setShowBackup(true)} aria-label="備份與還原">
               ⚙️
             </button>
-            <button
-              className="theme-toggle"
-              onClick={() => setDark((d) => !d)}
-              aria-label="切換深色模式"
-            >
+            <button className="theme-toggle" onClick={() => setDark((d) => !d)} aria-label="切換深色模式">
               {dark ? '☀️' : '🌙'}
             </button>
           </span>

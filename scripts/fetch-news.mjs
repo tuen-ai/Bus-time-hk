@@ -26,7 +26,9 @@ function decodeEntities(s) {
 
 function parseTitles(xml) {
   const titles = []
-  for (const m of xml.matchAll(/<item>[\s\S]*?<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>[\s\S]*?<\/item>/gi)) {
+  for (const m of xml.matchAll(
+    /<item>[\s\S]*?<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>[\s\S]*?<\/item>/gi,
+  )) {
     const t = decodeEntities(m[1].trim()).replace(/\s+/g, ' ')
     if (t && t.length > 4) titles.push(t)
     if (titles.length >= MAX_ITEMS) break

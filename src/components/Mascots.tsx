@@ -17,7 +17,12 @@ export function PandaFace({ className = 'mascot', bow, starEyes, umbrella, sweat
     <svg className={className} viewBox="0 0 100 100" aria-hidden="true">
       {umbrella && (
         <g>
-          <path d="M50 2 q-30 0 -34 22 q8 -7 17 0 q8 -8 17 0 q8 -8 17 0 q9 -7 17 0 Q80 2 50 2z" fill="#ff8fc0" stroke="#f43f8e" strokeWidth="1.5" />
+          <path
+            d="M50 2 q-30 0 -34 22 q8 -7 17 0 q8 -8 17 0 q8 -8 17 0 q9 -7 17 0 Q80 2 50 2z"
+            fill="#ff8fc0"
+            stroke="#f43f8e"
+            strokeWidth="1.5"
+          />
           <path d="M50 4 v10" stroke="#f43f8e" strokeWidth="2.5" strokeLinecap="round" />
         </g>
       )}
@@ -28,8 +33,14 @@ export function PandaFace({ className = 'mascot', bow, starEyes, umbrella, sweat
       <ellipse cx="65" cy="50" rx="10" ry="13" fill="#2e2a2c" />
       {starEyes ? (
         <>
-          <path d="M35 44 l1.6 3.4 3.7.4 -2.8 2.5 .9 3.6 -3.4-1.9 -3.4 1.9 .9-3.6 -2.8-2.5 3.7-.4z" fill="#ffe27a" />
-          <path d="M65 44 l1.6 3.4 3.7.4 -2.8 2.5 .9 3.6 -3.4-1.9 -3.4 1.9 .9-3.6 -2.8-2.5 3.7-.4z" fill="#ffe27a" />
+          <path
+            d="M35 44 l1.6 3.4 3.7.4 -2.8 2.5 .9 3.6 -3.4-1.9 -3.4 1.9 .9-3.6 -2.8-2.5 3.7-.4z"
+            fill="#ffe27a"
+          />
+          <path
+            d="M65 44 l1.6 3.4 3.7.4 -2.8 2.5 .9 3.6 -3.4-1.9 -3.4 1.9 .9-3.6 -2.8-2.5 3.7-.4z"
+            fill="#ffe27a"
+          />
         </>
       ) : (
         <>
@@ -65,9 +76,7 @@ export function BearFace({ className = 'mascot', knight, medal }: BearProps) {
       <ellipse cx="76" cy="22" rx="14" ry="14" fill="#a9723f" />
       <circle cx="24" cy="22" r="7" fill="#c89466" />
       <circle cx="76" cy="22" r="7" fill="#c89466" />
-      {knight && (
-        <path d="M14 40 Q10 8 50 8 Q90 8 86 40 q-6 -14 -36 -14 q-30 0 -36 14z" fill="#5b4a36" />
-      )}
+      {knight && <path d="M14 40 Q10 8 50 8 Q90 8 86 40 q-6 -14 -36 -14 q-30 0 -36 14z" fill="#5b4a36" />}
       <circle cx="50" cy="55" r="38" fill="#c89466" />
       <ellipse cx="50" cy="64" rx="20" ry="16" fill="#f0d8bd" />
       <circle cx="36" cy="48" r="5" fill="#2e2a2c" />
@@ -149,17 +158,29 @@ function weatherMood(w: Weather | null): { umbrella: boolean; sweat: boolean; li
 export function MascotWelcome({ title, sub }: { title: string; sub: string }) {
   const [wx, setWx] = useState<Weather | null>(null)
   useEffect(() => {
-    getWeather().then(setWx).catch(() => {})
+    getWeather()
+      .then(setWx)
+      .catch(() => {})
   }, [])
   const un = unlocked(getStamps())
   const mood = weatherMood(wx)
   return (
     <div className="welcome">
-      <span className="welcome-float" style={{ top: 30, left: 14 }}>💗</span>
-      <span className="welcome-float" style={{ top: 78, left: 70 }}>♡</span>
-      <span className="welcome-float" style={{ top: 40, right: 22 }}>💞</span>
-      <span className="welcome-float" style={{ top: 104, right: 60 }}>✨</span>
-      <span className="welcome-float" style={{ top: 130, left: 36 }}>🌸</span>
+      <span className="welcome-float" style={{ top: 30, left: 14 }}>
+        💗
+      </span>
+      <span className="welcome-float" style={{ top: 78, left: 70 }}>
+        ♡
+      </span>
+      <span className="welcome-float" style={{ top: 40, right: 22 }}>
+        💞
+      </span>
+      <span className="welcome-float" style={{ top: 104, right: 60 }}>
+        ✨
+      </span>
+      <span className="welcome-float" style={{ top: 130, left: 36 }}>
+        🌸
+      </span>
       <div className="mascot-pair">
         <PandaFace
           className="mascot a"

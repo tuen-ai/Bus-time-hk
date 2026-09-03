@@ -70,18 +70,14 @@ export const QUOTES: Quote[] = [
 
 /** 是日名句(按日期輪換,日日唔同) */
 export function quoteOfToday(now = new Date()): Quote {
-  const days = Math.floor(
-    (now.getTime() - now.getTimezoneOffset() * 60000) / 86400000,
-  )
+  const days = Math.floor((now.getTime() - now.getTimezoneOffset() * 60000) / 86400000)
   return QUOTES[days % QUOTES.length]
 }
 
 // ── 金句偏好(設定入面揀)──
 // auto = 每日自動轉;fixed = 固定顯示句庫入面某一句;custom = 自己寫
 export type QuotePref =
-  | { mode: 'auto' }
-  | { mode: 'fixed'; idx: number }
-  | { mode: 'custom'; q: string; by: string }
+  { mode: 'auto' } | { mode: 'fixed'; idx: number } | { mode: 'custom'; q: string; by: string }
 
 const PREF_KEY = 'kkcx.quote'
 

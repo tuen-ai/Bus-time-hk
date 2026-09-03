@@ -20,7 +20,13 @@ export default function WeatherBanner() {
   const [open, setOpen] = useState(false)
 
   // api 層 5 分鐘快取;呢度 tick 只係令警告/氣溫唔會開住成日都唔變
-  usePolling(() => getWeather().then(setW).catch(() => {}), 5 * 60_000)
+  usePolling(
+    () =>
+      getWeather()
+        .then(setW)
+        .catch(() => {}),
+    5 * 60_000,
+  )
 
   if (!w) return null
   const hasWarn = w.warnings.length > 0
@@ -41,12 +47,16 @@ export default function WeatherBanner() {
           </span>
         ))}
         {!hasWarn && <span className="muted small">天氣正常</span>}
-        <span className="wx-more">
-          🚦 路況 {open ? '▴' : '▾'}
-        </span>
+        <span className="wx-more">🚦 路況 {open ? '▴' : '▾'}</span>
       </button>
       {open && (
-        <Suspense fallback={<div className="muted small" style={{ padding: '8px 14px' }}>載入…</div>}>
+        <Suspense
+          fallback={
+            <div className="muted small" style={{ padding: '8px 14px' }}>
+              載入…
+            </div>
+          }
+        >
           <WeatherPanel w={w} />
         </Suspense>
       )}

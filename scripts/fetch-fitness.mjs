@@ -74,7 +74,9 @@ function extractJsonBlobs(html) {
   }
   const next = /<script[^>]*id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i.exec(html)
   if (next) push(next[1])
-  for (const m of html.matchAll(/<script[^>]*type="application\/(?:ld\+)?json"[^>]*>([\s\S]*?)<\/script>/gi)) {
+  for (const m of html.matchAll(
+    /<script[^>]*type="application\/(?:ld\+)?json"[^>]*>([\s\S]*?)<\/script>/gi,
+  )) {
     push(m[1])
   }
   const nuxt = /window\.__NUXT__\s*=\s*(\{[\s\S]*?\});?\s*<\/script>/i.exec(html)
@@ -116,7 +118,9 @@ function harvestFromText(text, out) {
   if (out.length === n0) for (const m of text.matchAll(pats[1])) grab(m[3], m[1], m[2])
   // 純座標兜底(冇名都要)
   if (!out.length) {
-    for (const m of text.matchAll(/"(?:lat|latitude)"\s*:\s*"?(2[0-9]\.\d{3,})"?[\s\S]{0,120}?"(?:lng|lon|longitude)"\s*:\s*"?(11[0-9]\.\d{3,})"?/g)) {
+    for (const m of text.matchAll(
+      /"(?:lat|latitude)"\s*:\s*"?(2[0-9]\.\d{3,})"?[\s\S]{0,120}?"(?:lng|lon|longitude)"\s*:\s*"?(11[0-9]\.\d{3,})"?/g,
+    )) {
       grab('', m[1], m[2])
     }
   }
@@ -262,10 +266,16 @@ async function geocodeNominatim(q) {
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' 香港')}&format=json&limit=1&countrycodes=hk&accept-language=zh-HK`,
-      { headers: { 'User-Agent': 'kkcx-build/1.0 (HK transit app; poi geocode)' }, signal: AbortSignal.timeout(15000) },
+      {
+        headers: { 'User-Agent': 'kkcx-build/1.0 (HK transit app; poi geocode)' },
+        signal: AbortSignal.timeout(15000),
+      },
     )
     if (!res.ok) {
-      if (!nomiDebugged) { nomiDebugged = true; console.log(`  [debug] Nominatim → HTTP ${res.status}`) }
+      if (!nomiDebugged) {
+        nomiDebugged = true
+        console.log(`  [debug] Nominatim → HTTP ${res.status}`)
+      }
       return null
     }
     const arr = await res.json()
@@ -320,12 +330,22 @@ async function fetchBlog() {
     let usedSlow = false
     let g = await geocodeAls(e.addr) // ALS 官方最準,無 rate limit
     if (g) stat.als++
-    if (!g) { usedSlow = true; g = await geocodeNominatim(e.addr); if (g) stat.nomi++ }
-    if (!g) { usedSlow = true; g = await geocodePhoton(e.addr); if (g) stat.photon++ }
+    if (!g) {
+      usedSlow = true
+      g = await geocodeNominatim(e.addr)
+      if (g) stat.nomi++
+    }
+    if (!g) {
+      usedSlow = true
+      g = await geocodePhoton(e.addr)
+      if (g) stat.photon++
+    }
     if (g) out.push({ n: e.name, addr: e.addr, lat: g.lat, lng: g.lng })
     await new Promise((r) => setTimeout(r, usedSlow ? 1100 : 200)) // 用到 Nominatim 先守 1 req/s
   }
-  console.log(`geocode 成功 ${out.length}/${Math.min(entries.length, 200)}(ALS ${stat.als} · Nominatim ${stat.nomi} · Photon ${stat.photon})`)
+  console.log(
+    `geocode 成功 ${out.length}/${Math.min(entries.length, 200)}(ALS ${stat.als} · Nominatim ${stat.nomi} · Photon ${stat.photon})`,
+  )
   return out
 }
 
@@ -380,15 +400,74 @@ async function fetchOsm() {
 
 // 香港常見地區(由地址抽,做分店標籤令清單分得清)
 const AREAS = [
-  '上水', '粉嶺', '大埔', '太和', '大圍', '沙田', '馬鞍山', '火炭', '烏溪沙',
-  '荃灣', '葵芳', '葵涌', '青衣', '屯門', '元朗', '天水圍', '洪水橋',
-  '將軍澳', '坑口', '調景嶺', '西貢', '觀塘', '牛頭角', '九龍灣', '藍田', '油塘',
-  '黃大仙', '鑽石山', '慈雲山', '樂富', '九龍城', '土瓜灣', '紅磡', '何文田',
-  '深水埗', '長沙灣', '美孚', '荔枝角', '石硤尾', '又一城',
-  '旺角', '太子', '油麻地', '佐敦', '尖沙咀', '奧運', '大角咀',
-  '中環', '上環', '西環', '堅尼地城', '金鐘', '灣仔', '銅鑼灣', '天后', '炮台山',
-  '北角', '鰂魚涌', '太古', '西灣河', '筲箕灣', '杏花邨', '柴灣', '小西灣',
-  '香港仔', '鴨脷洲', '黃竹坑', '東涌',
+  '上水',
+  '粉嶺',
+  '大埔',
+  '太和',
+  '大圍',
+  '沙田',
+  '馬鞍山',
+  '火炭',
+  '烏溪沙',
+  '荃灣',
+  '葵芳',
+  '葵涌',
+  '青衣',
+  '屯門',
+  '元朗',
+  '天水圍',
+  '洪水橋',
+  '將軍澳',
+  '坑口',
+  '調景嶺',
+  '西貢',
+  '觀塘',
+  '牛頭角',
+  '九龍灣',
+  '藍田',
+  '油塘',
+  '黃大仙',
+  '鑽石山',
+  '慈雲山',
+  '樂富',
+  '九龍城',
+  '土瓜灣',
+  '紅磡',
+  '何文田',
+  '深水埗',
+  '長沙灣',
+  '美孚',
+  '荔枝角',
+  '石硤尾',
+  '又一城',
+  '旺角',
+  '太子',
+  '油麻地',
+  '佐敦',
+  '尖沙咀',
+  '奧運',
+  '大角咀',
+  '中環',
+  '上環',
+  '西環',
+  '堅尼地城',
+  '金鐘',
+  '灣仔',
+  '銅鑼灣',
+  '天后',
+  '炮台山',
+  '北角',
+  '鰂魚涌',
+  '太古',
+  '西灣河',
+  '筲箕灣',
+  '杏花邨',
+  '柴灣',
+  '小西灣',
+  '香港仔',
+  '鴨脷洲',
+  '黃竹坑',
+  '東涌',
 ]
 const areaOf = (addr) => AREAS.find((a) => addr.includes(a))
 

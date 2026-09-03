@@ -51,7 +51,10 @@ export function startAlarm(a: Omit<AlightAlarm, 'dist' | 'fired'>): void {
       const silently = shouldFire && prev == null
       current = { ...current, dist: d, fired: current.fired || shouldFire, geoError: undefined }
       if (shouldFire && !silently) {
-        alertAll('🔔 就快到站喇!', `${current.routeLabel} · ${current.stopName} 前約 ${Math.round(d)} 米,準備落車~`)
+        alertAll(
+          '🔔 就快到站喇!',
+          `${current.routeLabel} · ${current.stopName} 前約 ${Math.round(d)} 米,準備落車~`,
+        )
       }
       emit()
     },

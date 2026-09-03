@@ -44,10 +44,7 @@ function sortRows(rows: NearbyRow[]): NearbyRow[] {
   return rows
     .map((r) => ({ ...r, mins: r.mins.slice(0, 3) }))
     .sort(
-      (a, b) =>
-        routeCompare(a.route, b.route) ||
-        (a.mins[0] ?? 999) - (b.mins[0] ?? 999) ||
-        a.dist - b.dist,
+      (a, b) => routeCompare(a.route, b.route) || (a.mins[0] ?? 999) - (b.mins[0] ?? 999) || a.dist - b.dist,
     )
 }
 

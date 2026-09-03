@@ -41,8 +41,20 @@ function rideMins(r: PlanRoute, from: number, to: number): number {
   return Math.max(1, Math.round(n * STOP_MIN))
 }
 
-interface ReachA { ri: number; bSeq: number; xSeq: number; wO: number; t: number }
-interface ReachB { ri: number; ySeq: number; aSeq: number; wD: number; t: number }
+interface ReachA {
+  ri: number
+  bSeq: number
+  xSeq: number
+  wO: number
+  t: number
+}
+interface ReachB {
+  ri: number
+  ySeq: number
+  aSeq: number
+  wD: number
+  t: number
+}
 
 export interface PlanOptions {
   /** 只要直達方案(站間直達搜尋) */
@@ -89,53 +101,53 @@ export async function planJourneys(
 
   // ---- 1 轉乘 ----
   if (!opts.directOnly) {
-  const reachA = buildReachA(ix, oStops)
-  const reachB = buildReachB(ix, dStops, dDist)
-  // 將 reachB 站建 grid 以便就近匹配
-  const gB = new Map<string, string[]>()
-  const CELL = 0.0025
-  const gk = (la: number, ln: number) => `${Math.floor(la / CELL)}:${Math.floor(ln / CELL)}`
-  for (const id of reachB.keys()) {
-    const [la, ln] = ix.graph.stops[id]
-    const key = gk(la, ln)
-    let a = gB.get(key)
-    if (!a) gB.set(key, (a = []))
-    a.push(id)
-  }
-  let added = 0
-  for (const [xId, a] of reachA) {
-    if (added > 400) break
-    const [xla, xln] = ix.graph.stops[xId]
-    const cl = Math.floor(xla / CELL)
-    const cn = Math.floor(xln / CELL)
-    for (let dx = -1; dx <= 1 && added <= 400; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        for (const yId of gB.get(`${cl + dx}:${cn + dy}`) ?? []) {
-          const [yla, yln] = ix.graph.stops[yId]
-          const tw = xId === yId ? 0 : distanceMeters(xla, xln, yla, yln)
-          if (tw > TRANSFER_M) continue
-          const b = reachB.get(yId)!
-          if (a.ri === b.ri) continue // 同一路線唔算轉乘
-          const rA = ix.routeByIdx[a.ri]
-          const rB = ix.routeByIdx[b.ri]
-          const transMins = walkMins(tw) + BOARD_WAIT
-          out.push({
-            mins: a.t + transMins + b.t,
-            transfers: 1,
-            fare: null,
-            legs: [
-              ...(a.wO > 1 ? [{ kind: 'walk' as const, mins: a.wO, toName: name(ix, rA.st[a.bSeq]) }] : []),
-              ride1(ix, rA, a.bSeq, a.xSeq, rideMins(rA, a.bSeq, a.xSeq)),
-              { kind: 'walk' as const, mins: Math.max(1, walkMins(tw)), toName: name(ix, yId) },
-              ride1(ix, rB, b.ySeq, b.aSeq, rideMins(rB, b.ySeq, b.aSeq)),
-              ...(b.wD > 1 ? [{ kind: 'walk' as const, mins: b.wD }] : []),
-            ],
-          })
-          added++
+    const reachA = buildReachA(ix, oStops)
+    const reachB = buildReachB(ix, dStops, dDist)
+    // 將 reachB 站建 grid 以便就近匹配
+    const gB = new Map<string, string[]>()
+    const CELL = 0.0025
+    const gk = (la: number, ln: number) => `${Math.floor(la / CELL)}:${Math.floor(ln / CELL)}`
+    for (const id of reachB.keys()) {
+      const [la, ln] = ix.graph.stops[id]
+      const key = gk(la, ln)
+      let a = gB.get(key)
+      if (!a) gB.set(key, (a = []))
+      a.push(id)
+    }
+    let added = 0
+    for (const [xId, a] of reachA) {
+      if (added > 400) break
+      const [xla, xln] = ix.graph.stops[xId]
+      const cl = Math.floor(xla / CELL)
+      const cn = Math.floor(xln / CELL)
+      for (let dx = -1; dx <= 1 && added <= 400; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          for (const yId of gB.get(`${cl + dx}:${cn + dy}`) ?? []) {
+            const [yla, yln] = ix.graph.stops[yId]
+            const tw = xId === yId ? 0 : distanceMeters(xla, xln, yla, yln)
+            if (tw > TRANSFER_M) continue
+            const b = reachB.get(yId)!
+            if (a.ri === b.ri) continue // 同一路線唔算轉乘
+            const rA = ix.routeByIdx[a.ri]
+            const rB = ix.routeByIdx[b.ri]
+            const transMins = walkMins(tw) + BOARD_WAIT
+            out.push({
+              mins: a.t + transMins + b.t,
+              transfers: 1,
+              fare: null,
+              legs: [
+                ...(a.wO > 1 ? [{ kind: 'walk' as const, mins: a.wO, toName: name(ix, rA.st[a.bSeq]) }] : []),
+                ride1(ix, rA, a.bSeq, a.xSeq, rideMins(rA, a.bSeq, a.xSeq)),
+                { kind: 'walk' as const, mins: Math.max(1, walkMins(tw)), toName: name(ix, yId) },
+                ride1(ix, rB, b.ySeq, b.aSeq, rideMins(rB, b.ySeq, b.aSeq)),
+                ...(b.wD > 1 ? [{ kind: 'walk' as const, mins: b.wD }] : []),
+              ],
+            })
+            added++
+          }
         }
       }
     }
-  }
   }
 
   // 去重 + 排序 + 取頭幾個 + 計車費
@@ -180,11 +192,7 @@ function buildReachA(ix: Indexed, oStops: { id: string; dist: number }[]) {
   return m
 }
 
-function buildReachB(
-  ix: Indexed,
-  dStops: { id: string; dist: number }[],
-  dDist: Map<string, number>,
-) {
+function buildReachB(ix: Indexed, dStops: { id: string; dist: number }[], dDist: Map<string, number>) {
   const m = new Map<string, ReachB>()
   for (const ds of dStops) {
     const wD = walkMins(ds.dist)
@@ -206,7 +214,10 @@ function dedupe(js: Journey[]): Journey[] {
   const seen = new Set<string>()
   const out: Journey[] = []
   for (const j of js) {
-    const sig = j.legs.filter((l) => l.kind === 'ride').map((l) => `${l.co}${l.route}`).join('>')
+    const sig = j.legs
+      .filter((l) => l.kind === 'ride')
+      .map((l) => `${l.co}${l.route}`)
+      .join('>')
     if (seen.has(sig)) continue
     seen.add(sig)
     out.push(j)
@@ -227,8 +238,7 @@ async function fillFare(ix: Indexed, j: Journey): Promise<void> {
         (!leg.bound || x.b === leg.bound) &&
         (!leg.serviceType || x.s === leg.serviceType),
     )
-    const fares =
-      r && (r.co === 'kmb' || r.co === 'ctb') ? await getFares(r.co, r.r, r.b, r.s) : null
+    const fares = r && (r.co === 'kmb' || r.co === 'ctb') ? await getFares(r.co, r.r, r.b, r.s) : null
     const boardSeq = r ? r.st.findIndex((s) => name(ix, s) === leg.fromName) : -1
     const f = fares && boardSeq >= 0 && boardSeq < fares.length ? fares[boardSeq] : null
     if (f == null) unknown = true

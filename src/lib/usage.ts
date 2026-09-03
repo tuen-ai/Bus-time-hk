@@ -77,7 +77,15 @@ export function suggest(now = new Date()): Suggestion[] {
       g.hits += 1
       if (e.stopId) g.stopId = e.stopId // 用最近嗰個站
     } else {
-      groups.set(k, { co: e.co, route: e.route, bound: e.bound, serviceType: e.serviceType, stopId: e.stopId, score: w, hits: 1 })
+      groups.set(k, {
+        co: e.co,
+        route: e.route,
+        bound: e.bound,
+        serviceType: e.serviceType,
+        stopId: e.stopId,
+        score: w,
+        hits: 1,
+      })
     }
   }
   return [...groups.values()]

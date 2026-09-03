@@ -83,11 +83,21 @@ export default function FitnessView({ onPlanTo }: { onPlanTo: (t: PlanTo) => voi
   return (
     <div>
       <div className="tsm-map-wrap" style={{ marginBottom: 10 }}>
-        <MapContainer center={center} zoom={me ? 14 : 11} className="map tsm-map" scrollWheelZoom={false} attributionControl={false}>
+        <MapContainer
+          center={center}
+          zoom={me ? 14 : 11}
+          className="map tsm-map"
+          scrollWheelZoom={false}
+          attributionControl={false}
+        >
           <TileLayer url={TILE_URL} attribution={TILE_ATTRIB} />
           <FlyTo target={focus} />
           {me && (
-            <CircleMarker center={[me.lat, me.lng]} radius={8} pathOptions={{ color: '#ff4f95', fillColor: '#ff8fc0', fillOpacity: 0.9 }} />
+            <CircleMarker
+              center={[me.lat, me.lng]}
+              radius={8}
+              pathOptions={{ color: '#ff4f95', fillColor: '#ff8fc0', fillOpacity: 0.9 }}
+            />
           )}
           {sorted.map((b) => (
             <Marker
@@ -99,17 +109,17 @@ export default function FitnessView({ onPlanTo }: { onPlanTo: (t: PlanTo) => voi
           ))}
         </MapContainer>
       </div>
-      {geoErr && <div className="muted small" style={{ marginBottom: 8 }}>⚠️ {geoErr}(清單未能按距離排)</div>}
+      {geoErr && (
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          ⚠️ {geoErr}(清單未能按距離排)
+        </div>
+      )}
 
       <ul className="nearby-list">
         {sorted.map((b) => (
           <li key={`${b.lat},${b.lng}`}>
             <div className="nearby-row" style={{ cursor: 'default' }}>
-              <button
-                className="gym-pick"
-                aria-label="喺地圖顯示"
-                onClick={() => setFocus([b.lat, b.lng])}
-              >
+              <button className="gym-pick" aria-label="喺地圖顯示" onClick={() => setFocus([b.lat, b.lng])}>
                 🏋️
               </button>
               <span className="nearby-info">

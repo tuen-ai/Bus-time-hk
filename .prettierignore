@@ -1,0 +1,6 @@
+dist
+node_modules
+public/geom
+public/tsm
+src/data/*.json
+package-lock.json

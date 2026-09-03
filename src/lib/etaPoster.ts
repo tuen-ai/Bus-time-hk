@@ -48,7 +48,14 @@ const rrect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h
 }
 
 /** 路線號黑底白字牌;字體縮到入牌 */
-const routeBadge = (ctx: CanvasRenderingContext2D, route: string, x: number, y: number, w: number, h: number) => {
+const routeBadge = (
+  ctx: CanvasRenderingContext2D,
+  route: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+) => {
   ctx.fillStyle = BLACK
   rrect(ctx, x, y, w, h, h * 0.22)
   ctx.fill()
@@ -100,7 +107,10 @@ const minutesBlock = (
   ctx.fillText(head, rightX - unitW - bigPx * 0.05, cy)
   let leftmost = rightX - unitW - bigPx * 0.05 - headW
   if (mins.length > 1) {
-    const rest = mins.slice(1, 3).map((m) => `${m}分`).join('  ')
+    const rest = mins
+      .slice(1, 3)
+      .map((m) => `${m}分`)
+      .join('  ')
     ctx.fillStyle = BLACK
     const fs = Math.round(bigPx * 0.34)
     setFont(ctx, fs, '700')

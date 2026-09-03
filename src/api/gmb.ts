@@ -30,11 +30,7 @@ async function stopRoutes(stopId: string): Promise<StopRouteEntry[]> {
 }
 
 /** GMB 指定站 + 路線(route 號 + 方向)嘅到站時間 */
-export async function fetchGmbEta(
-  stopId: string,
-  routeCode: string,
-  bound: 'I' | 'O',
-): Promise<Eta[]> {
+export async function fetchGmbEta(stopId: string, routeCode: string, bound: 'I' | 'O'): Promise<Eta[]> {
   const targetSeq = bound === 'O' ? 1 : 2
   const sr = await stopRoutes(stopId)
   const codeOf = (e: StopRouteEntry) => String(e.route_code ?? e.route_no ?? '')
@@ -54,9 +50,7 @@ export async function fetchGmbEta(
     const data = json.data
     const rows = Array.isArray(data) ? data : (data?.routes ?? [])
     const mine = rows.filter(
-      (r) =>
-        String(r.route_id) === String(match.route_id) &&
-        Number(r.route_seq) === Number(match.route_seq),
+      (r) => String(r.route_id) === String(match.route_id) && Number(r.route_seq) === Number(match.route_seq),
     )
     const out: Eta[] = []
     for (const r of mine) {
@@ -118,7 +112,11 @@ export async function fetchGmbStopAll(stopId: string): Promise<GmbStopRow[]> {
       if (!code) continue
       const minsList = (r.eta ?? [])
         .map((e) =>
-          e.diff != null ? Number(e.diff) : e.timestamp ? Math.round((new Date(e.timestamp).getTime() - Date.now()) / 60000) : null,
+          e.diff != null
+            ? Number(e.diff)
+            : e.timestamp
+              ? Math.round((new Date(e.timestamp).getTime() - Date.now()) / 60000)
+              : null,
         )
         .filter((m): m is number => m != null && m > -2)
         .sort((a, b) => a - b)

@@ -1,17 +1,10 @@
 // 地理距離計算(Haversine,單位:米)
-export function distanceMeters(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
-): number {
+export function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371000
   const toRad = (d: number) => (d * Math.PI) / 180
   const dLat = toRad(lat2 - lat1)
   const dLon = toRad(lon2 - lon1)
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2
   return 2 * R * Math.asin(Math.sqrt(a))
 }
 
@@ -21,9 +14,7 @@ export function formatDistance(m: number): string {
 }
 
 function once(opts: PositionOptions): Promise<GeolocationPosition> {
-  return new Promise((resolve, reject) =>
-    navigator.geolocation.getCurrentPosition(resolve, reject, opts),
-  )
+  return new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, opts))
 }
 
 const isPermissionDenied = (e: unknown): boolean =>
@@ -75,11 +66,9 @@ export async function getPosition(): Promise<GeolocationPosition> {
 export function describeGeoError(e: unknown): string {
   if (typeof e === 'object' && e !== null && 'code' in e) {
     const code = (e as GeolocationPositionError).code
-    if (code === 1)
-      return '定位權限被拒絕。請喺瀏覽器設定開啟「位置」權限,再按重試。'
+    if (code === 1) return '定位權限被拒絕。請喺瀏覽器設定開啟「位置」權限,再按重試。'
     if (code === 2) return '暫時取得唔到位置(室內或訊號弱),請行去空曠位置再試。'
-    if (code === 3)
-      return '定位逾時。請確認手機「定位服務 / GPS」已開啟,並喺空曠位置或近窗口再試。'
+    if (code === 3) return '定位逾時。請確認手機「定位服務 / GPS」已開啟,並喺空曠位置或近窗口再試。'
   }
   if (!window.isSecureContext) return '定位需要 HTTPS 安全連線。'
   return e instanceof Error ? e.message : '定位失敗,請再試。'
