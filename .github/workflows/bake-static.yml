@@ -1,0 +1,50 @@
+name: Refresh static transit data
+
+# 每月 1 號(HK 10:00)由 hkbus 上游重新焗 src/data/*.json(路線 / 站序 / 車費 / 規劃圖 / 綠van / 嶼巴 / 輕鐵),
+# 有變就直接 commit + push 落呢條分支 → 觸發 deploy。上游出事(路線大幅減少)script 會拒絕寫,job 失敗但唔會推壞資料。
+# 手動:Actions → 呢個 workflow → Run workflow。
+on:
+  schedule:
+    - cron: '0 2 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bake-static
+  cancel-in-progress: false
+
+jobs:
+  bake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # push 返同一條分支
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Bake (with shrink guard)
+        run: node scripts/bake-static.mjs
+
+      - name: Verify app still builds with new data
+        run: npm run typecheck && npm test && npm run build
+
+      - name: Commit + push if changed
+        run: |
+          if git diff --quiet -- src/data; then
+            echo "資料冇變,唔使 commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/data
+          git commit -m "data: 每月重焗靜態交通資料(hkbus 上游 $(date -u +%Y-%m-%d))"
+          git push origin HEAD:${{ github.ref_name }}

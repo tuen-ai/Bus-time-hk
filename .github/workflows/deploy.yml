@@ -2,7 +2,8 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [claude/hk-bus-eta-web-g7yxbq]
+    # main 係將來嘅正式分支名;claude/hk-bus-eta-web-g7yxbq 係而家 Pages 綁住嗰條
+    branches: [main, claude/hk-bus-eta-web-g7yxbq]
   workflow_dispatch:
   # 每 3 小時重新部署,保持新聞/路況幾何新鮮(HK 06/09/12/15/18/21 時)
   schedule:
@@ -31,6 +32,10 @@ jobs:
 
       - run: npm ci
 
+      # 壞 code 唔好部署:lint + 單元測試(typecheck 喺 npm run build 入面)
+      - name: Lint + unit tests
+        run: npm run lint && npm test
+
       # 預先抓取路線幾何到 public/geom(same-origin);失敗不致命
       - name: Bake route geometry
         run: node scripts/fetch-geometry.mjs
@@ -41,8 +46,19 @@ jobs:
         run: node scripts/fetch-tsm.mjs
         continue-on-error: true
 
-      # 24/7 Fitness 分店(OpenStreetMap);失敗不致命
+      # 24/7 Fitness 分店(OpenStreetMap):要兩分鐘,分店唔會日日變 → 以 ISO 週做 cache key,
+      # 每週只真正抓一次;3 小時一次嘅 cron 部署其餘時間直接用 cache
+      - name: Fitness cache key (ISO week)
+        id: week
+        run: echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+      - name: Restore fitness cache
+        id: fitness-cache
+        uses: actions/cache@v4
+        with:
+          path: public/fitness.json
+          key: fitness-${{ steps.week.outputs.week }}
       - name: Bake fitness locations
+        if: steps.fitness-cache.outputs.cache-hit != 'true'
         run: node scripts/fetch-fitness.mjs
         continue-on-error: true
 

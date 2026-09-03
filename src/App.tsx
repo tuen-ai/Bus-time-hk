@@ -120,7 +120,11 @@ export default function App() {
   }, [routes])
 
   const findRoute = (k: RouteKeyLike, dest?: string): Route | undefined => {
-    const cands = routeIndex.get(routeKey(k)) ?? []
+    let cands = routeIndex.get(routeKey(k)) ?? []
+    // 嶼巴 2026-09 上游將回程 bound 由 O 改 I → 舊收藏用相反方向再試一次
+    if (!cands.length && k.co === 'nlb') {
+      cands = routeIndex.get(routeKey({ ...k, bound: k.bound === 'I' ? 'O' : 'I' })) ?? []
+    }
     if (cands.length <= 1 || !dest) return cands[0]
     // 用目的地名 tiebreak(兩邊字串來源唔同,寬鬆 includes 匹配)
     return (
