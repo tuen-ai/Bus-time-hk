@@ -30,7 +30,7 @@ const GRAPH_STOPS = 5 // ctb/gmb 每次查幾多個站
 const MAX_ROUTE_CALLS = 24 // ctb 逐路線上限(防止爆 request)
 
 /** 車號排序:純數字細→大行先(1, 2, 11, 269),之後先到帶英文字母嘅(1A, 269D, N21) */
-function routeCompare(a: string, b: string): number {
+export function routeCompare(a: string, b: string): number {
   const pureA = /^\d+$/.test(a)
   const pureB = /^\d+$/.test(b)
   if (pureA !== pureB) return pureA ? -1 : 1 // 純數字排先
@@ -40,7 +40,7 @@ function routeCompare(a: string, b: string): number {
   return a.localeCompare(b) // 最後按字面(1A < 1B;N21 之類)
 }
 
-function sortRows(rows: NearbyRow[]): NearbyRow[] {
+export function sortRows(rows: NearbyRow[]): NearbyRow[] {
   return rows
     .map((r) => ({ ...r, mins: r.mins.slice(0, 3) }))
     .sort(

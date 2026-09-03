@@ -29,6 +29,10 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       // 空 catch 好多時係刻意「靜默失敗」—— 要求留一句註解就得
       'no-empty': ['error', { allowEmptyCatch: true }],
+      // react-hooks v7 新規則:effect 入面同步 setState。呢個 repo 嘅資料載入係
+      // 「useEffect(() => { setLoading(true); fetch().then(setData) }, [deps]) 」pattern,
+      // 屬於同步外部系統嘅正常用法;等遷移去 React 19 use() / suspense 先再開返。
+      'react-hooks/set-state-in-effect': 'off',
     },
   },
 
@@ -40,9 +44,9 @@ export default tseslint.config(
     },
   },
 
-  // ---- build-time scripts(Node)----
+  // ---- build-time scripts(Node,JS)----
   {
-    files: ['scripts/**/*.mjs', 'vite.config.ts', 'vitest.config.ts', 'eslint.config.js'],
+    files: ['scripts/**/*.mjs', 'eslint.config.js'],
     extends: [js.configs.recommended],
     languageOptions: {
       ecmaVersion: 2022,
@@ -51,6 +55,21 @@ export default tseslint.config(
     },
     rules: {
       'no-empty': ['error', { allowEmptyCatch: true }],
+      // _ 開頭 = 刻意唔用(例如 destructure 跳過)
+      'no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', destructuredArrayIgnorePattern: '^_' },
+      ],
+    },
+  },
+
+  // ---- config(Node,TS)----
+  {
+    files: ['vite.config.ts', 'vitest.config.ts'],
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: globals.node,
     },
   },
 

@@ -19,8 +19,11 @@ export function usePolling(
   intervalMs: number,
   { enabled = true, key, immediate = true }: Options = {},
 ): void {
+  // 每次 render 後更新 ref(唔喺 render 期間寫 ref,合 react-hooks/refs 規則)
   const fnRef = useRef(fn)
-  fnRef.current = fn
+  useEffect(() => {
+    fnRef.current = fn
+  })
 
   useEffect(() => {
     if (!enabled) return

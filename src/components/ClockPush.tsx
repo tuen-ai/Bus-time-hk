@@ -69,6 +69,7 @@ export default function ClockPush({ onExit }: { onExit: () => void }) {
   const clockRef = useRef<SkdClock | null>(null)
   const previewRef = useRef<HTMLCanvasElement>(null)
 
+  const pickedKey = picked.join(',')
   const pickedFavs = allFavs.filter((f) => picked.includes(favKey(f)))
 
   const toggle = (f: Favorite) => {
@@ -110,8 +111,9 @@ export default function ClockPush({ onExit }: { onExit: () => void }) {
         }
       }
     },
+    // 只想喺「揀咗邊幾條線」變先重建;其他 ref / setState 都係穩定嘅
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [picked.join(',')],
+    [pickedKey],
   )
 
   // 揀路線變 → 重畫預覽

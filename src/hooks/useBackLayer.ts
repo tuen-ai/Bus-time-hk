@@ -81,16 +81,26 @@ function onPopState(e: PopStateEvent): void {
 
 if (typeof window !== 'undefined') window.addEventListener('popstate', onPopState)
 
+/** 測試用:清空 stack 同深度計數(module 狀態會跨 test 殘留) */
+export function _resetBackNavForTests(): void {
+  stack.length = 0
+  historyDepth = 0
+  scheduled = false
+}
+
 /**
  * 註冊一層「返回鍵可以關」嘅畫面。
  * @param active 呢層而家開住(false = 唔佔 history)
  * @param close  撳返回時點樣關佢
  */
 export function useBackLayer(active: boolean, close: () => void, opts: Options = {}): void {
+  // callback 存喺 ref,每次 render 後更新(唔喺 render 期間寫 ref)
   const closeRef = useRef(close)
-  closeRef.current = close
   const blockedRef = useRef(opts.onBlocked)
-  blockedRef.current = opts.onBlocked
+  useEffect(() => {
+    closeRef.current = close
+    blockedRef.current = opts.onBlocked
+  })
   const locked = !!opts.locked
 
   useEffect(() => {

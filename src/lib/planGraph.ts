@@ -39,7 +39,7 @@ export function loadGraph(): Promise<Indexed> {
   return cache
 }
 
-function buildIndex(graph: PlanGraph): Indexed {
+export function buildIndex(graph: PlanGraph): Indexed {
   const routeByIdx = graph.routes
   const stopRoutes = new Map<string, { ri: number; seq: number }[]>()
   for (let ri = 0; ri < routeByIdx.length; ri++) {

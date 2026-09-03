@@ -20,10 +20,6 @@ const OUT_DIR = join(__dir, '..', 'public', 'tsm')
 const SEGMENTS_CSV =
   'https://static.data.gov.hk/td/traffic-data-strategic-major-roads/info/speed_segments_info.csv'
 const LIVE_XML = 'https://resource.data.one.gov.hk/td/traffic-detectors/irnAvgSpeed-all.xml'
-// CSDI Road Network (2nd Generation) dataset(ArcGIS Server REST)
-const CSDI_SERVICE =
-  'https://portal.csdi.gov.hk/server/rest/services/common/td_rcd_1638949160594_2844/MapServer'
-const BATCH = 80 // 每次 query 幾多個 id
 
 // EPSG:2326(HK1980)→ WGS84(CSDI 幾何萬一唔係 4326 都轉到)
 const HK80 =
@@ -98,98 +94,6 @@ export function segmentIdsFromCsv(text) {
     if (id) ids.push(id)
   }
   return [...new Set(ids)]
-}
-
-/** 由 ArcGIS REST 服務揀出 CENTERLINE layer + ROUTE_ID 欄名 */
-async function findLayer() {
-  const svc = JSON.parse(await get(`${CSDI_SERVICE}?f=pjson`))
-  const layers = svc?.layers ?? []
-  console.log(`CSDI 服務 layers(${layers.length}):`, layers.map((l) => `${l.id}:${l.name}`).join(', '))
-  // 優先名叫 CENTERLINE 嘅,否則逐個試
-  const order = [
-    ...layers.filter((l) => /cent(?:er|re)line/i.test(l.name)),
-    ...layers.filter((l) => !/cent(?:er|re)line/i.test(l.name)),
-  ]
-  for (const l of order) {
-    try {
-      const info = JSON.parse(await get(`${CSDI_SERVICE}/${l.id}?f=pjson`))
-      const fields = (info?.fields ?? []).map((f) => f.name)
-      const idField = fields.find((f) => /^route.?_?id$/i.test(f))
-      console.log(
-        ` layer ${l.id} ${l.name} geometry=${info?.geometryType} fields=${fields.slice(0, 12).join(',')}`,
-      )
-      if (idField && /Polyline/i.test(info?.geometryType ?? '')) {
-        return { layerId: l.id, idField }
-      }
-    } catch (e) {
-      console.log(` layer ${l.id} 讀取失敗:${e.message}`)
-    }
-  }
-  throw new Error('搵唔到有 ROUTE_ID 嘅 Polyline layer')
-}
-
-/** GeoJSON / esriJSON feature → [id, path] */
-function featureToLink(f, idField) {
-  const props = f?.properties ?? f?.attributes ?? {}
-  const id = String(
-    props[idField] ?? props[idField.toLowerCase()] ?? props[idField.toUpperCase()] ?? '',
-  ).trim()
-  if (!id) return null
-  const g = f?.geometry
-  let coords = null
-  if (g?.type === 'LineString') coords = g.coordinates
-  else if (g?.type === 'MultiLineString') coords = g.coordinates.flat()
-  else if (g?.paths?.length) coords = g.paths.flat() // esriJSON polyline
-  if (!coords?.length) return null
-  const path = toPath(coords)
-  return path ? [id, path] : null
-}
-
-/** 批量 query 幾何(f=geojson → f=json 後備,扮瀏覽器 headers) */
-async function queryGeometries(serviceUrl, ids, layerId, idField) {
-  const links = {}
-  let matched = 0
-  let hardFail = 0
-  for (let i = 0; i < ids.length; i += BATCH) {
-    const batch = ids.slice(i, i + BATCH)
-    const mk = (fmt, quoted) =>
-      `${serviceUrl}/${layerId}/query?where=${encodeURIComponent(
-        `${idField} IN (${batch.map((v) => (quoted ? `'${v}'` : v)).join(',')})`,
-      )}&outFields=${idField}&returnGeometry=true&outSR=4326&f=${fmt}`
-    let feats = null
-    let lastErr = ''
-    for (const [fmt, quoted] of [
-      ['geojson', false],
-      ['json', false],
-      ['json', true],
-    ]) {
-      try {
-        const j = JSON.parse(await get(mk(fmt, quoted), true))
-        if (j?.error) throw new Error(JSON.stringify(j.error).slice(0, 160))
-        if (j?.features) {
-          feats = j.features
-          break
-        }
-      } catch (e) {
-        lastErr = e.message
-      }
-    }
-    if (!feats) {
-      hardFail++
-      if (hardFail <= 2) console.log(`  batch ${i / BATCH} 失敗:${lastErr}`)
-      if (hardFail >= 3 && matched === 0) throw new Error(`query 連續失敗(${lastErr})`)
-      continue
-    }
-    for (const f of feats) {
-      const r = featureToLink(f, idField)
-      if (!r) continue
-      links[r[0]] = r[1]
-      matched++
-    }
-    if (i % (BATCH * 10) === 0)
-      console.log(`  進度 ${Math.min(i + BATCH, ids.length)}/${ids.length},已對到 ${matched}`)
-  }
-  return links
 }
 
 // ---- 後備:Road Network (2nd Gen) GML/KML 靜態包(static.data.gov.hk,無 WAF)----

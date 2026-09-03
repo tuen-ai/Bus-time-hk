@@ -12,6 +12,7 @@ import { primeAudio, askNotify } from '../lib/chime'
 import { taxiFareEstimate } from '../lib/taxi'
 import { addStamp } from '../lib/stamps'
 import { useBackLayer } from '../hooks/useBackLayer'
+import { usePolling } from '../hooks/usePolling'
 
 const LEG_COLOR: Record<string, string> = {
   kmb: '#c8102e',
@@ -125,6 +126,10 @@ export default function PlannerView({ onOpenLeg, initialDest }: Props) {
   // 揀地點(全屏地圖)撳返回 = 取消,唔好退埋出 app
   useBackLayer(picking !== null, () => setPicking(null))
 
+  // 「已經過咗最遲出門時間」要跟時鐘行:有結果 + 有設到達時間先每 30 秒 tick
+  const [now, setNow] = useState(() => Date.now())
+  usePolling(() => setNow(Date.now()), 30_000, { enabled: results !== null && arriveBy !== '' })
+
   const coordsOf = async (e: Endpoint): Promise<{ lat: number; lng: number } | null> => {
     if (e === 'mylocation') {
       const p = await getPosition()
@@ -173,7 +178,7 @@ export default function PlannerView({ onOpenLeg, initialDest }: Props) {
     setPicking(null)
   }
 
-  const usePreset = (id: string) => {
+  const pickPreset = (id: string) => {
     const sp = presetOf(id)
     const def = PRESET_DEFS.find((d) => d.id === id)!
     if (sp) {
@@ -238,7 +243,7 @@ export default function PlannerView({ onOpenLeg, initialDest }: Props) {
             📍 我的位置
           </button>
           {PRESET_DEFS.map((d) => (
-            <button key={d.id} className="preset-chip" onClick={() => usePreset(d.id)}>
+            <button key={d.id} className="preset-chip" onClick={() => pickPreset(d.id)}>
               {d.icon} {presetOf(d.id) ? d.label : `設定${d.label}`}
             </button>
           ))}
@@ -300,7 +305,7 @@ export default function PlannerView({ onOpenLeg, initialDest }: Props) {
           </div>
           {shown.map((j, i) => {
             const leaveAt = arriveBy ? leaveAtFor(arriveBy, j.mins) : null
-            const missed = leaveAt != null && leaveAt <= Date.now()
+            const missed = leaveAt != null && leaveAt <= now
             return (
               <div key={i} className={`jcard ${i === 0 ? 'best' : ''}`}>
                 <div className="jhead">

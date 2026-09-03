@@ -6,9 +6,9 @@ import { alertAll, formatCountdown } from '../lib/chime'
 import { formatDistance } from '../lib/geo'
 
 export default function AlertBanners() {
-  const [reminder, setR] = useState<LeaveReminder | null>(getReminder())
-  const [alarm, setA] = useState<AlightAlarm | null>(getAlarm())
-  const [now, setNow] = useState(Date.now())
+  const [reminder, setR] = useState<LeaveReminder | null>(getReminder)
+  const [alarm, setA] = useState<AlightAlarm | null>(getAlarm)
+  const [now, setNow] = useState(() => Date.now())
   const [leaveFired, setLeaveFired] = useState(false)
 
   useEffect(() => subscribeReminder(setR), [])

@@ -157,18 +157,16 @@ async function fetchAllFresh(): Promise<Route[]> {
       .catch(() => [] as Route[]),
     ctb.fetchCtbRoutes().catch(() => [] as Route[]),
   ])
-  let lr: Route[] = []
-  let nl: Route[] = []
-  try {
-    lr = lrRoutes()
-  } catch {
-    lr = []
+  // 靜態資料(bundle 入面)—— 理論上唔會 throw,但壞 JSON 都唔好拖冧成個清單
+  const safe = (fn: () => Route[]): Route[] => {
+    try {
+      return fn()
+    } catch {
+      return []
+    }
   }
-  try {
-    nl = nlbRoutes()
-  } catch {
-    nl = []
-  }
+  const lr = safe(lrRoutes)
+  const nl = safe(nlbRoutes)
   const gm = await gmbRoutesAsync().catch(() => [] as Route[])
   const all = [...k, ...c, ...lr, ...nl, ...gm]
   // 兩邊都失敗(離線/CORS)→ 唔好快取空陣列毒化一日,直接拋錯俾 App 顯示重試

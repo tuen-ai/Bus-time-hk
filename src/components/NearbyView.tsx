@@ -32,8 +32,11 @@ export default function NearbyView({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const coords = useRef<{ lat: number; lng: number } | null>(null)
+  // 而家揀緊邊個營辦商(俾 async refresh 完成後對返,唔係就丟棄結果)
   const coRef = useRef(co)
-  coRef.current = co
+  useEffect(() => {
+    coRef.current = co
+  }, [co])
 
   // 換營辦商:即刻俾 cache,再靜靜攞新
   const showCoNow = useCallback((c: NearbyCo) => {

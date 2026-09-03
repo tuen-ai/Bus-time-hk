@@ -34,9 +34,8 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
   const [error, setError] = useState<string | null>(null)
   const [openStop, setOpenStop] = useState<string | null>(initialOpenStop ?? null)
   const [fares, setFares] = useState<number[] | null>(null)
-  const [favTick, setFavTick] = useState(0) // 撳收藏星後重讀收藏
-  // 收藏 key Set:一次 JSON.parse,唔係每個站每次 render 都讀 localStorage
-  const favSet = useMemo(() => new Set(getFavorites().map(favKey)), [favTick])
+  // 收藏 key Set:一次 JSON.parse,唔係每個站每次 render 都讀 localStorage;撳星就用 toggle 回傳嘅新清單更新
+  const [favSet, setFavSet] = useState(() => new Set(getFavorites().map(favKey)))
   const [alarmStopId, setAlarmStopId] = useState<string | null>(getAlarm()?.stopId ?? null)
 
   useEffect(() => subscribeAlarm((a) => setAlarmStopId(a?.stopId ?? null)), [])
@@ -221,8 +220,7 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
                   aria-label={faved ? '取消收藏' : '收藏'}
                   aria-pressed={faved}
                   onClick={() => {
-                    toggleFavorite(fav)
-                    setFavTick((t) => t + 1)
+                    setFavSet(new Set(toggleFavorite(fav).map(favKey)))
                   }}
                 >
                   {faved ? '★' : '☆'}
