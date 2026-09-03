@@ -64,9 +64,24 @@ KMB ETA API **不含**路線幾何或 GPS。真實行車路線取自社群資料
 ```bash
 npm install
 npm run dev        # 開發伺服器 http://localhost:5173
-npm run build      # 產出 dist/ 靜態檔案
+npm run build      # 產出 dist/ 靜態檔案(先 tsc typecheck)
 npm run preview    # 預覽 build 結果
+npm run check      # lint + typecheck + 單元測試(CI 同 deploy 前都會跑)
+npm test           # Vitest(jsdom);npm run test:watch 邊改邊跑
+npm run lint       # ESLint;npm run format 用 Prettier 格式化
 ```
+
+### 靜態資料(路線 / 站序 / 車費 / 規劃圖)點更新
+
+`src/data/` 嘅 `kmbGtfs / ctbGtfs / routeFares / planGraph / gmbRoutes / gmbData / nlbData / lrData` 全部由
+[hkbus/hk-bus-crawling](https://github.com/hkbus/hk-bus-crawling) 上游重焗:
+
+```bash
+npm run bake:static:check   # 只計 diff 統計,唔寫檔(任何檔縮細 >20% 會 exit 1)
+npm run bake:static         # 抓上游 → 寫 src/data/*.json
+```
+
+GitHub Actions `bake-static.yml` 每月 1 號自動跑,有變就 commit + push 觸發部署。細節見 `scripts/README-bake.md`。
 
 > ⚠️ 部分企業 / 沙盒網絡會封鎖 `data.etabus.gov.hk`,需把該網域加入白名單才可取得即時資料。一般家用 / 行動網絡可正常使用。
 
@@ -74,7 +89,7 @@ npm run preview    # 預覽 build 結果
 
 `npm run build` 後將 `dist/` 內容上傳到任何靜態托管:
 
-- **GitHub Pages**:把 `dist/` 推到 `gh-pages` 分支(`vite.config.ts` 已設 `base: './'`,可放於子目錄)。
+- **GitHub Pages**:repo 已有 `deploy.yml`,push 去 `main` 或 `claude/hk-bus-eta-web-g7yxbq` 就會自動 build + deploy(先跑 lint + test);另外每 3 小時 cron 重新部署保持新聞 / 路況新鮮。`vite.config.ts` 已設 `base: './'`,可放於子目錄。
 - **Vercel / Netlify**:framework 選 Vite,build command `npm run build`,output `dist`。
 
 ## 資料來源與私隱
