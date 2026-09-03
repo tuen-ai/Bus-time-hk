@@ -2,6 +2,7 @@
 // PWA 用戶白咗畫面係好難自救(要清 cache),所以呢層一定要有。
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { PandaSad } from './Mascots'
+import { DB_NAME } from '../lib/kv'
 
 interface State {
   error: Error | null
@@ -24,8 +25,8 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, St
   /** 清走本機快取(路線 / 站點),保留收藏同設定,再重新載入 */
   private resetCache = () => {
     try {
-      for (const k of ['bus.routes', 'kmb.stops']) localStorage.removeItem(k)
-      void indexedDB.deleteDatabase('kkcx')
+      for (const k of ['bus.routes', 'kmb.stops']) localStorage.removeItem(k) // 舊版殘留
+      indexedDB.deleteDatabase(DB_NAME)
     } catch {
       /* ignore */
     }

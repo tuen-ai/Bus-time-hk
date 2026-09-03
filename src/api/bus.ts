@@ -8,6 +8,7 @@ import { lrRoutes, lrRouteStops } from '../lib/lrData'
 import { nlbRoutes, nlbRouteStops, nlbRouteId } from '../lib/nlbData'
 import { gmbRoutesAsync, gmbRouteStops } from '../lib/gmbData'
 import { getStopMap } from '../lib/store'
+import { cacheGet, cachePut } from '../lib/kv'
 
 export type Co = 'kmb' | 'ctb' | 'lrt' | 'nlb' | 'gmb'
 
@@ -94,49 +95,35 @@ async function batchMap<T, R>(items: T[], size: number, fn: (x: T) => Promise<R>
   return out
 }
 
-// ---- 路線清單(KMB + CTB 合併,每日緩存)----
+// ---- 路線清單(五個營辦商合併,IndexedDB 緩存)----
 const DAY = 24 * 60 * 60 * 1000
+const ROUTES_KEY = 'bus.routes'
 let routeMem: Route[] | null = null
-
-function saveRoutes(all: Route[]): void {
-  try {
-    localStorage.setItem('bus.routes', JSON.stringify({ ts: Date.now(), data: all }))
-  } catch {
-    /* 容量不足靜默 */
-  }
-}
 
 /**
  * stale-while-revalidate:7 日內嘅 cache 即刻回(app 即開即用);
  * 過咗 1 日就背景刷新,完成後經 onRefresh 靜靜更新 UI。
+ * 快取放 IndexedDB(幾 MB,localStorage 會爆);舊 localStorage 資料會自動搬過嚟。
  */
 export async function getAllRoutes(onRefresh?: (rs: Route[]) => void): Promise<Route[]> {
   if (routeMem) return routeMem
-  try {
-    const raw = localStorage.getItem('bus.routes')
-    if (raw) {
-      const c = JSON.parse(raw) as { ts: number; data: Route[] }
-      const age = Date.now() - c.ts
-      if (age < 7 * DAY && c.data.length > 0) {
-        routeMem = c.data
-        if (age >= DAY) {
-          void fetchAllFresh()
-            .then((all) => {
-              routeMem = all
-              saveRoutes(all)
-              onRefresh?.(all)
-            })
-            .catch(() => {})
-        }
-        return c.data
-      }
+  const hit = await cacheGet<Route[]>(ROUTES_KEY, 7 * DAY)
+  if (hit && hit.data.length > 0) {
+    routeMem = hit.data
+    if (hit.age >= DAY) {
+      void fetchAllFresh()
+        .then((all) => {
+          routeMem = all
+          void cachePut(ROUTES_KEY, all)
+          onRefresh?.(all)
+        })
+        .catch(() => {})
     }
-  } catch {
-    /* ignore */
+    return hit.data
   }
   const all = await fetchAllFresh()
   routeMem = all
-  saveRoutes(all)
+  void cachePut(ROUTES_KEY, all)
   return all
 }
 

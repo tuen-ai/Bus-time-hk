@@ -1,33 +1,10 @@
-// localStorage 緩存:靜態資料(站點)一日有效;收藏無限期。
+// 站點快取(IndexedDB,一日有效)+ 收藏(localStorage,無限期、細、要入備份)。
 import { fetchStops, type Stop } from '../api/kmb'
 import type { Co } from '../api/bus'
+import { cacheGet, cachePut } from './kv'
 
 const DAY = 24 * 60 * 60 * 1000
-
-interface Cached<T> {
-  ts: number
-  data: T
-}
-
-function readCache<T>(key: string, maxAge: number): T | null {
-  try {
-    const raw = localStorage.getItem(key)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as Cached<T>
-    if (Date.now() - parsed.ts > maxAge) return null
-    return parsed.data
-  } catch {
-    return null
-  }
-}
-
-function writeCache<T>(key: string, data: T): void {
-  try {
-    localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data }))
-  } catch {
-    // 容量不足等情況靜默失敗
-  }
-}
+const STOPS_KEY = 'kmb.stops'
 
 let stopMapP: Promise<Map<string, Stop>> | null = null
 
@@ -37,7 +14,7 @@ let stopMapP: Promise<Map<string, Stop>> | null = null
 export function getStopMap(): Promise<Map<string, Stop>> {
   if (!stopMapP) {
     stopMapP = (async () => {
-      let stops = readCache<Stop[]>('kmb.stops', DAY)
+      let stops = (await cacheGet<Stop[]>(STOPS_KEY, DAY))?.data ?? null
       if (!stops) {
         try {
           stops = await fetchStops()
@@ -45,7 +22,7 @@ export function getStopMap(): Promise<Map<string, Stop>> {
           stopMapP = null // 下次再試
           return new Map<string, Stop>()
         }
-        if (stops.length > 0) writeCache('kmb.stops', stops) // 唔好快取空陣列
+        if (stops.length > 0) void cachePut(STOPS_KEY, stops) // 唔好快取空陣列
       }
       return new Map(stops.map((s) => [s.stop, s]))
     })()
