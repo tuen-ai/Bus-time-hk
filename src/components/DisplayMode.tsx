@@ -49,7 +49,7 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
   const [news, setNews] = useState<string[]>([])
   const [newsIdx, setNewsIdx] = useState(0)
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
-  const wakeRef = useRef<{ release?: () => Promise<void> } | null>(null)
+  const wakeRef = useRef<WakeLockSentinel | null>(null)
 
   // 時鐘每秒行
   useEffect(() => {
@@ -113,10 +113,8 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
   useEffect(() => {
     const acquire = async () => {
       try {
-        const nav = navigator as Navigator & {
-          wakeLock?: { request: (t: 'screen') => Promise<{ release: () => Promise<void> }> }
-        }
-        if (nav.wakeLock) wakeRef.current = await nav.wakeLock.request('screen')
+        // 舊 Safari 冇 wakeLock → optional chaining 直接略過
+        wakeRef.current = (await navigator.wakeLock?.request('screen')) ?? null
       } catch {
         /* 唔支援就算 */
       }
@@ -128,7 +126,7 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
     document.addEventListener('visibilitychange', onVis)
     return () => {
       document.removeEventListener('visibilitychange', onVis)
-      void wakeRef.current?.release?.()
+      void wakeRef.current?.release()
     }
   }, [])
 

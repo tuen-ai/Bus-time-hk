@@ -6,6 +6,8 @@ const BACKUP_KEYS = [
   'places.saved',
   'kkcx.usage',
   'kkcx.stamps',
+  'kkcx.quote', // 是日金句偏好
+  'kkcx.nearby.co', // 附近預設營辦商
 ] as const
 
 interface BackupFile {

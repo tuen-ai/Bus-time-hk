@@ -1,5 +1,6 @@
 // 簡單 service worker:快取 app shell,API 請求一律走網絡(保持 ETA 即時)。
-const CACHE = 'kmb-eta-v17'
+// cache 名由 build 時注入 git sha(vite.config.ts 嘅 sw-build-id plugin),每次部署自動換新,唔使人手 bump。
+const CACHE = 'kmb-eta-__BUILD_ID__'
 
 self.addEventListener('install', (e) => {
   self.skipWaiting()
@@ -35,7 +36,8 @@ self.addEventListener('fetch', (event) => {
         .then((res) => {
           if (res.ok) {
             const copy = res.clone()
-            caches.open(CACHE).then((c) => c.put(request, copy))
+            // waitUntil:SW 唔會喺寫 cache 寫到一半就被殺
+            event.waitUntil(caches.open(CACHE).then((c) => c.put(request, copy)))
           }
           return res
         })
@@ -52,7 +54,7 @@ self.addEventListener('fetch', (event) => {
         fetch(request).then((res) => {
           if (res.ok) {
             const copy = res.clone()
-            caches.open(CACHE).then((c) => c.put(request, copy))
+            event.waitUntil(caches.open(CACHE).then((c) => c.put(request, copy)))
           }
           return res
         }),

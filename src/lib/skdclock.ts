@@ -38,11 +38,9 @@ export interface ClockStatus {
   fw?: number
 }
 
-export const bluetoothSupported = () =>
-  typeof navigator !== 'undefined' &&
-  !!(navigator as unknown as { bluetooth?: unknown }).bluetooth
+// Web Bluetooth 型別來自 @types/web-bluetooth;唔支援嘅瀏覽器 navigator.bluetooth 係 undefined
+export const bluetoothSupported = () => typeof navigator !== 'undefined' && !!navigator.bluetooth
 
-type BT = { requestDevice: (o: unknown) => Promise<BluetoothDeviceLike> }
 interface BluetoothDeviceLike {
   gatt?: { connect: () => Promise<GattServer>; connected: boolean; disconnect: () => void }
   addEventListener: (t: string, cb: () => void) => void
@@ -73,8 +71,7 @@ export class SkdClock {
   }
 
   async connect() {
-    const bt = (navigator as unknown as { bluetooth: BT }).bluetooth
-    const dev = await bt.requestDevice({
+    const dev: BluetoothDeviceLike = await navigator.bluetooth.requestDevice({
       filters: [{ namePrefix: NAME_PREFIX }],
       optionalServices: [SERVICE],
     })
@@ -88,8 +85,8 @@ export class SkdClock {
     this.cmd = await svc.getCharacteristic(CHAR_WRITE)
     const notify = await svc.getCharacteristic(CHAR_NOTIFY)
     notify.addEventListener('characteristicvaluechanged', (e: Event) => {
-      const dv = (e.target as unknown as { value: DataView }).value
-      this.parseStatus(dv)
+      const dv = (e.target as BluetoothRemoteGATTCharacteristic).value
+      if (dv) this.parseStatus(dv)
     })
     await notify.startNotifications()
     // 等固件出第一個狀態封包(最多 ~2s)
@@ -118,8 +115,8 @@ export class SkdClock {
   // 寫入(write-with-response)—— 靠 BLE ACK 做流控,packet 之間唔另加延遲(對照源碼)
   private async write(bytes: number[] | Uint8Array) {
     if (!this.cmd) throw new Error('未連線')
-    const buf = bytes instanceof Uint8Array ? bytes : Uint8Array.from(bytes)
-    await this.cmd.writeValue(buf as unknown as BufferSource)
+    // Uint8Array.from 一定回 Uint8Array<ArrayBuffer>(BufferSource),唔使 cast
+    await this.cmd.writeValue(Uint8Array.from(bytes))
   }
 
   /** 對時:[0x10] + 4 byte big-endian epoch(UTC+8) */

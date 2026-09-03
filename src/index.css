@@ -4,7 +4,7 @@
   --bg: #fff0f7;
   --card: #ffffff;
   --text: #5b3a4d;
-  --muted: #b98aa6;
+  --muted: #8f6a80; /* 白底 4.6:1,過 WCAG AA(舊 #b98aa6 只有 2.9:1) */
   --line: #ffd9ec;
   --green: #3ccaa6;
   --soon: #ff8f43;
@@ -2113,6 +2113,28 @@ button.nearby-row:active,
 }
 .error {
   color: var(--red-dark);
+}
+
+.crash {
+  max-width: 420px;
+  margin: 18vh auto 0;
+  padding: 24px 20px;
+  text-align: center;
+}
+.crash-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--red-dark);
+  margin: 10px 0 6px;
+}
+.crash-detail {
+  font-size: 0.78rem;
+  color: var(--muted);
+  word-break: break-all;
+  margin: 8px 0 14px;
+}
+.crash .primary-btn + .preset-chip {
+  margin-top: 8px;
 }
 
 .footer {

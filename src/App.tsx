@@ -223,19 +223,25 @@ export default function App() {
   // 首屏著地後 idle 預載規劃圖(2.3MB chunk),第一次撳「搵路線」唔使等
   useEffect(() => {
     const warm = () => void loadGraph().catch(() => {})
-    const idle = (window as unknown as { requestIdleCallback?: (fn: () => void, o?: { timeout: number }) => number })
-      .requestIdleCallback
-    const id = idle ? idle(warm, { timeout: 8000 }) : window.setTimeout(warm, 4000)
+    // Safari 冇 requestIdleCallback → setTimeout 後備
+    const hasIdle = typeof window.requestIdleCallback === 'function'
+    const id = hasIdle ? window.requestIdleCallback(warm, { timeout: 8000 }) : window.setTimeout(warm, 4000)
     return () => {
-      if (!idle) clearTimeout(id)
+      if (hasIdle) window.cancelIdleCallback(id)
+      else clearTimeout(id)
     }
   }, [])
 
   const matches = useMemo(() => {
-    const q = query.trim().toUpperCase()
+    const raw = query.trim()
+    const q = raw.toUpperCase()
     if (!q) return []
+    // 純英數 = 路線號(prefix);有中文 / 其他字 = 搵目的地或起點站名
+    const byNumber = /^[A-Z0-9]+$/.test(q)
     return routes
-      .filter((r) => r.route.toUpperCase().startsWith(q))
+      .filter((r) =>
+        byNumber ? r.route.toUpperCase().startsWith(q) : r.dest_tc.includes(raw) || r.orig_tc.includes(raw),
+      )
       .filter((r) => coFilter === 'all' || r.co === coFilter)
       .sort((a, b) =>
         a.route.localeCompare(b.route, undefined, { numeric: true }) ||
@@ -353,7 +359,7 @@ export default function App() {
                 spellCheck={false}
                 enterKeyHint="search"
                 aria-label="搜尋路線號碼"
-                placeholder="輸入路線號碼,例如 1A、269D、N269"
+                placeholder="路線號碼或地方,例如 1A、269D、尖沙咀"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
@@ -384,7 +390,7 @@ export default function App() {
             {!query && !loading && !error && <StampCard />}
 
             {query && matches.length === 0 && !loading && (
-              <MascotState mood="sad" text={`搵唔到路線「${query}」,試下轉車種 filter?`} />
+              <MascotState mood="sad" text={`搵唔到「${query}」,試下轉車種 filter,或者打路線號 / 目的地?`} />
             )}
 
             <div className="route-results">
@@ -446,6 +452,8 @@ export default function App() {
         天氣:香港天文台 (HKO) · 港鐵/輕鐵:© 港鐵公司 MTR
         <br />
         嶼巴 · 特別交通消息:運輸署 · 全部經 data.gov.hk
+        <br />
+        地址搜尋:政府 ALS;後備 komoot Photon(你輸入嘅地址會傳送到該服務)· 其他資料只存喺你部機
       </footer>
     </div>
   )

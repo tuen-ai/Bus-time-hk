@@ -77,6 +77,11 @@ npm run preview    # 預覽 build 結果
 - **GitHub Pages**:把 `dist/` 推到 `gh-pages` 分支(`vite.config.ts` 已設 `base: './'`,可放於子目錄)。
 - **Vercel / Netlify**:framework 選 Vite,build command `npm run build`,output `dist`。
 
-## 資料來源
+## 資料來源與私隱
+
+- App 純前端,冇後端、冇帳號、冇追蹤;收藏、地點、印仔、通勤習慣全部只存喺你部機(localStorage / IndexedDB),備份檔由你自己匯出。
+- 規劃頁嘅地址搜尋會將你輸入嘅文字傳送到香港政府 ALS 地址查詢服務;ALS 冇結果時後備用 komoot Photon(第三方)。地圖底圖由 CARTO 提供,瀏覽器會向佢哋請求圖塊。
+- 其他所有實時資料都係瀏覽器直接向 data.gov.hk / 港鐵 / 天文台開放 API 請求。
+
 
 [運輸署 — 九巴/龍運巴士到站時間數據](https://data.gov.hk/tc-data/dataset/hk-td-tis_21-etakmb) · 使用須遵守 data.gov.hk 開放數據條款並註明來源。
