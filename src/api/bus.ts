@@ -100,6 +100,13 @@ const DAY = 24 * 60 * 60 * 1000
 const ROUTES_KEY = 'bus.routes'
 let routeMem: Route[] | null = null
 
+/** 上次拎路線清單時攞唔到嘅營辦商(網絡 / CORS 問題)。殘缺清單唔會寫入快取。 */
+let missing: Co[] = []
+export const missingOperators = (): Co[] => missing
+
+/** 九巴佔成個清單約四成 —— 冇九巴多數係當時 fetch 失敗,唔好信呢份快取 */
+const looksComplete = (rs: Route[]): boolean => rs.some((r) => r.co === 'kmb')
+
 /**
  * stale-while-revalidate:7 日內嘅 cache 即刻回(app 即開即用);
  * 過咗 1 日就背景刷新,完成後經 onRefresh 靜靜更新 UI。
@@ -108,13 +115,14 @@ let routeMem: Route[] | null = null
 export async function getAllRoutes(onRefresh?: (rs: Route[]) => void): Promise<Route[]> {
   if (routeMem) return routeMem
   const hit = await cacheGet<Route[]>(ROUTES_KEY, 7 * DAY)
-  if (hit && hit.data.length > 0) {
+  // 舊版本可能快取咗殘缺清單(例如當時九巴 fetch 失敗)—— 當佢冇,重新攞過
+  if (hit && hit.data.length > 0 && looksComplete(hit.data)) {
     routeMem = hit.data
     if (hit.age >= DAY) {
       void fetchAllFresh()
         .then((all) => {
           routeMem = all
-          void cachePut(ROUTES_KEY, all)
+          saveRoutes(all)
           onRefresh?.(all)
         })
         .catch(() => {})
@@ -123,8 +131,13 @@ export async function getAllRoutes(onRefresh?: (rs: Route[]) => void): Promise<R
   }
   const all = await fetchAllFresh()
   routeMem = all
-  void cachePut(ROUTES_KEY, all)
+  saveRoutes(all)
   return all
+}
+
+/** 齊料先寫快取:殘缺清單一寫落去就會賴足 7 日,搵唔到成間營辦商嘅路線 */
+function saveRoutes(all: Route[]): void {
+  if (missing.length === 0 && looksComplete(all)) void cachePut(ROUTES_KEY, all)
 }
 
 async function fetchAllFresh(): Promise<Route[]> {
@@ -141,22 +154,32 @@ async function fetchAllFresh(): Promise<Route[]> {
           dest_tc: r.dest_tc,
         })),
       )
-      .catch(() => [] as Route[]),
-    ctb.fetchCtbRoutes().catch(() => [] as Route[]),
+      .catch(() => null),
+    ctb.fetchCtbRoutes().catch(() => null),
   ])
   // 靜態資料(bundle 入面)—— 理論上唔會 throw,但壞 JSON 都唔好拖冧成個清單
-  const safe = (fn: () => Route[]): Route[] => {
+  const safe = (fn: () => Route[]): Route[] | null => {
     try {
-      return fn()
+      const rs = fn()
+      return rs.length ? rs : null
     } catch {
-      return []
+      return null
     }
   }
   const lr = safe(lrRoutes)
   const nl = safe(nlbRoutes)
-  const gm = await gmbRoutesAsync().catch(() => [] as Route[])
-  const all = [...k, ...c, ...lr, ...nl, ...gm]
-  // 兩邊都失敗(離線/CORS)→ 唔好快取空陣列毒化一日,直接拋錯俾 App 顯示重試
+  const gm = await gmbRoutesAsync().catch(() => null)
+
+  const parts: [Co, Route[] | null][] = [
+    ['kmb', k],
+    ['ctb', c],
+    ['lrt', lr],
+    ['nlb', nl],
+    ['gmb', gm],
+  ]
+  missing = parts.filter(([, rs]) => !rs?.length).map(([co]) => co)
+  const all = parts.flatMap(([, rs]) => rs ?? [])
+  // 全部失敗(離線/CORS)→ 唔好快取空陣列毒化一日,直接拋錯俾 App 顯示重試
   if (all.length === 0) throw new Error('路線資料載入失敗,請稍後重試')
   return all
 }

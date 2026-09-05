@@ -1,7 +1,15 @@
 // 搜尋分頁:營辦商 filter + 路線號 / 地名搜尋 + 首頁(推薦、公仔、收藏、集印卡)。
 // 路線清單由 App 載入(其他分頁都要用),呢度只負責搜尋同顯示。
 import { useMemo, useState } from 'react'
-import { coClass, coLabel, CO_COLOR, SEARCH_OPERATORS, type Co, type Route } from '../api/bus'
+import {
+  coClass,
+  coLabel,
+  CO_COLOR,
+  missingOperators,
+  SEARCH_OPERATORS,
+  type Co,
+  type Route,
+} from '../api/bus'
 import type { Favorite } from '../lib/store'
 import { routeBadges } from '../lib/routeMeta'
 import { searchRoutes } from '../lib/search'
@@ -17,6 +25,15 @@ interface Props {
   onRetry: () => void
   onOpen: (r: Route, stopId?: string) => void
   onOpenFavorite: (f: Favorite) => void
+}
+
+/** 搵唔到時嘅提示:如果係某間營辦商資料攞唔到,講明白過叫人「試下轉 filter」 */
+function emptyText(query: string): string {
+  const miss = missingOperators()
+  if (miss.length) {
+    return `搵唔到「${query}」。${miss.map(coLabel).join('、')}嘅路線資料暫時載入唔到,撳一下重新整理再試~`
+  }
+  return `搵唔到「${query}」。可以打路線號(38、42C)、加營辦商(九巴38),或者打目的地(尖沙咀)~`
 }
 
 export default function SearchView({ routes, loading, error, onRetry, onOpen, onOpenFavorite }: Props) {
@@ -83,9 +100,7 @@ export default function SearchView({ routes, loading, error, onRetry, onOpen, on
       {idle && <Favorites onOpen={onOpenFavorite} />}
       {idle && !error && <StampCard />}
 
-      {query && matches.length === 0 && !loading && (
-        <MascotState mood="sad" text={`搵唔到「${query}」,試下轉車種 filter,或者打路線號 / 目的地?`} />
-      )}
+      {query && matches.length === 0 && !loading && <MascotState mood="sad" text={emptyText(query)} />}
 
       <div className="route-results">
         {matches.map((r, i) => (
