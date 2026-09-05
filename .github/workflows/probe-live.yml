@@ -1,0 +1,21 @@
+name: Probe live APIs
+
+# 手動診斷:開發沙盒封鎖 *.gov.hk,要查真實 API(某條線存唔存在、ETA 通唔通)就喺呢度跑。
+# Actions → Probe live APIs → Run workflow,routes 欄填要查嘅路線號(空格分隔)。
+on:
+  workflow_dispatch:
+    inputs:
+      routes:
+        description: '要查嘅路線號,空格分隔(例:38 42C 1A)'
+        required: false
+        default: '38 42C'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/probe-live.mjs ${{ inputs.routes }}
