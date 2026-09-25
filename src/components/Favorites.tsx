@@ -1,6 +1,6 @@
 // 首頁收藏:所有收藏路線一個 loop 一齊攞 ETA(唔係每張卡各自輪詢),背景分頁自動暫停。
-import { useState } from 'react'
-import { favKey, getFavorites, toggleFavorite, type Favorite } from '../lib/store'
+import { useEffect, useState } from 'react'
+import { FAVS_CHANGED, favKey, getFavorites, toggleFavorite, type Favorite } from '../lib/store'
 import { coClass, getEta, type Eta, type Route } from '../api/bus'
 import { usePolling } from '../hooks/usePolling'
 import { nextEtas } from '../lib/time'
@@ -26,6 +26,13 @@ export default function Favorites({ onOpen }: { onOpen: (f: Favorite) => void })
   const [favs, setFavs] = useState<Favorite[]>(getFavorites)
   const [rows, setRows] = useState<Record<string, RowState>>({})
   const [updatedAt, setUpdatedAt] = useState<number | null>(null)
+
+  // 設定入面改咗次序 → 重讀
+  useEffect(() => {
+    const onChange = () => setFavs(getFavorites())
+    window.addEventListener(FAVS_CHANGED, onChange)
+    return () => window.removeEventListener(FAVS_CHANGED, onChange)
+  }, [])
 
   const load = async () => {
     const results = await Promise.all(

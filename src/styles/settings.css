@@ -144,6 +144,57 @@
   font-size: 0.9rem;
   color: var(--red-dark);
 }
+/* 收藏顯示排序 */
+.fav-order {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.fav-order-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+}
+.fav-order-row.dim {
+  opacity: 0.45;
+}
+.fav-order-badge {
+  min-width: 52px;
+  justify-content: center;
+  text-align: center;
+  flex-shrink: 0;
+}
+.fav-order-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fav-order-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.fav-order-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
 /* 是日金句偏好 */
 .qp-modes {
   display: flex;

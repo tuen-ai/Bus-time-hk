@@ -2,6 +2,8 @@
 import { useRef, useState } from 'react'
 import { exportBackup, importBackup } from '../lib/backup'
 import { QUOTES, getQuotePref, setQuotePref, quoteOfToday, type QuotePref } from '../data/quotes'
+import { getFavorites, moveFavorite, favKey, type Favorite } from '../lib/store'
+import { coClass } from '../api/bus'
 
 export default function BackupPanel({
   onClose,
@@ -15,6 +17,7 @@ export default function BackupPanel({
   const fileRef = useRef<HTMLInputElement>(null)
   const [msg, setMsg] = useState<string | null>(null)
   const [qp, setQp] = useState<QuotePref>(() => getQuotePref())
+  const [favs, setFavs] = useState<Favorite[]>(() => getFavorites())
 
   const saveQp = (p: QuotePref) => {
     setQp(p)
@@ -50,6 +53,40 @@ export default function BackupPanel({
               大字時鐘 + 收藏路線實時到站 + 是日名句 + 新聞。iPad 加到主畫面後開 App 會自動返去顯示模式;設定 →
               螢幕顯示 → 自動鎖定揀「永不」+ 插住電, 就係一部門口報站機~畫面已鎖定,長按 3 秒先退出。
             </p>
+            {favs.length > 1 && (
+              <>
+                <hr style={{ border: 'none', borderTop: '1px solid var(--line)' }} />
+                <b className="small">↕️ 顯示排序(頭 6 個會出現喺顯示模式)</b>
+                <div className="fav-order">
+                  {favs.map((f, i) => (
+                    <div className={`fav-order-row ${i >= 6 ? 'dim' : ''}`} key={favKey(f)}>
+                      <span className={`route-badge ${coClass(f.co)} fav-order-badge`}>{f.route}</span>
+                      <span className="fav-order-name">
+                        往 {f.dest} · {f.stopName}
+                      </span>
+                      <button
+                        type="button"
+                        className="fav-order-btn"
+                        disabled={i === 0}
+                        onClick={() => setFavs(moveFavorite(i, -1))}
+                        aria-label={`${f.route} 往上移`}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="fav-order-btn"
+                        disabled={i === favs.length - 1}
+                        onClick={() => setFavs(moveFavorite(i, 1))}
+                        aria-label={`${f.route} 往下移`}
+                      >
+                        ↓
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
             <hr style={{ border: 'none', borderTop: '1px solid var(--line)' }} />
             <b className="small">✨ 是日金句</b>
             <div className="qp-modes">

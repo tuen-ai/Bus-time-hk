@@ -13,7 +13,7 @@ import { useBackLayer } from '../hooks/useBackLayer'
 
 const ETA_MS = 10_000
 const NEWS_ROTATE_MS = 12_000
-const MAX_ROWS = 5
+const MAX_ROWS = 6
 
 const favToRoute = (f: Favorite): Route => ({
   co: f.co,
@@ -249,29 +249,31 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
         })}
       </div>
 
-      <div className="dm-pair">
-        <PandaFace
-          className="dm-mascot"
-          bow={un.includes('bow')}
-          starEyes={un.includes('star')}
-          umbrella={rainy}
-          sweat={hot}
-        />
-        <BearFace className="dm-mascot" knight={un.includes('knight')} medal={un.includes('gold')} />
-      </div>
-
-      <div className="dm-foot">
-        {news.length > 0 && (
-          <>
-            <span className="dm-news-tag">📰 是日新聞:</span>
-            <span className="dm-news">{news[newsIdx % news.length]}</span>
-          </>
-        )}
-        <span className="dm-upd">
-          每 10 秒自動更新
-          {updatedAt && ` · 最後更新 ${updatedAt.toLocaleTimeString('zh-HK', { hour12: false })}`} · 🔒 長按 3
-          秒退出
-        </span>
+      {/* 底部專屬一行:新聞/更新時間喺左,公仔企右 —— 卡片唔會遮到佢哋 */}
+      <div className="dm-bottom">
+        <div className="dm-foot">
+          {news.length > 0 && (
+            <>
+              <span className="dm-news-tag">📰 是日新聞:</span>
+              <span className="dm-news">{news[newsIdx % news.length]}</span>
+            </>
+          )}
+          <span className="dm-upd">
+            每 10 秒自動更新
+            {updatedAt && ` · 最後更新 ${updatedAt.toLocaleTimeString('zh-HK', { hour12: false })}`} · 🔒 長按
+            3 秒退出
+          </span>
+        </div>
+        <div className="dm-pair">
+          <PandaFace
+            className="dm-mascot"
+            bow={un.includes('bow')}
+            starEyes={un.includes('star')}
+            umbrella={rainy}
+            sweat={hot}
+          />
+          <BearFace className="dm-mascot" knight={un.includes('knight')} medal={un.includes('gold')} />
+        </div>
       </div>
     </div>
   )

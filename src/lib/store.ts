@@ -61,6 +61,24 @@ export function isFavorite(f: Favorite): boolean {
   return getFavorites().some((x) => favKey(x) === favKey(f))
 }
 
+/** 收藏次序變咗(排序)→ 通知首頁收藏列表重讀 */
+export const FAVS_CHANGED = 'kkcx:favs-changed'
+
+/** 收藏排序:將第 idx 項上/下移一格(顯示模式 + 首頁同一次序) */
+export function moveFavorite(idx: number, dir: -1 | 1): Favorite[] {
+  const list = getFavorites()
+  const j = idx + dir
+  if (idx < 0 || idx >= list.length || j < 0 || j >= list.length) return list
+  ;[list[idx], list[j]] = [list[j], list[idx]]
+  try {
+    localStorage.setItem(FAV_KEY, JSON.stringify(list))
+  } catch {
+    // 存唔到都回傳記憶體版本
+  }
+  window.dispatchEvent(new Event(FAVS_CHANGED))
+  return list
+}
+
 export function toggleFavorite(f: Favorite): Favorite[] {
   const list = getFavorites()
   const idx = list.findIndex((x) => favKey(x) === favKey(f))
