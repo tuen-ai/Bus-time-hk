@@ -17,6 +17,17 @@
   background: #fef3c7;
   color: #92400e;
 }
+/* 班次可信度:預定 = 按時間表估算(虛線框,冇實時位置);尾班車 = 夜藍底 */
+.tag-sched {
+  background: transparent;
+  color: var(--muted);
+  border: 1px dashed currentColor;
+  padding: 0 5px;
+}
+.tag-last {
+  background: #312e81;
+  color: #fef3c7;
+}
 .tag-co {
   color: #fff;
 }

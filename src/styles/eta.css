@@ -13,8 +13,9 @@
 }
 .eta-row {
   display: flex;
+  flex-wrap: wrap; /* 標籤多嘅時候窄屏換行,唔好爆出卡 */
   align-items: baseline;
-  gap: 12px;
+  gap: 2px 12px;
 }
 .eta-mins {
   font-weight: 700;
@@ -33,24 +34,67 @@
   font-size: 0.8rem;
   color: var(--muted);
 }
+/* 可信度標籤(🕒 預定 / 🌙 尾班車)+ 其他備註 */
+.eta-notes {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+}
+.eta-notes .tag {
+  margin-left: 0;
+  font-size: var(--fs-xs); /* 中文最細 12px */
+}
+/* 網絡唔穩:顯示緊上次成功嘅資料 */
+.eta-stale {
+  display: inline-block;
+  font-size: 0.75rem;
+  color: var(--text);
+  background: color-mix(in srgb, var(--soon) 12%, var(--card));
+  border: 1px dashed color-mix(in srgb, var(--soon) 55%, var(--line));
+  border-radius: 999px;
+  padding: 2px 10px;
+  margin: 0 0 8px;
+}
+/* 舊資料嘅分鐘數淡啲,唔好用「就到」嘅顏色催人 */
+.eta-panel.stale .eta-mins {
+  color: var(--muted);
+}
+/* 從未攞到資料:錯誤 + 重試 */
+.eta-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+.eta-error .preset-chip {
+  min-height: 44px;
+}
 .eta-updated {
   font-size: 0.72rem;
   margin-top: 4px;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px 8px;
+  gap: 10px 8px; /* 換行時兩粒掣嘅 44px 撳位唔好重疊 */
 }
 .refresh-btn {
+  position: relative;
   border: 1px solid var(--line);
   background: var(--card);
   color: var(--muted);
   border-radius: 8px;
-  padding: 3px 8px;
-  min-height: 24px;
+  padding: 6px 10px;
+  min-height: 34px;
   font-size: 0.72rem;
   cursor: pointer;
   white-space: nowrap;
+}
+/* 睇落 34px,撳得中嘅範圍 44px */
+.refresh-btn::after {
+  content: '';
+  position: absolute;
+  inset: -5px 0;
 }
 .refresh-btn:active {
   background: var(--line);
