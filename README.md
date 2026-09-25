@@ -73,7 +73,7 @@ npm run lint       # ESLint;npm run format 用 Prettier 格式化
 
 ### 靜態資料(路線 / 站序 / 車費 / 規劃圖)點更新
 
-`src/data/` 嘅 `kmbGtfs / ctbGtfs / routeFares / planGraph / gmbRoutes / gmbData / nlbData / lrData` 全部由
+`src/data/` 嘅 `kmbGtfs / ctbGtfs / routeFares / planGraph / gmbRoutes / gmb-NN + gmbShards / nlbData / lrData` 全部由
 [hkbus/hk-bus-crawling](https://github.com/hkbus/hk-bus-crawling) 上游重焗:
 
 ```bash

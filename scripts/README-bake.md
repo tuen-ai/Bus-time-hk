@@ -1,6 +1,6 @@
 # bake-static.mjs — 重新焗 `src/data/` 靜態 JSON
 
-`src/data/` 入面嘅 `kmbGtfs / ctbGtfs / routeFares / planGraph / gmbRoutes / gmbData / nlbData / lrData`
+`src/data/` 入面嘅 `kmbGtfs / ctbGtfs / routeFares / planGraph / gmbRoutes / gmb-00…15 + gmbShards / nlbData / lrData`
 全部由 [hkbus/hk-bus-crawling](https://github.com/hkbus/hk-bus-crawling) 嘅 `routeFareList.min.json`(gh-pages)抽出。
 2026-06-27/28 第一次係人手焗;`scripts/bake-static.mjs` 令佢可以重複再生(Node 20+,零依賴)。
 
@@ -21,14 +21,16 @@ node scripts/bake-static.mjs --force        # 略過「縮細 >20%」保護(「�
 
 ## 映射規則(同 6 月 committed 檔一致)
 
-| 檔                                | 來源                     | 規則                                                                                                                                            |
-| --------------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `kmbGtfs.json` / `ctbGtfs.json`   | `routeList[*].gtfsId`    | key `route\|bound[co]\|serviceType`;**所有**有 `bound[co]`+`stops[co]` 嘅 co 都出(聯營線兩邊都有);撞 key 先到先得;key 排序                      |
-| `routeFares.json`                 | `routeList[*].fares`     | 只 kmb/ctb、只 **primary co**(第一間有效 co);值 `Number()`;上游順序                                                                             |
-| `planGraph.json`                  | `routeList` + `stopList` | kmb/ctb/nlb/gmb/lightRail、只 primary co;`jt` → number/null,`s` → string;`stops` 只收有用到嘅站 `[lat,lng,zh]`;有站唔喺 `stopList` 嘅線整條跳過 |
-| `gmbRoutes.json` / `gmbData.json` | co=gmb                   | `uid` = `gtfsId`(冇就跳過);`stops` `{n,lat,lng}`                                                                                                |
-| `nlbData.json`                    | co=nlb                   | `id` = `nlbId`(冇就跳過);bound 照上游                                                                                                           |
-| `lrData.json`                     | co=lightRail             | 站 id 統一三位數(`LR60` → `LR060`,前端同 `getSchedule` 註解都係用呢個格式);`route` 保留 `*` 後綴                                                |
+| 檔                              | 來源                     | 規則                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `kmbGtfs.json` / `ctbGtfs.json` | `routeList[*].gtfsId`    | key `route\|bound[co]\|serviceType`;**所有**有 `bound[co]`+`stops[co]` 嘅 co 都出(聯營線兩邊都有);撞 key 先到先得;key 排序                                                                                                                                                                                                                                                                 |
+| `routeFares.json`               | `routeList[*].fares`     | 只 kmb/ctb、只 **primary co**(第一間有效 co);值 `Number()`;上游順序                                                                                                                                                                                                                                                                                                                        |
+| `planGraph.json`                | `routeList` + `stopList` | kmb/ctb/nlb/gmb/lightRail、只 primary co;`jt` → number/null,`s` → string;`stops` 只收有用到嘅站 `[lat,lng,zh]`;有站唔喺 `stopList` 嘅線整條跳過。寫出 **v2 格式** `{v:2, ids:[stopId], ll:[[lat,lng]], n:[zh], routes:[[co,r,b,s,o,d,jt,[站 index…]]]}`:每個站 ID 只寫一次、唔再寫 `k`(`src/lib/planGraph.ts` 嘅 `inflateGraph` 還原);script 內部照用未壓縮格式,`--check` 比較還原後嘅資料 |
+| `gmbRoutes.json`                | co=gmb                   | `uid` = `gtfsId`(冇就跳過)                                                                                                                                                                                                                                                                                                                                                                 |
+| `gmb-00.json`…`gmb-15.json`     | co=gmb                   | 站序按 uid **範圍**分 16 份:`{r:{"uid\|bound":[stopId]}, s:{id:[lat,lng,zh]}}`;開一條線只載一份                                                                                                                                                                                                                                                                                            |
+| `gmbShards.json`                | (由上面計)               | 15 個分界 uid(第 n+1 份由 `bounds[n]` 開始;uid 先比長度再比字串 = 數值次序)。分得平均(最大份 ≤ 平均 2 倍)就沿用舊界線,每月重焗只會改到受影響嘅分片;必須同 `src/lib/gmbData.ts` 嘅 `cmpUid` / `gmbShardOf` 一致(`gmbData.test.ts` 會驗)。`--only gmbData` 會一齊寫分片同 `gmbShards.json`,並刪走舊 `gmbData.json` 同過時分片                                                                |
+| `nlbData.json`                  | co=nlb                   | `id` = `nlbId`(冇就跳過);bound 照上游                                                                                                                                                                                                                                                                                                                                                      |
+| `lrData.json`                   | co=lightRail             | 站 id 統一三位數(`LR60` → `LR060`,前端同 `getSchedule` 註解都係用呢個格式);`route` 保留 `*` 後綴                                                                                                                                                                                                                                                                                           |
 
 「primary co」:上游聯營線(kmb+ctb)`co` 會列兩間,但 `planGraph` / `routeFares` 只出第一間,免行程規劃出兩條一樣嘅車。
 上游有啲聯營線 `co` 列咗 kmb 但 `bound`/`stops` 只有 ctb,呢啲會當 ctb-only。
