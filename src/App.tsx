@@ -1,5 +1,13 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { getAllRoutes, indexRoutes, pickRoute, type Route, type Co, type RouteKeyLike } from './api/bus'
+import {
+  getAllRoutes,
+  indexRoutes,
+  pickRouteAtStop,
+  routeVariants,
+  type Route,
+  type Co,
+  type RouteQuery,
+} from './api/bus'
 import SearchView from './components/SearchView'
 import RouteStopsView from './components/RouteStopsView'
 import type { LegRouteKey } from './components/PlannerView'
@@ -40,7 +48,7 @@ const TABS: { id: Tab; icon: string; label: string }[] = [
   { id: 'plan', icon: '🧭', label: '規劃' },
 ]
 
-// 規劃圖(2.3MB chunk)唔再每次開 app 都預載 —— 淨係有意圖(撳規劃 tab / 入到規劃頁)先載;慳數據模式唔預載
+// 規劃圖(~1.5MB chunk)唔再每次開 app 都預載 —— 淨係有意圖(撳規劃 tab / 入到規劃頁)先載;慳數據模式唔預載
 const saveData = () => !!(navigator as { connection?: { saveData?: boolean } }).connection?.saveData
 const warmGraph = () => {
   if (!saveData()) void loadGraph().catch(() => {})
@@ -151,11 +159,19 @@ export default function App() {
     setTab('plan')
   }
 
+  // 收藏 / 附近 / 規劃 leg 要 async 對返路線:每次開線加一,遲返嘅舊結果唔好蓋過用家之後撳嘅嘢
+  const openSeq = useRef(0)
+  // 轉咗 tab(撳 tab / 返回鍵)= 用家改咗主意:未對好嗰條唔好之後突然彈個路線頁出嚟
+  useEffect(() => {
+    openSeq.current++
+  }, [tab])
+
   const openRoute = (r: Route, stopId?: string) => {
+    openSeq.current++
     setInitialStop(stopId)
     setSelected(r)
     // 智能首頁統計 + 每日印仔(純本機)
-    recordUse({ co: r.co, route: r.route, bound: r.bound, serviceType: r.service_type, stopId })
+    recordUse({ co: r.co, route: r.route, bound: r.bound, serviceType: r.service_type, uid: r.uid, stopId })
     addStamp()
   }
 
@@ -184,32 +200,58 @@ export default function App() {
   // co|route|bound|serviceType → Route[](GMB 同號跨區可能多於一條);收藏/附近/規劃 leg 都靠呢個對返
   const routeIndex = useMemo(() => indexRoutes(routes), [routes])
 
-  // 嶼巴舊收藏 bound 反轉再試、同 key 多條用目的地 tiebreak —— 規則同測試喺 api/bus.ts pickRoute
-  const findRoute = (k: RouteKeyLike, dest?: string): Route | undefined =>
-    pickRoute(routeIndex, { ...k, dest })
-
-  const openNearby = (row: NearbyRow) => {
-    const r = findRoute({ co: row.co, route: row.route, bound: row.dir, serviceType: row.serviceType })
-    if (r) {
-      setTab('search')
-      openRoute(r, row.stopId)
-    }
+  // 由 key 對返 Route 再開:uid 優先 → GMB / 嶼巴同號多條就睇邊條經過個站 → 目的地 tiebreak;
+  // 嶼巴舊收藏 bound 反轉再試(規則同測試喺 api/bus.ts pickRouteAtStop)
+  const openByKey = (q: RouteQuery & { stopId?: string }, toSearch: boolean) => {
+    const seq = ++openSeq.current
+    void pickRouteAtStop(routeIndex, q).then((r) => {
+      if (!r || seq !== openSeq.current) return
+      if (toSearch) setTab('search')
+      openRoute(r, q.stopId)
+    })
   }
 
-  // 規劃方案 ride leg → 開返對應路線(planGraph co 名 lightRail ↔ app lrt)
-  const openLeg = (k: LegRouteKey) => {
-    const co = (k.co === 'lightRail' ? 'lrt' : k.co) as Co
-    const r = findRoute({ co, route: k.route, bound: k.bound, serviceType: k.serviceType }, k.dest)
-    if (r) openRoute(r, k.boardStopId)
-  }
+  const openNearby = (row: NearbyRow) =>
+    openByKey(
+      {
+        co: row.co,
+        route: row.route,
+        bound: row.dir,
+        serviceType: row.serviceType,
+        uid: row.uid,
+        dest: row.dest,
+        stopId: row.stopId,
+      },
+      true,
+    )
 
-  const openFavorite = (f: Favorite) => {
-    const r = findRoute(f)
-    if (r) {
-      setTab('search')
-      openRoute(r, f.stopId)
-    }
-  }
+  // 規劃方案 ride leg → 開返對應路線(leg key 已經係 app key,輕鐵 = lrt)
+  const openLeg = (k: LegRouteKey) =>
+    openByKey(
+      {
+        co: k.co,
+        route: k.route,
+        bound: k.bound,
+        serviceType: k.serviceType,
+        dest: k.dest,
+        stopId: k.boardStopId,
+      },
+      false,
+    )
+
+  const openFavorite = (f: Favorite) =>
+    openByKey(
+      {
+        co: f.co,
+        route: f.route,
+        bound: f.bound,
+        serviceType: f.serviceType,
+        uid: f.uid,
+        dest: f.dest,
+        stopId: f.stopId,
+      },
+      true,
+    )
 
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? 'dark' : 'light'
@@ -271,10 +313,8 @@ export default function App() {
     if (onPlanner) warmGraph()
   }, [onPlanner])
 
-  const variants = useMemo(
-    () => (selected ? routes.filter((r) => r.route === selected.route && r.co === selected.co) : []),
-    [routes, selected],
-  )
+  // 方向 / 特別班 chip:GMB 同號跨區嘅其他線唔好撈埋入嚟
+  const variants = useMemo(() => (selected ? routeVariants(routes, selected) : []), [routes, selected])
 
   // 門口顯示模式(kiosk):唔好喺底下繼續 render 成個 app —— 收藏 / 附近會照樣每 5 秒輪詢,
   // 同顯示模式自己嘅輪詢加埋,請求數多三倍。AlertBanners 保留(落車鬧鐘 / 出門提醒照響)。
@@ -290,6 +330,7 @@ export default function App() {
   }
 
   const goHome = () => {
+    openSeq.current++ // 未對好嘅收藏 / 附近唔好之後再彈出嚟
     setSelected(null)
     setTab('search')
     setQuery('')

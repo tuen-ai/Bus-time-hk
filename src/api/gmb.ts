@@ -5,7 +5,7 @@ import { HttpError, fetchJson } from '../lib/http'
 
 const BASE = 'https://data.etagmb.gov.hk'
 
-interface StopRouteEntry {
+export interface StopRouteEntry {
   route_id: number | string
   route_seq: number | string
   route_code?: string
@@ -53,14 +53,35 @@ async function etaStop(stopId: string, timeoutMs?: number) {
   return Array.isArray(data) ? data : (data?.routes ?? [])
 }
 
-/** GMB 指定站 + 路線(route 號 + 方向)嘅到站時間 */
-export async function fetchGmbEta(stopId: string, routeCode: string, bound: 'I' | 'O'): Promise<Eta[]> {
+/** 揀返 stop-route 入面屬於呢條線嘅一行(純函數,test 用) */
+export function matchStopRoute(
+  sr: StopRouteEntry[],
+  routeCode: string,
+  bound: 'I' | 'O',
+  routeId?: string,
+): StopRouteEntry | undefined {
   const targetSeq = bound === 'O' ? 1 : 2
-  const sr = await stopRoutes(stopId)
+  // routeId(= app 嘅 GMB uid / gtfsId)對到就只信佢:同一個站同號嘅唔同線(例如 101M 幾條特別班)
+  // 分得開;方向對唔到 = 呢條線呢個方向唔經呢個站,唔好靜靜雞跳去對面方向
+  const byId = routeId ? sr.filter((e) => String(e.route_id) === routeId) : []
+  if (byId.length) return byId.find((e) => Number(e.route_seq) === targetSeq)
+  // 冇 routeId(舊收藏)/ 對唔到(資料版本唔同):照舊用 route 號
   const codeOf = (e: StopRouteEntry) => String(e.route_code ?? e.route_no ?? '')
-  const match =
+  return (
     sr.find((e) => codeOf(e) === routeCode && Number(e.route_seq) === targetSeq) ??
     sr.find((e) => codeOf(e) === routeCode)
+  )
+}
+
+/** GMB 指定站 + 路線(route 號 + 方向;有 routeId 就用佢分同號線)嘅到站時間 */
+export async function fetchGmbEta(
+  stopId: string,
+  routeCode: string,
+  bound: 'I' | 'O',
+  routeId?: string,
+): Promise<Eta[]> {
+  const sr = await stopRoutes(stopId)
+  const match = matchStopRoute(sr, routeCode, bound, routeId)
   if (!match) return []
 
   // 唔好 catch:斷線要交返 EtaPanel / 收藏顯示錯誤,唔好扮「暫無預計班次」
@@ -99,6 +120,7 @@ interface RawEta {
 export interface GmbStopRow {
   routeCode: string
   routeSeq: number // 1=O, 2=I
+  routeId: string // etagmb route_id = app GMB uid(同號跨區分得開)
   minsList: number[] // 下一班、下下班…(分鐘)
 }
 
@@ -126,7 +148,7 @@ export async function fetchGmbStopAll(stopId: string): Promise<GmbStopRow[]> {
       .filter((m): m is number => m != null && m > -2)
       .sort((a, b) => a - b)
     if (!minsList.length) continue
-    out.push({ routeCode: code, routeSeq: Number(r.route_seq), minsList })
+    out.push({ routeCode: code, routeSeq: Number(r.route_seq), routeId: String(match.route_id), minsList })
   }
   return out
 }

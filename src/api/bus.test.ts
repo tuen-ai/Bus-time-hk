@@ -213,6 +213,15 @@ describe('pickRoute / pickRouteAtStop / routeVariants', () => {
     expect(pickRoute(idx, { ...key, route: '2' })).toBeUndefined()
   })
 
+  it('uid 喺同 key 冇 → 搵同號同方向其他班次(附近 tab 綠van serviceType 一律當 1)', async () => {
+    expect(pickRoute(idx, { ...key, uid: 'C' })).toBe(C_O)
+    expect(await pickRouteAtStop(idx, { ...key, uid: 'C', stopId: 'x' })).toBe(C_O)
+    // 方向唔啱唔好亂開:C 冇回程 → 退返同 key 嘅目的地 tiebreak
+    expect(pickRoute(idx, { ...key, bound: 'I', uid: 'C', dest: '西貢' })).toBe(B_I)
+    // 其他號碼同 uid 都唔會撈錯
+    expect(pickRoute(idx, { ...key, route: '2', uid: 'C' })).toBeUndefined()
+  })
+
   it('嶼巴舊收藏:同方向搵唔到就試相反方向', () => {
     const nlbI = R({ co: 'nlb', route: '3M', bound: 'I', service_type: '2', dest_tc: '梅窩碼頭' })
     expect(pickRoute(indexRoutes([nlbI]), { co: 'nlb', route: '3M', bound: 'O', serviceType: '2' })).toBe(

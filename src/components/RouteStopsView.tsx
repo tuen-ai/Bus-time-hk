@@ -190,6 +190,8 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
     stopId: row.stopId,
     stopName: row.name,
     dest: route.dest_tc,
+    // 同號跨區綠van / 嶼巴變體:記住係邊條,之後開返 / 攞 ETA 唔使靠目的地估
+    uid: route.uid,
   })
 
   // 換方向 / 班次:帶埋而家打開緊嘅站過去
@@ -293,7 +295,14 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
           </button>
         </div>
       )}
-      {!loading && !error && stops.length === 0 && <div className="muted pad">暫時未有呢條線嘅車站資料</div>}
+      {!loading && !error && stops.length === 0 && (
+        <div className="muted pad">
+          暫時攞唔到呢條線嘅車站資料{' '}
+          <button type="button" className="preset-chip" style={CHIP44_STYLE} onClick={retry}>
+            重試
+          </button>
+        </div>
+      )}
 
       {!loading && mapStops.length > 0 && <TrafficAlert stops={mapStops} />}
 

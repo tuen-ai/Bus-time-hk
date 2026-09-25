@@ -46,4 +46,22 @@ describe('usage.suggest', () => {
     rec('1A', new Date(2026, 8, 9, 8, 30), 'S3')
     expect(suggest(MON_0830)[0].stopId).toBe('S3')
   })
+
+  it('同號唔同 uid(綠van 跨區 / 嶼巴變體)分開計,uid 帶埋出嚟', () => {
+    const gmb = (uid: string | undefined, at: Date) => {
+      vi.setSystemTime(at)
+      recordUse({ co: 'gmb', route: '1', bound: 'O', serviceType: '1', uid, stopId: `S-${uid}` })
+    }
+    gmb('A', MON_0830)
+    gmb('A', new Date(2026, 8, 8, 8, 30))
+    gmb('A', new Date(2026, 8, 9, 8, 30))
+    gmb('B', new Date(2026, 8, 8, 8, 40))
+    gmb('B', new Date(2026, 8, 9, 8, 40))
+    gmb(undefined, new Date(2026, 8, 9, 8, 45)) // 舊記錄冇 uid:自己一組,得一次唔推
+    const s = suggest(MON_0830)
+    expect(s.map((x) => [x.uid, x.hits, x.stopId])).toEqual([
+      ['A', 3, 'S-A'],
+      ['B', 2, 'S-B'],
+    ])
+  })
 })

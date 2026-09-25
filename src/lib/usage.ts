@@ -7,6 +7,7 @@ export interface UseEntry {
   route: string
   bound: string
   serviceType: string
+  uid?: string // GMB gtfsId / 嶼巴 nlbUid:同 key 多條時分得開
   stopId?: string
   dow: number // 0-6
   hour: number // 0-23(連分鐘化做小數,e.g. 8.5)
@@ -52,6 +53,7 @@ export interface Suggestion {
   route: string
   bound: string
   serviceType: string
+  uid?: string
   stopId?: string
   score: number
   hits: number
@@ -70,7 +72,8 @@ export function suggest(now = new Date()): Suggestion[] {
     // 半年前嘅嘢權重趨零
     const age = (Date.now() - e.ts) / (180 * 24 * 3600 * 1000)
     const w = Math.max(0, 1 - age)
-    const k = `${e.co}|${e.route}|${e.bound}|${e.serviceType}`
+    // uid 都入 key:同號唔同區嘅綠van / 嶼巴變體唔好撈埋一齊計
+    const k = `${e.co}|${e.route}|${e.bound}|${e.serviceType}|${e.uid ?? ''}`
     const g = groups.get(k)
     if (g) {
       g.score += w
@@ -82,6 +85,7 @@ export function suggest(now = new Date()): Suggestion[] {
         route: e.route,
         bound: e.bound,
         serviceType: e.serviceType,
+        uid: e.uid,
         stopId: e.stopId,
         score: w,
         hits: 1,

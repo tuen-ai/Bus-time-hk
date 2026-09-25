@@ -66,6 +66,8 @@ export interface Favorite {
   stopId: string
   stopName: string
   dest: string
+  // 同 key 多條時分得開(GMB gtfsId / 嶼巴 nlbUid);舊收藏冇,靠 dest + stopId 對返。唔入 favKey,舊星照對到
+  uid?: string
 }
 
 const FAV_KEY = 'kmb.favorites'
@@ -87,7 +89,7 @@ export function isFavorite(f: Favorite): boolean {
   return getFavorites().some((x) => favKey(x) === favKey(f))
 }
 
-/** 收藏次序變咗(排序)→ 通知首頁收藏列表重讀 */
+/** 收藏加減 / 次序變咗 → 通知首頁收藏列表重讀 */
 export const FAVS_CHANGED = 'kkcx:favs-changed'
 
 /** 收藏排序:將第 idx 項上/下移一格(顯示模式 + 首頁同一次序) */
@@ -115,5 +117,7 @@ export function toggleFavorite(f: Favorite): Favorite[] {
   } catch {
     // Safari 私密模式 / 容量滿:仍回傳記憶體版本令 UI 更新
   }
+  // 首頁要知(例如刪咗最後一個收藏 → 轉返大熊貓 hero)
+  window.dispatchEvent(new Event(FAVS_CHANGED))
   return list
 }

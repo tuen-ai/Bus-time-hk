@@ -13,24 +13,13 @@ import { taxiFareEstimate } from '../lib/taxi'
 import { addStamp } from '../lib/stamps'
 import { useBackLayer } from '../hooks/useBackLayer'
 import { usePolling } from '../hooks/usePolling'
+import { CO_COLOR, type RouteKeyLike } from '../api/bus'
 
-const LEG_COLOR: Record<string, string> = {
-  kmb: '#c8102e',
-  ctb: '#0e7490',
-  nlb: '#00857c',
-  gmb: '#167a3a',
-  lightRail: '#7d3c98',
-}
-
-/** planner ride leg → 開返路線頁(實時 ETA)用嘅 key */
-export interface LegRouteKey {
-  co: string
-  route: string
-  bound: 'I' | 'O'
-  serviceType: string
-  boardStopId?: string
-  dest?: string
-}
+/**
+ * planner ride leg → 開返路線頁(實時 ETA)用嘅 key。
+ * Leg 嘅 co / bound / serviceType 已經係 app key(輕鐵 = lrt、城巴循環線拆咗 I/O),唔使再轉
+ */
+export type LegRouteKey = RouteKeyLike & { boardStopId?: string; dest?: string }
 
 interface Props {
   onOpenLeg?: (k: LegRouteKey) => void
@@ -59,7 +48,7 @@ function renderLegs(legs: Leg[], onOpenLeg?: (k: LegRouteKey) => void) {
         <button
           key={i}
           className={`leg-badge ${clickable ? 'tappable' : ''}`}
-          style={{ background: LEG_COLOR[l.co ?? ''] ?? '#666' }}
+          style={{ background: l.co ? CO_COLOR[l.co] : '#666' }}
           disabled={!clickable}
           title={clickable ? '撳一下睇實時到站' : undefined}
           onClick={() =>
@@ -145,7 +134,8 @@ export default function PlannerView({ onOpenLeg, initialDest }: Props) {
 
   const coordsOf = async (e: Endpoint): Promise<{ lat: number; lng: number } | null> => {
     if (e === 'mylocation') {
-      const p = await getPosition()
+      // 「我的位置」要新鮮:最多接受 1 分鐘前嘅定位(預設 10 分鐘,行咗一段路就會錯起點)
+      const p = await getPosition({ maxAgeMs: 60_000 })
       return { lat: p.coords.latitude, lng: p.coords.longitude }
     }
     if (e) return { lat: e.lat, lng: e.lng }

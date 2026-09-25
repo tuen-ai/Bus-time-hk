@@ -266,6 +266,21 @@ describe('nearbyBuses', () => {
     vi.mocked(fetchGmbStopAll).mockRejectedValue(new TypeError('Failed to fetch'))
     await expect(nearbyBuses(22.34, 114.17, 'gmb')).rejects.toBeInstanceOf(NearbyError)
   })
+  it('GMB 行帶 etagmb route_id 做 uid(開路線頁對返同號跨區 / 特別班嗰條)', async () => {
+    const ix = {
+      graph: { stops: { G1: [0, 0, '小巴站'] } },
+      routeByIdx: [{ co: 'gmb', r: '11', b: 'I', d: '旺角' }],
+      stopRoutes: new Map([['G1', [{ ri: 0, seq: 1 }]]]),
+      grid: new Map(),
+    } as unknown as Indexed
+    vi.mocked(loadGraph).mockResolvedValue(ix)
+    vi.mocked(nearStops).mockReturnValue([{ id: 'G1', dist: 50 }] as ReturnType<typeof nearStops>)
+    vi.mocked(fetchGmbStopAll).mockResolvedValue([
+      { routeCode: '11', routeSeq: 2, routeId: '2004825', minsList: [4, 12] },
+    ])
+    const [r] = await nearbyBuses(22.33, 114.17, 'gmb')
+    expect(r).toMatchObject({ co: 'gmb', route: '11', dir: 'I', dest: '旺角', uid: '2004825', mins: [4, 12] })
+  })
   it('API 層吞咗錯誤變空結果,但部機明明離線 → 都當失敗', async () => {
     const ix = {
       graph: { stops: { G1: [0, 0, '小巴站'] } },

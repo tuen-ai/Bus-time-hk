@@ -122,14 +122,31 @@ function byDest(cands: Route[], dest?: string): Route | undefined {
   )
 }
 
+/**
+ * uid 對到嘅嗰條:先喺同 key 搵;搵唔到再睇同號同方向其他班次 ——
+ * 附近 tab 嘅綠van serviceType 一律當 '1',但 uid(etagmb route_id)先係真,特別班都要開得到
+ */
+function byUid(index: Map<string, Route[]>, cands: Route[], q: RouteQuery): Route | undefined {
+  if (!q.uid) return undefined
+  const hit = cands.find((x) => x.uid === q.uid)
+  if (hit) return hit
+  const pre = `${q.co}|${q.route}|${q.bound}|`
+  for (const [k, rs] of index) {
+    if (!k.startsWith(pre)) continue
+    const r = rs.find((x) => x.uid === q.uid)
+    if (r) return r
+  }
+  return undefined
+}
+
 /** 同步版:uid 啱就用;否則目的地 tiebreak;都唔得就清單第一條 */
 export function pickRoute(index: Map<string, Route[]>, q: RouteQuery): Route | undefined {
   const cands = candidatesOf(index, q)
-  return (q.uid ? cands.find((x) => x.uid === q.uid) : undefined) ?? byDest(cands, q.dest)
+  return byUid(index, cands, q) ?? byDest(cands, q.dest)
 }
 
 /**
- * 同 pickRoute,但 GMB / 嶼巴同號多條又冇 uid(舊收藏、附近)時,
+ * 同 pickRoute,但 GMB / 嶼巴同號多條又冇 uid(舊收藏、規劃 leg)時,
  * 再睇邊條真係經過 stopId(兩間都係靜態站序,唔使上網)。
  */
 export async function pickRouteAtStop(
@@ -137,7 +154,7 @@ export async function pickRouteAtStop(
   q: RouteQuery & { stopId?: string },
 ): Promise<Route | undefined> {
   const cands = candidatesOf(index, q)
-  const hit = q.uid ? cands.find((x) => x.uid === q.uid) : undefined
+  const hit = byUid(index, cands, q)
   if (hit) return hit
   const { stopId } = q
   if (cands.length > 1 && stopId && (q.co === 'gmb' || q.co === 'nlb')) {
@@ -305,16 +322,6 @@ async function fetchAllFresh(): Promise<{ all: Route[]; miss: Co[] }> {
   return { all, miss }
 }
 
-// ---- GMB:uid 跨組過渡 ----
-// GMB uid(gtfsId)就係 etagmb 嘅 route_id(同一條線 O / I 共用):fetchGmbEta 有 routeId
-// 先分得開同一個站、同號嘅唔同線(例如 101M 幾條特別班)。未加呢個參數之前會被忽略,行為同以前一樣。
-const gmbEtaOf = fetchGmbEta as (
-  stopId: string,
-  routeCode: string,
-  bound: 'I' | 'O',
-  routeId?: string,
-) => Promise<Eta[]>
-
 // ---- 路線站序 + 站名/座標 ----
 export async function getRouteStops(r: Route): Promise<RouteStopInfo[]> {
   if (r.co === 'lrt') {
@@ -373,7 +380,8 @@ export async function getEta(r: Route, stopId: string): Promise<Eta[]> {
     return ctb.fetchCtbEta(stopId, r.route, r.bound)
   }
   if (r.co === 'gmb') {
-    return gmbEtaOf(stopId, r.route, r.bound, r.uid)
+    // GMB uid(gtfsId)就係 etagmb 嘅 route_id(O / I 共用):同一個站同號嘅唔同線(例如 101M 特別班)靠佢分
+    return fetchGmbEta(stopId, r.route, r.bound, r.uid)
   }
   if (r.co === 'nlb') {
     const id = nlbRouteId(r, stopId)

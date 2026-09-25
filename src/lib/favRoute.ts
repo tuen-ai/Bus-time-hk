@@ -10,6 +10,8 @@ export const favToRoute = (f: Favorite): Route => ({
   service_type: f.serviceType,
   orig_tc: '',
   dest_tc: f.dest,
+  // 新收藏有 uid:getEta 直接用返嗰條 GMB routeId / 嶼巴變體;舊收藏冇就靠 dest + stopId
+  uid: f.uid,
 })
 
 /** ETA 列表 → 未來幾班嘅分鐘數(由細到大;冇時間嘅班次唔計;已過超過 1 分鐘嘅都唔計) */

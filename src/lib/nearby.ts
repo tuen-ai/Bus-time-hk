@@ -34,6 +34,7 @@ export interface NearbyRow {
   stopName: string
   dist: number
   mins: number[] // 下一班、下下一班…(最多 3 班)
+  uid?: string // 綠van:etagmb route_id(= app GMB uid),開路線頁對返同號跨區 / 特別班嗰條
 }
 
 const KMB_STOPS = 8
@@ -242,6 +243,7 @@ async function nearbyGmb(lat: number, lng: number): Promise<NearbyRow[]> {
           stopName: st.name,
           dist: st.dist,
           mins: g.minsList,
+          uid: g.routeId,
         }
       })
     }),
