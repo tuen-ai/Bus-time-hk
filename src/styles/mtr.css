@@ -88,10 +88,26 @@
   margin-bottom: 10px;
 }
 .mtr-dir-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   font-weight: 400;
   color: var(--muted);
   border-left: 4px solid;
   padding-left: 8px;
+}
+/* ☆ 收藏方向:44×44 撳位(.star 喺 route.css),貼住右邊;上下負 margin 唔好將方向標題撐到好高 */
+.mtr-dir-head .mtr-star {
+  margin: -6px 0;
+}
+/* 港鐵收藏滿咗:講清楚點解撳 ☆ 冇反應(role=status,空嘅時候唔佔位) */
+.mtr-star-note {
+  font-size: var(--fs-sm);
+  color: var(--accent-text);
+}
+.mtr-star-note:not(:empty) {
+  margin: 2px 0 8px;
 }
 .mtr-dest {
   font-weight: 400;

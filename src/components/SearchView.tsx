@@ -12,10 +12,12 @@ import {
   type Route,
 } from '../api/bus'
 import { FAVS_CHANGED, getFavorites, type Favorite } from '../lib/store'
+import { getMtrFavs, MTRFAVS_CHANGED } from '../lib/mtrFavs'
 import { routeBadges } from '../lib/routeMeta'
 import { getStamps, unlocked } from '../lib/stamps'
 import { resultKeys, routeIdentity, searchRoutes } from '../lib/search'
 import Favorites from './Favorites'
+import MtrFavorites from './MtrFavorites'
 import SmartSuggest from './SmartSuggest'
 import StampCard from './StampCard'
 import { BearFace, MascotState, MascotWelcome, PandaFace } from './Mascots'
@@ -27,6 +29,8 @@ interface Props {
   onRetry: () => void
   onOpen: (r: Route, stopId?: string) => void
   onOpenFavorite: (f: Favorite) => void
+  /** 首頁港鐵收藏 → 開鐵路頁嗰條綫 + 嗰個站 */
+  onOpenMtr: (line: string, sta: string) => void
   query: string
   onQuery: (q: string) => void
   coFilter: Co | 'all'
@@ -45,7 +49,8 @@ function emptyText(query: string): string {
   return `搵唔到「${query}」。可以打路線號(38、42C)、加營辦商(九巴38),或者打目的地(尖沙咀)~`
 }
 
-const hasFavorites = () => getFavorites().length > 0
+// 港鐵收藏都算收藏:有任何一種就用熟客排法(收藏排最前)
+const hasFavorites = () => getFavorites().length > 0 || getMtrFavs().length > 0
 
 /** 有收藏嘅熟客:細公仔 + 一句問候,唔好用成個大 hero 將收藏迫落去 */
 function HomeGreeting() {
@@ -76,6 +81,7 @@ export default function SearchView({
   onRetry,
   onOpen,
   onOpenFavorite,
+  onOpenMtr,
   query,
   onQuery,
   coFilter,
@@ -100,9 +106,11 @@ export default function SearchView({
   useEffect(() => {
     const onChange = () => setHasFavs(hasFavorites())
     window.addEventListener(FAVS_CHANGED, onChange)
+    window.addEventListener(MTRFAVS_CHANGED, onChange)
     window.addEventListener('storage', onChange)
     return () => {
       window.removeEventListener(FAVS_CHANGED, onChange)
+      window.removeEventListener(MTRFAVS_CHANGED, onChange)
       window.removeEventListener('storage', onChange)
     }
   }, [])
@@ -185,6 +193,8 @@ export default function SearchView({
       {/* 有收藏:細問候 + 收藏排最前;新用戶先見大公仔 hero */}
       {home && hasFavs && <HomeGreeting />}
       {favsOn && hasFavs && <Favorites onOpen={onOpenFavorite} />}
+      {/* 港鐵收藏緊貼巴士收藏;唔使等巴士路線清單 */}
+      {favsOn && hasFavs && <MtrFavorites onOpen={onOpenMtr} />}
       {home && <SmartSuggest routes={routes} onOpen={onOpen} />}
       {home && !hasFavs && <MascotWelcome title="今日去邊度呢? 💕" sub="輸入路線號碼,即刻睇到站時間~" />}
       {favsOn && !hasFavs && <Favorites onOpen={onOpenFavorite} />}

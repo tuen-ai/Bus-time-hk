@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { MapContainer, TileLayer, Polyline, CircleMarker, useMap } from 'react-leaflet'
 import type { LatLngBoundsExpression } from 'leaflet'
 import { MTR_LINES, getLine } from '../lib/mtrData'
 import { TILE_URL, TILE_ATTRIB, TOUCH_MAP_HINT, isTouchMap } from '../lib/mapConfig'
-import { prefersReducedMotion } from '../lib/motion'
+import { prefersReducedMotion, scrollBehavior } from '../lib/motion'
+import { getMtrLast, setMtrLast, type MtrLast } from '../lib/mtrFavs'
 import { useWheelZoomOnFocus } from '../hooks/useWheelZoomOnFocus'
 import MtrSchedulePanel from './MtrSchedulePanel'
 
@@ -27,9 +28,30 @@ function MapFocus({
   return null
 }
 
+/** 開頁:用返上次揀嘅綫 / 站(首頁港鐵收藏撳入嚟都係經呢度);冇就預設荃灣綫 */
+const restoreLast = (): MtrLast => getMtrLast() ?? { line: 'TWL', sta: null }
+
 export default function MtrView() {
-  const [lineCode, setLineCode] = useState('TWL')
-  const [station, setStation] = useState<string | null>(null)
+  const [init] = useState(restoreLast)
+  const [lineCode, setLineCode] = useState(init.line)
+  const [station, setStation] = useState<string | null>(init.sta)
+  // 換綫 / 開站就記低,下次入嚟唔使由頭揀
+  useEffect(() => setMtrLast({ line: lineCode, sta: station }), [lineCode, station])
+
+  // 一入嚟有站打開咗:捲到嗰個站(只捲呢一次,之後用家自己撳唔會再捲)。
+  // 焦點跌咗落 body(即係由首頁收藏卡撳入嚟,張卡已經冇咗)先將焦點放上個站,撳 tab 入嚟唔搶焦點
+  const listRef = useRef<HTMLOListElement>(null)
+  useEffect(() => {
+    if (!init.sta) return
+    const raf = requestAnimationFrame(() => {
+      const btn = listRef.current?.querySelector<HTMLElement>(`[data-sta="${init.sta}"] .stop-main`)
+      if (!btn) return
+      const a = document.activeElement
+      if (!a || a === document.body) btn.focus({ preventScroll: true })
+      btn.scrollIntoView?.({ block: 'center', behavior: scrollBehavior() })
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [init])
   // 觸控機:一隻手指捲頁,兩隻手指先郁地圖(唔好一掃就被地圖食咗);MapContainer 只睇第一次 render
   const [touch] = useState(isTouchMap)
 
@@ -107,12 +129,12 @@ export default function MtrView() {
       )}
 
       {/* 車站列表 */}
-      <ol className="stop-list">
+      <ol className="stop-list" ref={listRef}>
         {line.stations.map((s) => {
           const open = s.code === station
           const icLines = s.interchange.map((ic) => getLine(ic)).filter((l) => l != null)
           return (
-            <li key={s.code} className={`stop-item ${open ? 'open' : ''}`}>
+            <li key={s.code} className={`stop-item ${open ? 'open' : ''}`} data-sta={s.code}>
               <button
                 className="stop-main"
                 aria-expanded={open}

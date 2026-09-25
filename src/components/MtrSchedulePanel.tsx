@@ -1,23 +1,50 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchSchedule, type StationSchedule, type TrainArrival } from '../api/mtr'
 import { stationNameTc } from '../lib/mtrData'
+import {
+  getMtrFavs,
+  isMtrFav,
+  MTR_FAVS_MAX,
+  MTRFAVS_CHANGED,
+  toggleMtrFav,
+  ttntLabel,
+  type MtrDir,
+  type MtrFav,
+} from '../lib/mtrFavs'
 import { usePolling } from '../hooks/usePolling'
 import { friendlyError } from '../lib/http'
 
 const REFRESH_MS = 15_000
 
-function ttntLabel(t: number): string {
-  if (t <= 0) return '即將抵達'
-  return `${t} 分鐘`
-}
-
-function Direction({ trains, color }: { trains: TrainArrival[]; color: string }) {
+function Direction({
+  trains,
+  color,
+  starred,
+  onStar,
+}: {
+  trains: TrainArrival[]
+  color: string
+  starred: boolean
+  onStar: () => void
+}) {
   if (trains.length === 0) return null
   const dest = stationNameTc[trains[0].dest] ?? trains[0].dest
   return (
     <div className="mtr-dir">
       <div className="mtr-dir-head" style={{ borderColor: color }}>
-        往 <span className="mtr-dest-name">{dest}</span>
+        <span>
+          往 <span className="mtr-dest-name">{dest}</span>
+        </span>
+        {/* ☆ 收藏呢個方向 → 首頁「港鐵收藏」 */}
+        <button
+          type="button"
+          className={`star mtr-star ${starred ? 'on' : ''}`}
+          aria-pressed={starred}
+          aria-label={`收藏 往${dest} 方向`}
+          onClick={onStar}
+        >
+          <span aria-hidden="true">{starred ? '★' : '☆'}</span>
+        </button>
       </div>
       <ul className="mtr-trains">
         {trains.slice(0, 4).map((t, i) => (
@@ -43,6 +70,29 @@ export default function MtrSchedulePanel({
   const [sched, setSched] = useState<StationSchedule | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // 港鐵收藏(首頁 / 其他站改咗都跟住變)
+  const [favs, setFavs] = useState<MtrFav[]>(getMtrFavs)
+  const [starNote, setStarNote] = useState('')
+  useEffect(() => {
+    const onChange = () => setFavs(getMtrFavs())
+    window.addEventListener(MTRFAVS_CHANGED, onChange)
+    return () => window.removeEventListener(MTRFAVS_CHANGED, onChange)
+  }, [])
+  const dirProps = (dir: MtrDir) => {
+    const f: MtrFav = { line, sta: station, dir }
+    const starred = isMtrFav(f, favs)
+    return {
+      starred,
+      onStar: () => {
+        const next = toggleMtrFav(f)
+        setFavs(next)
+        // 滿咗加唔到:講清楚點解冇反應
+        setStarNote(
+          !starred && !isMtrFav(f, next) ? `港鐵收藏最多 ${MTR_FAVS_MAX} 個,請先喺首頁移除一個` : '',
+        )
+      },
+    }
+  }
 
   // 換站就 abort 舊請求 + 清走舊站班次,免舊站資料蓋過(或者扮做)新站
   const ctrlRef = useRef<AbortController | null>(null)
@@ -50,6 +100,7 @@ export default function MtrSchedulePanel({
     setLoading(true)
     setSched(null)
     setError(null)
+    setStarNote('')
     return () => ctrlRef.current?.abort()
   }, [line, station])
 
@@ -119,8 +170,11 @@ export default function MtrSchedulePanel({
         </div>
       )}
       {empty && <div className="muted pad">此站暫無班次(可能為總站方向)</div>}
-      <Direction trains={sched.up} color={color} />
-      <Direction trains={sched.down} color={color} />
+      <Direction trains={sched.up} color={color} {...dirProps('UP')} />
+      <Direction trains={sched.down} color={color} {...dirProps('DOWN')} />
+      <div className="mtr-star-note" role="status">
+        {starNote}
+      </div>
       <div className="eta-updated muted">每 15 秒自動刷新 · 資料 © 港鐵公司 / data.gov.hk</div>
     </div>
   )

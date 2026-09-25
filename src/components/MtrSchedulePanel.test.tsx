@@ -1,6 +1,7 @@
-import { act, cleanup, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StationSchedule } from '../api/mtr'
+import { getMtrFavs, MTRFAVS_CHANGED, toggleMtrFav } from '../lib/mtrFavs'
 import MtrSchedulePanel from './MtrSchedulePanel'
 
 const fetchSchedule = vi.fn<() => Promise<StationSchedule>>()
@@ -74,5 +75,54 @@ describe('MtrSchedulePanel', () => {
     const err = document.querySelector('.error')
     expect(err?.textContent).toContain('網絡太慢')
     expect(err?.textContent).not.toMatch(/timed out/)
+  })
+
+  describe('☆ 收藏方向', () => {
+    beforeEach(() => localStorage.clear())
+    afterEach(() => localStorage.clear())
+    const BOTH: StationSchedule = {
+      ...SCHED,
+      up: [{ dest: 'TSW', plat: '1', ttnt: 3, time: '', seq: 1 }],
+      down: [{ dest: 'CEN', plat: '2', ttnt: 5, time: '', seq: 1 }],
+    }
+
+    it('每個方向一粒 toggle(aria-pressed + 講明方向),撳咗入收藏,再撳移除', async () => {
+      fetchSchedule.mockResolvedValue(BOTH)
+      render(<MtrSchedulePanel line="TWL" station="TST" color="#e2231a" />)
+      await flush()
+      const up = screen.getByRole('button', { name: '收藏 往荃灣 方向' })
+      const down = screen.getByRole('button', { name: '收藏 往中環 方向' })
+      expect(up.getAttribute('aria-pressed')).toBe('false')
+
+      fireEvent.click(down)
+      expect(down.getAttribute('aria-pressed')).toBe('true')
+      expect(down.textContent).toBe('★')
+      expect(up.getAttribute('aria-pressed')).toBe('false')
+      expect(getMtrFavs()).toEqual([{ line: 'TWL', sta: 'TST', dir: 'DOWN' }])
+
+      fireEvent.click(down)
+      expect(down.getAttribute('aria-pressed')).toBe('false')
+      expect(getMtrFavs()).toEqual([])
+    })
+
+    it('首頁移除咗 → 星跟住變;滿咗撳 ☆ 會講點解加唔到', async () => {
+      fetchSchedule.mockResolvedValue(BOTH)
+      render(<MtrSchedulePanel line="TWL" station="TST" color="#e2231a" />)
+      await flush()
+      const up = screen.getByRole('button', { name: '收藏 往荃灣 方向' })
+      fireEvent.click(up)
+      act(() => {
+        toggleMtrFav({ line: 'TWL', sta: 'TST', dir: 'UP' }) // 例如首頁卡撳 ★
+      })
+      expect(up.getAttribute('aria-pressed')).toBe('false')
+
+      act(() => {
+        for (const sta of ['CEN', 'ADM', 'MOK', 'TSW']) toggleMtrFav({ line: 'TWL', sta, dir: 'UP' })
+        window.dispatchEvent(new Event(MTRFAVS_CHANGED))
+      })
+      fireEvent.click(up)
+      expect(up.getAttribute('aria-pressed')).toBe('false')
+      expect(screen.getByRole('status').textContent).toContain('最多 4 個')
+    })
   })
 })

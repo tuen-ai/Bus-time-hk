@@ -18,6 +18,20 @@ describe('backup', () => {
     expect(localStorage.getItem('bus.routes')).toBeNull()
   })
 
+  it('港鐵收藏同上次揀嘅綫 / 站都入備份', () => {
+    localStorage.setItem('kkcx.mtrFavs', '[{"line":"TWL","sta":"TST","dir":"UP"}]')
+    localStorage.setItem('kkcx.mtr.last', '{"line":"ISL","sta":"CEN"}')
+    const json = makeBackup()
+    expect(JSON.parse(json).data).toEqual({
+      'kkcx.mtrFavs': '[{"line":"TWL","sta":"TST","dir":"UP"}]',
+      'kkcx.mtr.last': '{"line":"ISL","sta":"CEN"}',
+    })
+    localStorage.clear()
+    expect(importBackup(json)).toBe(2)
+    expect(localStorage.getItem('kkcx.mtrFavs')).toBe('[{"line":"TWL","sta":"TST","dir":"UP"}]')
+    expect(localStorage.getItem('kkcx.mtr.last')).toBe('{"line":"ISL","sta":"CEN"}')
+  })
+
   it('唔係本 app 嘅檔 / 冇資料 → 拋錯', () => {
     expect(() => importBackup('{"app":"other","data":{}}')).toThrow()
     expect(() => importBackup('{"app":"kkcx","data":{"evil.key":"x"}}')).toThrow('冇資料')

@@ -20,6 +20,7 @@ import { loadGraph } from './lib/planGraph'
 import { friendlyError } from './lib/http'
 import { lazyRetry } from './lib/lazyRetry'
 import { lsDel, lsGet, lsSet } from './lib/ls'
+import { setMtrLast } from './lib/mtrFavs'
 import { routeIdentity } from './lib/search'
 import type { NearbyRow } from './lib/nearby'
 import type { Favorite } from './lib/store'
@@ -157,6 +158,14 @@ export default function App() {
     setPlanDest(t)
     setSelected(null)
     setTab('plan')
+  }
+
+  // 首頁港鐵收藏 → 鐵路頁嗰條綫 + 嗰個站。MtrView 每次入 tab 都重新 mount、開頭讀 kkcx.mtr.last,
+  // 所以先寫低再轉 tab 就得,唔使多一個 state
+  const openMtr = (line: string, sta: string) => {
+    setMtrLast({ line, sta })
+    setSelected(null)
+    setTab('mtr')
   }
 
   // 收藏 / 附近 / 規劃 leg 要 async 對返路線:每次開線加一,遲返嘅舊結果唔好蓋過用家之後撳嘅嘢
@@ -424,6 +433,7 @@ export default function App() {
               onRetry={loadRoutes}
               onOpen={openFromSearch}
               onOpenFavorite={openFavorite}
+              onOpenMtr={openMtr}
               query={query}
               onQuery={setQuery}
               coFilter={coFilter}

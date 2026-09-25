@@ -8,6 +8,8 @@ const BACKUP_KEYS = [
   'kkcx.stamps',
   'kkcx.quote', // 是日金句偏好
   'kkcx.nearby.co', // 附近預設營辦商
+  'kkcx.mtrFavs', // 港鐵收藏(綫 + 站 + 方向)
+  'kkcx.mtr.last', // 鐵路頁上次揀嘅綫 / 站
 ] as const
 
 interface BackupFile {
