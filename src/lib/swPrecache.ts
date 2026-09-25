@@ -8,8 +8,11 @@ export interface BuiltFile {
   size: number
 }
 
-/** 大過呢個 size 嘅 chunk(planGraph 規劃圖 ~2.3MB)唔預載:用到先 cache,之後跨版本帶過去 */
+/** 大過呢個 size 嘅 chunk 唔預載:用到先 cache,之後跨版本帶過去 */
 export const PRECACHE_MAX_BYTES = 1_000_000
+
+/** 點都唔預載(就算將來縮細咗):規劃圖只係撳「規劃」先要,唔好第一次開 app 就喺背景下載 */
+export const NEVER_PRECACHE = /\/planGraph-[^/]*\.js$/
 
 export interface SwLists {
   /** install 時一定要攞齊:外殼('./' = index.html)+ public 檔 + 今次 build 嘅 JS/CSS */
@@ -26,7 +29,7 @@ export function precacheLists(
 ): SwLists {
   const hashed = files.filter((f) => f.fileName.startsWith('assets/'))
   const code = hashed
-    .filter((f) => /\.(js|css)$/.test(f.fileName) && f.size <= maxBytes)
+    .filter((f) => /\.(js|css)$/.test(f.fileName) && f.size <= maxBytes && !NEVER_PRECACHE.test(f.fileName))
     .map((f) => `./${f.fileName}`)
     .sort()
   return {

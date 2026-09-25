@@ -41,10 +41,11 @@ describe('precacheLists', () => {
     ])
   })
 
-  it('size 門檻可以調', () => {
+  it('size 門檻可以調,但規劃圖點都唔預載', () => {
     expect(PRECACHE_MAX_BYTES).toBeLessThan(2_263_557)
     const { precache } = precacheLists(files, [], 3_000_000)
-    expect(precache).toContain('./assets/planGraph-PG.js')
+    // 規劃圖點都唔預載(就算上限放寬 / 將來縮細咗)
+    expect(precache).not.toContain('./assets/planGraph-PG.js')
   })
 })
 
