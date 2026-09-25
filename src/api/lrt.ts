@@ -1,6 +1,8 @@
 // 輕鐵 (MTR Light Rail) 即時下一班 Next Train API
 // 文件: https://opendata.mtr.com.hk/doc/LR_Next_Train_API_Spec_v1.1.pdf
 // endpoint: getSchedule?station_id={純數字}&with_special=1,免 key、CORS。
+import { fetchJson } from '../lib/http'
+
 const BASE = 'https://rt.data.gov.hk/v1/transport/mtr/lrt/getSchedule'
 
 export interface LrTrain {
@@ -35,9 +37,7 @@ function parseMins(t: string | undefined): number {
 
 /** 取得一個輕鐵站所有月台、所有路綫嘅下一班 */
 export async function fetchLrtSchedule(stationId: number): Promise<LrTrain[]> {
-  const res = await fetch(`${BASE}?station_id=${stationId}&with_special=1`)
-  if (!res.ok) throw new Error(`LRT ${res.status}`)
-  const json = (await res.json()) as RawResp
+  const json = await fetchJson<RawResp>(`${BASE}?station_id=${stationId}&with_special=1`)
   if (json.status === 0) return []
   const out: LrTrain[] = []
   for (const p of json.platform_list ?? []) {

@@ -2,6 +2,8 @@
 // 文件: https://data.gov.hk/tc-data/dataset/mtr-data2-nexttrain-data
 // endpoint: getSchedule.php?line={LINE}&sta={STATION}&lang=tc
 // 免 key、免費、支援 CORS。
+import { fetchJson } from '../lib/http'
+
 const BASE = 'https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php'
 
 export interface TrainArrival {
@@ -59,12 +61,11 @@ export async function fetchSchedule(
   station: string,
   signal?: AbortSignal,
 ): Promise<StationSchedule> {
-  const res = await fetch(
+  // caller 嘅 signal(換站 abort)同 timeout 並存:一個 hang 住嘅請求唔會令面板永遠「載入班次…」
+  const json = await fetchJson<RawResp>(
     `${BASE}?line=${encodeURIComponent(line)}&sta=${encodeURIComponent(station)}&lang=tc`,
     { signal },
   )
-  if (!res.ok) throw new Error(`MTR ${res.status}`)
-  const json = (await res.json()) as RawResp
   // status: 1=正常, 0=特別車務安排, 其他(負/undefined)=錯誤
   if (json.status === 0) {
     return {

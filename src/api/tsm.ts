@@ -1,6 +1,8 @@
 // 運輸署「策略性/主要道路交通數據」(TSM):路段實時車速/飽和度。
 // 路段幾何 + 實時 XML URL:build-time bake 落 ./tsm/(缺檔 = 功能自動隱藏)。
 // XML 兼容一代(jtis_speedmap/LINK_ID)同二代(segment/SEGMENT_ID)欄位。
+import { HttpError, fetchJson, fetchWithTimeout } from '../lib/http'
+
 const DEFAULT_LIVE = 'https://resource.data.one.gov.hk/td/speedmap.xml'
 
 export type TsmLevel = 'good' | 'avg' | 'bad'
@@ -21,23 +23,23 @@ type Links = Record<string, [number, number][]>
 
 let bakeCache: Promise<{ links: Links; live: string } | null> | null = null
 
-/** bake 檔(same-origin;404/冇 bake → null = 隱藏路況圖) */
+/** bake 檔(same-origin;404/冇 bake → null = 隱藏路況圖;斷線/逾時 → 今次 null,下次再試) */
 function loadBaked(): Promise<{ links: Links; live: string } | null> {
   if (!bakeCache) {
     bakeCache = (async () => {
       try {
-        const r = await fetch('./tsm/links.json')
-        if (!r.ok) return null
-        const links = (await r.json()) as Links
+        const links = await fetchJson<Links>('./tsm/links.json')
         let live = DEFAULT_LIVE
         try {
-          const m = await fetch('./tsm/meta.json')
-          if (m.ok) live = ((await m.json()) as { live?: string }).live ?? DEFAULT_LIVE
+          live = (await fetchJson<{ live?: string }>('./tsm/meta.json')).live ?? DEFAULT_LIVE
         } catch {
           /* 用預設 */
         }
         return { links, live }
-      } catch {
+      } catch (e) {
+        // 404 / 壞 JSON = 冇 bake,記住唔再試;斷線(TypeError)/ 逾時唔好記死,下個 tick 重試
+        const transient = e instanceof TypeError || (e as { name?: string } | null)?.name === 'TimeoutError'
+        if (transient) bakeCache = null
         return null
       }
     })()
@@ -74,8 +76,8 @@ export async function fetchTsm(): Promise<TsmData | null> {
   const baked = await loadBaked()
   if (!baked) return null
   try {
-    const res = await fetch(baked.live, { signal: AbortSignal.timeout(15000) })
-    if (!res.ok) throw new Error(String(res.status))
+    const res = await fetchWithTimeout(baked.live, { timeoutMs: 15_000 })
+    if (!res.ok) throw new HttpError(res.status, baked.live)
     const doc = new DOMParser().parseFromString(await res.text(), 'application/xml')
     if (doc.getElementsByTagName('parsererror').length) throw new Error('XML 解析失敗')
     // 一代 jtis_speedmap;二代 segment

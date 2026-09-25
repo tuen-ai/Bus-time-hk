@@ -1,6 +1,7 @@
 // KMB / 龍運巴士 (LWB) Open Data API client
 // 文件: https://data.gov.hk/tc-data/dataset/hk-td-tis_21-etakmb
 // API base 無需 API key、支援 CORS,可由 browser 直接呼叫。
+import { fetchJson } from '../lib/http'
 
 const BASE = 'https://data.etabus.gov.hk/v1/transport/kmb'
 
@@ -59,25 +60,25 @@ interface ApiEnvelope<T> {
   data: T
 }
 
-async function get<T>(path: string): Promise<ApiEnvelope<T>> {
-  // 加 timeout,避免某個請求 hang 住令 Promise.all 永遠唔返(如「附近」卡住)
-  const res = await fetch(`${BASE}${path}`, { signal: AbortSignal.timeout(20000) })
-  if (!res.ok) {
-    throw new Error(`API 錯誤 (${res.status}): ${path}`)
-  }
-  return res.json() as Promise<ApiEnvelope<T>>
+// 加 timeout,避免某個請求 hang 住令 Promise.all 永遠唔返(如「附近」卡住)
+const TIMEOUT_MS = 20_000
+// 全部路線 / 全部站(幾 MB)慢網要耐啲
+const BIG_TIMEOUT_MS = 30_000
+
+function get<T>(path: string, timeoutMs = TIMEOUT_MS): Promise<ApiEnvelope<T>> {
+  return fetchJson<ApiEnvelope<T>>(`${BASE}${path}`, { timeoutMs })
 }
 
 export const dirParam = (bound: 'I' | 'O'): Direction => (bound === 'I' ? 'inbound' : 'outbound')
 
 /** 全部路線清單 */
 export async function fetchRoutes(): Promise<Route[]> {
-  return (await get<Route[]>('/route/')).data
+  return (await get<Route[]>('/route/', BIG_TIMEOUT_MS)).data
 }
 
 /** 全部站點清單(資料量大,建議緩存) */
 export async function fetchStops(): Promise<Stop[]> {
-  return (await get<Stop[]>('/stop')).data
+  return (await get<Stop[]>('/stop', BIG_TIMEOUT_MS)).data
 }
 
 /** 指定路線 / 方向 / 班次 經過嘅站序 */

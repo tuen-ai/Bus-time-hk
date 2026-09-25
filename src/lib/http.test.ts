@@ -42,10 +42,35 @@ describe('fetchWithTimeout', () => {
   })
 })
 
+describe('timeout fallback', () => {
+  it('still times out when AbortSignal.timeout is missing (iOS 15)', async () => {
+    vi.useFakeTimers()
+    const orig = AbortSignal.timeout
+    // @ts-expect-error 模擬舊 Safari
+    AbortSignal.timeout = undefined
+    try {
+      vi.spyOn(globalThis, 'fetch').mockImplementation(
+        (_u, init) =>
+          new Promise((_res, rej) => {
+            const s = (init as RequestInit).signal!
+            s.addEventListener('abort', () => rej(s.reason))
+          }),
+      )
+      const p = fetchWithTimeout('https://x/y', { timeoutMs: 500 })
+      const check = expect(p).rejects.toMatchObject({ name: 'TimeoutError' })
+      await vi.advanceTimersByTimeAsync(600)
+      await check
+    } finally {
+      AbortSignal.timeout = orig
+    }
+  })
+})
+
 describe('friendlyError', () => {
   it('maps errors to Cantonese messages', () => {
     expect(friendlyError(new HttpError(500, 'u'))).toContain('500')
     expect(friendlyError(new DOMException('t', 'TimeoutError'))).toContain('網絡太慢')
     expect(friendlyError(new TypeError('Failed to fetch'))).not.toContain('Failed')
+    expect(friendlyError(new Error('綠van 車站資料載入唔到'))).toBe('綠van 車站資料載入唔到')
   })
 })

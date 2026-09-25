@@ -14,7 +14,7 @@ const LEVEL_COLOR: Record<TsmLevel, string> = {
 }
 const REFRESH_MS = 2 * 60 * 1000
 
-export default function WeatherPanel({ w }: { w: Weather }) {
+export default function WeatherPanel({ w, id }: { w: Weather; id?: string }) {
   const [tsm, setTsm] = useState<TsmData | null | 'loading'>('loading')
   const [news, setNews] = useState<Notice[]>([])
   const [showAllNews, setShowAllNews] = useState(false)
@@ -22,7 +22,9 @@ export default function WeatherPanel({ w }: { w: Weather }) {
   usePolling(() => fetchTsm().then(setTsm), REFRESH_MS)
   useEffect(() => {
     let alive = true
-    fetchTrafficNews().then((n) => alive && setNews(n))
+    fetchTrafficNews()
+      .then((n) => alive && setNews(n))
+      .catch(() => {})
     return () => {
       alive = false
     }
@@ -37,7 +39,7 @@ export default function WeatherPanel({ w }: { w: Weather }) {
   const shownNews = showAllNews ? news : news.slice(0, 4)
 
   return (
-    <div className="wx-panel">
+    <div className="wx-panel" id={id}>
       <div className="wx-stats">
         {w.tempC != null && (
           <div className="wx-stat">
@@ -58,12 +60,19 @@ export default function WeatherPanel({ w }: { w: Weather }) {
       </div>
       {rainTop.length > 1 && (
         <div className="muted small" style={{ margin: '2px 2px 8px' }}>
-          ☔ {rainTop.map(([d, mm]) => `${d} ${mm}mm`).join(' · ')}
+          <span aria-hidden="true">☔ </span>
+          {rainTop.map(([d, mm]) => `${d} ${mm}mm`).join(' · ')}
         </div>
       )}
 
-      <div className="wx-sec">🚦 全港路況(主要道路車速)</div>
-      {tsm === 'loading' && <div className="muted small pad">載入路況…</div>}
+      <div className="wx-sec">
+        <span aria-hidden="true">🚦 </span>全港路況(主要道路車速)
+      </div>
+      {tsm === 'loading' && (
+        <div className="muted small pad" role="status">
+          載入路況…
+        </div>
+      )}
       {tsm === null && (
         <div className="muted small" style={{ margin: '4px 2px 10px' }}>
           路況圖暫時未有資料(下方交通消息仍然有效)。
@@ -95,15 +104,15 @@ export default function WeatherPanel({ w }: { w: Weather }) {
           </div>
           <div className="tsm-legend">
             <span>
-              <i style={{ background: LEVEL_COLOR.good }} />
+              <i aria-hidden="true" style={{ background: LEVEL_COLOR.good }} />
               暢順
             </span>
             <span>
-              <i style={{ background: LEVEL_COLOR.avg }} />
+              <i aria-hidden="true" style={{ background: LEVEL_COLOR.avg }} />
               一般
             </span>
             <span>
-              <i style={{ background: LEVEL_COLOR.bad }} />
+              <i aria-hidden="true" style={{ background: LEVEL_COLOR.bad }} />
               擠塞
             </span>
             <span className="muted small" style={{ marginLeft: 'auto' }}>
@@ -116,7 +125,9 @@ export default function WeatherPanel({ w }: { w: Weather }) {
 
       {news.length > 0 && (
         <>
-          <div className="wx-sec">🚧 特別交通消息({news.length})</div>
+          <div className="wx-sec">
+            <span aria-hidden="true">🚧 </span>特別交通消息({news.length})
+          </div>
           <ul className="wx-news">
             {shownNews.map((n) => (
               <li key={n.id || n.heading}>
@@ -126,7 +137,12 @@ export default function WeatherPanel({ w }: { w: Weather }) {
             ))}
           </ul>
           {news.length > 4 && (
-            <button className="refresh-btn" onClick={() => setShowAllNews((v) => !v)}>
+            <button
+              type="button"
+              className="refresh-btn"
+              aria-expanded={showAllNews}
+              onClick={() => setShowAllNews((v) => !v)}
+            >
               {showAllNews ? '收埋' : `仲有 ${news.length - 4} 條…`}
             </button>
           )}

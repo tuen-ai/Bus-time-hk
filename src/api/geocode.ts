@@ -2,6 +2,8 @@
 // 主來源:香港政府 ALS(als.gov.hk;舊 als.ogcio.gov.hk 已於 2024-07 停用)。
 // 後備:Photon(komoot,專為 type-ahead,免 key、CORS)。
 // (避免用 Nominatim 做 autocomplete —— 其使用條款不允許內建於應用程式自動查詢。)
+import { fetchJson } from '../lib/http'
+
 export interface GeoPlace {
   label: string
   sub?: string
@@ -10,17 +12,20 @@ export interface GeoPlace {
 }
 
 const ALS_HOSTS = ['https://www.als.gov.hk', 'https://www.als.ogcio.gov.hk']
+// type-ahead:慢過 7 秒不如轉後備
+const TIMEOUT_MS = 7000
 
 async function als(q: string): Promise<GeoPlace[]> {
   let lastErr: unknown
   for (const host of ALS_HOSTS) {
     try {
-      const res = await fetch(`${host}/lookup?q=${encodeURIComponent(q)}&n=8`, {
-        headers: { Accept: 'application/json', 'Accept-Language': 'zh-Hant,en' },
-        signal: AbortSignal.timeout(7000),
-      })
-      if (!res.ok) throw new Error(String(res.status))
-      const data = (await res.json()) as { SuggestedAddress?: AlsItem[] }
+      const data = await fetchJson<{ SuggestedAddress?: AlsItem[] }>(
+        `${host}/lookup?q=${encodeURIComponent(q)}&n=8`,
+        {
+          headers: { Accept: 'application/json', 'Accept-Language': 'zh-Hant,en' },
+          timeoutMs: TIMEOUT_MS,
+        },
+      )
       const out: GeoPlace[] = []
       for (const s of data.SuggestedAddress ?? []) {
         const pa = s.Address?.PremisesAddress
@@ -52,14 +57,12 @@ function chiLabel(pa?: AlsPremises): string {
 
 // ---- Photon 後備 ----
 async function photon(q: string): Promise<GeoPlace[]> {
-  const res = await fetch(
-    `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=8&lang=default&bbox=113.8,22.15,114.45,22.56`,
-    { signal: AbortSignal.timeout(7000) },
-  )
-  if (!res.ok) throw new Error(String(res.status))
-  const data = (await res.json()) as {
+  const data = await fetchJson<{
     features?: { geometry: { coordinates: [number, number] }; properties: Record<string, string> }[]
-  }
+  }>(
+    `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=8&lang=default&bbox=113.8,22.15,114.45,22.56`,
+    { timeoutMs: TIMEOUT_MS },
+  )
   return (data.features ?? []).map((f) => {
     const p = f.properties
     const [lng, lat] = f.geometry.coordinates

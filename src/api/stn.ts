@@ -2,6 +2,7 @@
 // feed: resource.data.one.gov.hk/td/tc/specialtrafficnews.xml(XML,免 key)
 // 多數消息只有「地區」無座標 → 只能做地區層級比對。
 import { memoAsync } from '../lib/cache'
+import { HttpError, fetchWithTimeout } from '../lib/http'
 
 const FEED = 'https://resource.data.one.gov.hk/td/tc/specialtrafficnews.xml'
 
@@ -48,16 +49,13 @@ function parse(xml: string): Notice[] {
   })
 }
 
+// 失敗要拋出嚟,memoAsync 先會回上次成功嘅消息(自己 catch 做 [] 會蓋過舊消息 3 分鐘)
+const memoNews = memoAsync(async (): Promise<Notice[]> => {
+  const res = await fetchWithTimeout(FEED, { timeoutMs: 15_000 })
+  if (!res.ok) throw new HttpError(res.status, FEED)
+  return parse(await res.text()).filter((n) => n.detail || n.heading)
+}, TTL)
+
 /** 取得現時生效嘅特別交通消息(3 分鐘快取;路線頁 + 地圖同時要都只 fetch 一次)。
- *  失敗回空陣列(graceful)。 */
-export const fetchTrafficNews: () => Promise<Notice[]> = memoAsync(
-  () =>
-    fetch(FEED, { signal: AbortSignal.timeout(15000) })
-      .then((res) => {
-        if (!res.ok) throw new Error(String(res.status))
-        return res.text()
-      })
-      .then((xml) => parse(xml).filter((n) => n.detail || n.heading))
-      .catch(() => [] as Notice[]),
-  TTL,
-)
+ *  失敗:有舊消息回舊消息,冇就回空陣列(graceful,唔會 reject;空陣列唔會入快取,下次照試)。 */
+export const fetchTrafficNews = (): Promise<Notice[]> => memoNews().catch(() => [])

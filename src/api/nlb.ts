@@ -1,5 +1,7 @@
 // 新大嶼山巴士 (NLB) ETA API
 // base: rt.data.gov.hk/v2/transport/nlb(同 CTB 一個 gateway),免 key、CORS。
+import { fetchJson } from '../lib/http'
+
 const BASE = 'https://rt.data.gov.hk/v2/transport/nlb'
 
 export interface NlbArrival {
@@ -17,9 +19,7 @@ interface RawArr {
 /** 指定 routeId(nlbId)+ stopId 嘅到站時間 */
 export async function fetchNlbEta(routeId: string, stopId: string): Promise<NlbArrival[]> {
   const url = `${BASE}/stop.php?action=estimatedArrivals&routeId=${routeId}&stopId=${stopId}&language=zh`
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`NLB ${res.status}`)
-  const json = (await res.json()) as { estimatedArrivals?: RawArr[] }
+  const json = await fetchJson<{ estimatedArrivals?: RawArr[] }>(url)
   return (json.estimatedArrivals ?? []).map((a) => ({
     // "YYYY-MM-DD HH:mm:ss" 港時,無時區 → 補 +08:00
     eta: a.estimatedArrivalTime
