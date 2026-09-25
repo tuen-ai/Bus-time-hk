@@ -21,9 +21,10 @@ export interface Route {
 
 export interface Stop {
   stop: string
-  name_en: string
+  // name_en / name_sc:API 有,但 store.getStopMap 唔存(慳 IndexedDB)→ app 入面唔好讀
+  name_en?: string
   name_tc: string
-  name_sc: string
+  name_sc?: string
   lat: string
   long: string
 }

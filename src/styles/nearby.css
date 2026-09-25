@@ -1,8 +1,8 @@
 /* 附近巴士 */
 /* ---- Nearby buses ---- */
 .primary-btn {
-  background: var(--red);
-  color: #fff;
+  background: var(--accent-fill);
+  color: var(--on-accent);
   border: none;
   border-radius: var(--radius);
   padding: 14px 28px;
@@ -47,16 +47,7 @@
   content: '';
   flex: 0 0 12px;
 }
-.nearby-cos .co-chip {
-  flex: 0 0 auto;
-  min-height: 44px;
-  white-space: nowrap;
-}
-/* 揀咗唔止靠顏色;讀屏已經有 aria-pressed,剔號唔使讀(舊瀏覽器唔識 / '' 就用第一行) */
-.nearby-cos .co-chip.on::before {
-  content: '✓ ';
-  content: '✓ ' / '';
-}
+/* .nearby-cos 入面嘅 chip:44px 高度、唔斷行、揀咗嘅 ✓ 全部由 search.css .co-chip 負責,呢度唔使再寫 */
 .nearby-relocate {
   flex: 0 0 auto;
   display: inline-flex;
@@ -185,11 +176,11 @@ button.nearby-row:active,
 .nearby-min {
   font-size: 1.5rem;
   font-weight: 800;
-  color: var(--green);
+  color: var(--ok-text);
   font-variant-numeric: tabular-nums;
 }
 .nearby-min.soon {
-  color: var(--soon);
+  color: var(--soon-text);
 }
 .nearby-next {
   font-size: 0.9rem;

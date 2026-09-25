@@ -1,4 +1,5 @@
 // 首頁收藏:所有收藏路線一個 loop 一齊攞 ETA(唔係每張卡各自輪詢),背景分頁自動暫停。
+// 每張卡攞到就即刻出:一條慢線(等緊 timeout,九巴最多 20 秒、其他 12 秒)唔會拖住其他卡。
 // 網絡唔穩:每張卡各自保留上次成功嘅班次最多 5 分鐘(加細提示),從未成功過先顯示錯誤。
 import { useEffect, useRef, useState } from 'react'
 import { FAVS_CHANGED, favKey, getFavorites, toggleFavorite, type Favorite } from '../lib/store'
@@ -13,12 +14,19 @@ const REFRESH_MS = 5_000
 
 type Result = { etas: Eta[] } | { error: string }
 
-/** 每張卡 ageSnapshot 一次(太舊嗰張變返 skeleton / 錯誤);全部冇變就回原本 object,唔使重畫 */
-function ageRows(prev: Record<string, EtaSnapshot>, now: number): Record<string, EtaSnapshot> {
+/**
+ * 每張卡 ageSnapshot 一次(太舊嗰張變返 skeleton / 錯誤),已經唔再收藏嘅卡順手清走;
+ * 全部冇變就回原本 object,唔使重畫
+ */
+function ageRows(
+  prev: Record<string, EtaSnapshot>,
+  now: number,
+  keep: ReadonlySet<string>,
+): Record<string, EtaSnapshot> {
   let changed = false
   const next: Record<string, EtaSnapshot> = {}
   for (const [k, r] of Object.entries(prev)) {
-    const aged = ageSnapshot(r, now)
+    const aged = keep.has(k) ? ageSnapshot(r, now) : null
     if (aged !== r) changed = true
     if (aged) next[k] = aged
   }
@@ -42,26 +50,26 @@ export default function Favorites({ onOpen }: { onOpen: (f: Favorite) => void })
     const seq = ++seqRef.current
     // 背景分頁返嚟 / 斷咗網一排:等緊新資料嗰陣,走咗嘅車唔好照顯示,超過 5 分鐘嘅卡唔再顯示舊班次
     const startedAt = Date.now()
-    setRows((prev) => ageRows(prev, startedAt))
-    const results = await Promise.all(
-      favs.map(async (f): Promise<[string, Result]> => {
+    const keys = new Set(favs.map(favKey))
+    setRows((prev) => ageRows(prev, startedAt, keys))
+    // 每張卡返就即刻更新(唔等 Promise.all 全部返);回傳嘅 promise 等齊先完 → usePolling 唔會疊轉
+    await Promise.all(
+      favs.map(async (f) => {
+        const k = favKey(f)
+        let r: Result
         try {
-          return [favKey(f), { etas: await getEta(favToRoute(f), f.stopId) }]
+          r = { etas: await getEta(favToRoute(f), f.stopId) }
         } catch (e) {
-          return [favKey(f), { error: friendlyError(e) }]
+          r = { error: friendlyError(e) }
         }
+        if (seq !== seqRef.current) return // 已經有新一轉:呢張遲返嘅唔要
+        const now = Date.now()
+        // 失敗嗰張卡用返上次成功嘅班次(keepStale 會去走過咗嘅、超過 5 分鐘就掉);每次都係新 object → 分鐘數照重計
+        setRows((prev) => ({
+          ...prev,
+          [k]: 'etas' in r ? { etas: r.etas, fetchedAt: now, error: null } : keepStale(prev[k], r.error, now),
+        }))
       }),
-    )
-    if (seq !== seqRef.current) return
-    const now = Date.now()
-    // 失敗嗰張卡用返上次成功嘅班次(keepStale 會去走過咗嘅、超過 5 分鐘就掉);每次都係新 object → 分鐘數照重計
-    setRows((prev) =>
-      Object.fromEntries(
-        results.map(([k, r]): [string, EtaSnapshot] => [
-          k,
-          'etas' in r ? { etas: r.etas, fetchedAt: now, error: null } : keepStale(prev[k], r.error, now),
-        ]),
-      ),
     )
   }
   // 收藏清單變咗(加/減)就即刻重攞
@@ -89,7 +97,11 @@ export default function Favorites({ onOpen }: { onOpen: (f: Favorite) => void })
                   </div>
                 </div>
               </button>
-              <button className="star on" aria-label="移除收藏" onClick={() => setFavs(toggleFavorite(f))}>
+              <button
+                className="star on"
+                aria-label={`移除收藏 ${f.route} ${f.stopName}`}
+                onClick={() => setFavs(toggleFavorite(f))}
+              >
                 ★
               </button>
             </div>

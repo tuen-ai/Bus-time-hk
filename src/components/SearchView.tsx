@@ -88,6 +88,8 @@ export default function SearchView({
   const matches = useMemo(() => searchRoutes(routes, dq, coFilter), [routes, dq, coFilter])
   const keys = useMemo(() => resultKeys(matches), [matches])
   const idle = !query && !loading
+  // 收藏唔使等路線清單:清單載緊(慢網 /route/CTB 可以等成 30 秒)都照出
+  const favsOn = !query
   // 啱啱清咗 query 但 dq 仲係舊值 → 唔好喺首頁下面閃返舊結果
   const list = !query && dq ? [] : matches
   // dq 未追上 query 時 matches 仲係上一個字嘅 → 唔好閃「搵唔到」
@@ -182,10 +184,10 @@ export default function SearchView({
 
       {/* 有收藏:細問候 + 收藏排最前;新用戶先見大公仔 hero */}
       {home && hasFavs && <HomeGreeting />}
-      {idle && hasFavs && <Favorites onOpen={onOpenFavorite} />}
+      {favsOn && hasFavs && <Favorites onOpen={onOpenFavorite} />}
       {home && <SmartSuggest routes={routes} onOpen={onOpen} />}
       {home && !hasFavs && <MascotWelcome title="今日去邊度呢? 💕" sub="輸入路線號碼,即刻睇到站時間~" />}
-      {idle && !hasFavs && <Favorites onOpen={onOpenFavorite} />}
+      {favsOn && !hasFavs && <Favorites onOpen={onOpenFavorite} />}
       {home && <StampCard />}
 
       {query && settled && matches.length === 0 && !loading && (

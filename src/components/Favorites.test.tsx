@@ -97,6 +97,23 @@ describe('Favorites', () => {
     expect(within(card('站乙')).queryByText('08:20')).toBeNull()
   })
 
+  it('一張卡慢(城巴等緊)唔會拖住其他卡:攞到嗰張即刻出', async () => {
+    mockEta.mockImplementation((r: Route) =>
+      r.co === 'kmb' ? Promise.resolve([eta(4)]) : new Promise<Eta[]>(() => {}),
+    )
+    render(<Favorites onOpen={() => {}} />)
+    await flush()
+    expect(within(card('站甲')).getByText('08:04')).toBeTruthy()
+    expect(card('站乙').querySelector('[aria-busy="true"]')).toBeTruthy() // 慢嗰張仲係 skeleton
+  })
+
+  it('移除收藏掣講明係邊條線邊個站', () => {
+    mockEta.mockImplementation(() => new Promise(() => {}))
+    render(<Favorites onOpen={() => {}} />)
+    expect(screen.getByRole('button', { name: '移除收藏 1A 站甲' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '移除收藏 969 站乙' })).toBeTruthy()
+  })
+
   it('背景分頁返嚟、新資料未到:超過 5 分鐘嘅卡變返 skeleton,唔會顯示走咗嘅車', async () => {
     mockEta.mockResolvedValueOnce([eta(4)]).mockResolvedValueOnce([eta(6)])
     mockEta.mockImplementation(() => new Promise(() => {})) // 返嚟之後網絡好慢

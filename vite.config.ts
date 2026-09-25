@@ -43,13 +43,14 @@ function swPrecache(): Plugin {
 // base 設定為相對路徑,方便部署到 GitHub Pages / 任何子目錄
 export default defineConfig({
   base: './',
-  // 大 JSON(planGraph 2MB、gmbData…)出 JSON.parse("…") 而唔係 JS object literal:parse 快幾倍
+  // 大 JSON(planGraph ~1.5MB、gmb-NN 分片…)出 JSON.parse("…") 而唔係 JS object literal:parse 快幾倍
   // (src 入面全部 JSON import 都只用 default export)
   json: { stringify: true },
   plugins: [react(), swPrecache()],
   build: {
-    // planGraph.json(規劃離線圖 ~2MB)係刻意獨立 chunk、idle 先預載;唔使每次 build 都警告
-    chunkSizeWarningLimit: 2200,
+    // planGraph.json(規劃離線圖,Vite 按字元計 ~1240 kB)係刻意獨立 chunk、入規劃頁先載;唔使每次 build 都警告
+    // (其他 chunk 全部細過 300 kB;上限留少少位俾規劃圖更新,再大好多就應該警告)
+    chunkSizeWarningLimit: 1400,
     rollupOptions: {
       output: {
         // React 獨立 chunk:改 app code 唔會令佢換 hash,SW / HTTP cache 可以跨版本沿用
