@@ -126,7 +126,8 @@
   .dm-rows {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-auto-rows: 1fr;
+    /* 固定 3 行:得 1–2 個收藏時卡片唔會拉到成個屏咁高 */
+    grid-template-rows: repeat(3, minmax(0, 1fr));
     gap: 1.1vw;
   }
   .dm-empty {
