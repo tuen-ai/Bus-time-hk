@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { getWeather, type Weather } from '../api/weather'
 import { getStamps, unlocked } from '../lib/stamps'
+import { weatherMood } from '../lib/weather'
 
 interface PandaProps {
   className?: string
@@ -138,19 +139,12 @@ export function MascotState({ mood, text }: { mood: 'busy' | 'sad'; text: string
   )
 }
 
-// 天氣 → 公仔反應 + 一句貼心話
-function weatherMood(w: Weather | null): { umbrella: boolean; sweat: boolean; line: string | null } {
-  if (!w) return { umbrella: false, sweat: false, line: null }
-  const codes = w.warnings.map((x) => x.code)
-  if (codes.some((c) => c.startsWith('TC'))) {
-    return { umbrella: true, sweat: false, line: '🌀 打緊風呀,出門前睇定班次同停駛消息~' }
-  }
-  if (codes.some((c) => c.startsWith('WRAIN')) || Object.values(w.rainfall).some((mm) => mm >= 5)) {
-    return { umbrella: true, sweat: false, line: '☔ 落緊雨,記得帶遮呀~' }
-  }
-  if (w.tempC != null && w.tempC >= 33) {
-    return { umbrella: false, sweat: true, line: '🥵 今日好熱,搭有冷氣嘅車涼下啦~' }
-  }
+// 天氣 → 公仔反應 + 一句貼心話(門檻 / 分類用 lib/weather 共用嗰套,呢度淨係揀講法)
+function mascotMood(w: Weather | null): { umbrella: boolean; sweat: boolean; line: string | null } {
+  const m = weatherMood(w)
+  if (m.typhoon) return { umbrella: true, sweat: false, line: '🌀 打緊風呀,出門前睇定班次同停駛消息~' }
+  if (m.rainy) return { umbrella: true, sweat: false, line: '☔ 落緊雨,記得帶遮呀~' }
+  if (m.hot) return { umbrella: false, sweat: true, line: '🥵 今日好熱,搭有冷氣嘅車涼下啦~' }
   return { umbrella: false, sweat: false, line: null }
 }
 
@@ -163,22 +157,22 @@ export function MascotWelcome({ title, sub }: { title: string; sub: string }) {
       .catch(() => {})
   }, [])
   const un = unlocked(getStamps())
-  const mood = weatherMood(wx)
+  const mood = mascotMood(wx)
   return (
     <div className="welcome">
-      <span className="welcome-float" style={{ top: 30, left: 14 }}>
+      <span className="welcome-float" aria-hidden="true" style={{ top: 30, left: 14 }}>
         💗
       </span>
-      <span className="welcome-float" style={{ top: 78, left: 70 }}>
+      <span className="welcome-float" aria-hidden="true" style={{ top: 78, left: 70 }}>
         ♡
       </span>
-      <span className="welcome-float" style={{ top: 40, right: 22 }}>
+      <span className="welcome-float" aria-hidden="true" style={{ top: 40, right: 22 }}>
         💞
       </span>
-      <span className="welcome-float" style={{ top: 104, right: 60 }}>
+      <span className="welcome-float" aria-hidden="true" style={{ top: 104, right: 60 }}>
         ✨
       </span>
-      <span className="welcome-float" style={{ top: 130, left: 36 }}>
+      <span className="welcome-float" aria-hidden="true" style={{ top: 130, left: 36 }}>
         🌸
       </span>
       <div className="mascot-pair">
@@ -194,7 +188,9 @@ export function MascotWelcome({ title, sub }: { title: string; sub: string }) {
       <div className="welcome-title">{title}</div>
       <div className="welcome-sub">{sub}</div>
       {mood.line && <div className="wx-mood">{mood.line}</div>}
-      <div className="confetti">♡ ✨ 💗 🎀 💞 ✨ ♡</div>
+      <div className="confetti" aria-hidden="true">
+        ♡ ✨ 💗 🎀 💞 ✨ ♡
+      </div>
     </div>
   )
 }

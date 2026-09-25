@@ -1,33 +1,19 @@
 // 🖥️ 推送去藍牙小屏(SKD-CLOCK e-ink):揀收藏路線 → 連線 → 每分鐘畫到站圖推上去。
 // 只喺支援 Web Bluetooth 嘅瀏覽器可用(桌面/安卓 Chrome、Edge;iOS 要用 Bluefy)。
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getEta, coClass, type Route } from '../api/bus'
+import { getEta, coClass } from '../api/bus'
 import { getFavorites, favKey, type Favorite } from '../lib/store'
-import { minutesUntil } from '../lib/time'
+import { favToRoute, etaMinutes } from '../lib/favRoute'
+import { trapTab } from '../lib/focusTrap'
 import { renderEtaPoster, type PosterRow } from '../lib/etaPoster'
-import { SkdClock, bluetoothSupported, type ClockStatus } from '../lib/skdclock'
+import { SkdClock, bluetoothSupported, bleErrorText, type ClockStatus } from '../lib/skdclock'
 
 const REFRESH_MS = 60_000
 const MAX_PICK = 2
 
-const favToRoute = (f: Favorite): Route => ({
-  co: f.co,
-  route: f.route,
-  bound: f.bound,
-  service_type: f.serviceType,
-  orig_tc: '',
-  dest_tc: f.dest,
-})
-
 async function fetchRow(f: Favorite): Promise<PosterRow> {
   try {
-    const list = await getEta(favToRoute(f), f.stopId)
-    const t = Date.now()
-    const mins = list
-      .map((e) => (e.eta ? minutesUntil(e.eta, t) : null))
-      .filter((m): m is number => m != null)
-      .sort((a, b) => a - b)
-      .slice(0, 3)
+    const mins = etaMinutes(await getEta(favToRoute(f), f.stopId))
     return { route: f.route, dest: f.dest, stop: f.stopName, mins }
   } catch {
     return { route: f.route, dest: f.dest, stop: f.stopName, mins: [] }
@@ -63,11 +49,15 @@ export default function ClockPush({ onExit }: { onExit: () => void }) {
   const [picked, setPicked] = useState<string[]>(() => getFavorites().slice(0, MAX_PICK).map(favKey))
   const [status, setStatus] = useState<ClockStatus | null>(null)
   const [connected, setConnected] = useState(false)
+  const [connecting, setConnecting] = useState(false)
   const [auto, setAuto] = useState(false)
   const [msg, setMsg] = useState<string>('')
   const [busy, setBusy] = useState(false)
   const clockRef = useRef<SkdClock | null>(null)
+  const connectingRef = useRef(false)
+  const pushingRef = useRef(false)
   const previewRef = useRef<HTMLCanvasElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
 
   const pickedKey = picked.join(',')
   const pickedFavs = allFavs.filter((f) => picked.includes(favKey(f)))
@@ -96,17 +86,22 @@ export default function ClockPush({ onExit }: { onExit: () => void }) {
       const updatedLabel = `${clock} 更新`
       renderEtaPoster(cv, { width: W, height: H, tri, rows, clock, updatedLabel })
       monoPreview(cv, tri)
-      if (push && clockRef.current?.connected) {
+      const c = clockRef.current
+      // 上一張未推完就唔疊:兩條 BLE 寫入交錯會畫花個屏
+      if (push && c?.connected && !pushingRef.current) {
+        pushingRef.current = true
         setBusy(true)
         try {
           // 推送用原圖(未 threshold)俾 driver 自己 dither
           const src = document.createElement('canvas')
           renderEtaPoster(src, { width: W, height: H, tri, rows, clock, updatedLabel })
-          await clockRef.current.pushCanvas(src)
+          await c.pushCanvas(src)
           setMsg(`已推送 · ${clock}`)
         } catch (e) {
-          setMsg(`推送失敗:${e instanceof Error ? e.message : '未知'}`)
+          // 推到一半撳咗「斷開」/ 小屏自己斷咗:保留「已斷開 / 小屏已斷線」,唔好俾推送錯誤蓋咗
+          if (clockRef.current === c) setMsg(`推送失敗:${bleErrorText(e)}`)
         } finally {
+          pushingRef.current = false
           setBusy(false)
         }
       }
@@ -121,20 +116,25 @@ export default function ClockPush({ onExit }: { onExit: () => void }) {
     void draw(false)
   }, [draw])
 
-  // auto 推送
+  // auto 推送:刻意用 setInterval 而唔用 usePolling —— 用家通常將呢頁擺喺背景,小屏照要每分鐘更新
   useEffect(() => {
     if (!auto || !connected) return
     void draw(true)
     const id = setInterval(() => void draw(true), REFRESH_MS)
     return () => clearInterval(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auto, connected, picked.join(',')])
+  }, [auto, connected, draw])
 
   const connect = async () => {
+    // 防撳兩下:連緊 / 已經連住就唔會再開多個揀裝置窗
+    if (connectingRef.current || clockRef.current) return
+    connectingRef.current = true
+    setConnecting(true)
     setMsg('連線中…')
     const c = new SkdClock()
     c.onStatus = (s) => setStatus({ ...s })
     c.onDisconnect = () => {
+      // 小屏自己斷咗(出咗範圍 / 冇電)
+      if (clockRef.current === c) clockRef.current = null
       setConnected(false)
       setAuto(false)
       setMsg('小屏已斷線')
@@ -142,30 +142,81 @@ export default function ClockPush({ onExit }: { onExit: () => void }) {
     clockRef.current = c
     try {
       await c.connect()
+      // 連緊嗰陣閂咗呢版(unmount 已清 clockRef)→ 即刻斷返,唔好留條 BLE link
+      if (clockRef.current !== c) {
+        c.onDisconnect = undefined
+        await c.disconnect()
+        return
+      }
+      try {
+        await c.syncTime()
+      } catch {
+        /* 對時失敗唔阻推圖 */
+      }
+      if (!c.connected) throw new Error('小屏已斷線')
       setConnected(true)
       setStatus(c.status ? { ...c.status } : null)
       setMsg('已連線 ✓')
-      await c.syncTime()
       void draw(false)
     } catch (e) {
-      setMsg(`連唔到:${e instanceof Error ? e.message : '已取消'}`)
-      clockRef.current = null
+      // 半路失敗:清走 onDisconnect 先斷(免「小屏已斷線」蓋過真正原因),UI 返去未連線
+      c.onDisconnect = undefined
+      await c.disconnect()
+      if (clockRef.current === c) clockRef.current = null
+      setConnected(false)
+      setStatus(null)
+      setMsg(`連唔到:${bleErrorText(e)}`)
+    } finally {
+      connectingRef.current = false
+      setConnecting(false)
     }
+  }
+
+  const disconnect = async () => {
+    const c = clockRef.current
+    clockRef.current = null
+    setAuto(false)
+    setConnected(false)
+    setStatus(null)
+    if (c) {
+      c.onDisconnect = undefined
+      await c.disconnect()
+    }
+    setMsg('已斷開')
   }
 
   const pushOnce = () => void draw(true)
 
+  // 閂咗呢版就斷線(包括連緊未連完嗰個)
+  useEffect(
+    () => () => {
+      const c = clockRef.current
+      clockRef.current = null
+      if (c) {
+        c.onDisconnect = undefined
+        c.onStatus = undefined
+        void c.disconnect()
+      }
+    },
+    [],
+  )
+
+  // Tab 只喺呢個全屏面板入面轉(aria-modal 淨係管讀屏,管唔到鍵盤)。
+  // 掛喺 document 而唔係 root:「連線小屏」撳完會 disabled / 換走,焦點跌咗去 body 都要兜返入嚟
   useEffect(() => {
-    return () => {
-      void clockRef.current?.disconnect()
-    }
+    const onKey = (e: globalThis.KeyboardEvent) => trapTab(e, rootRef.current)
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
   }, [])
 
   return (
-    <div className="clockpush">
+    <div className="clockpush" ref={rootRef} role="dialog" aria-modal="true" aria-labelledby="cp-title">
       <div className="cp-head">
-        <b>🖥️ 推送去藍牙小屏</b>
-        <button className="fb-x" onClick={onExit} aria-label="返回">
+        <b id="cp-title">
+          <span aria-hidden="true">🖥️ </span>推送去藍牙小屏
+        </b>
+        {/* 開版即刻將焦點放喺 ✕;Esc / 返回鍵由 App 嘅 useBackLayer 處理 */}
+        <button className="fb-x" onClick={onExit} aria-label="關閉" autoFocus>
           ✕
         </button>
       </div>
@@ -174,8 +225,8 @@ export default function ClockPush({ onExit }: { onExit: () => void }) {
         <div className="cp-warn">
           <p>呢部機/瀏覽器唔支援 Web Bluetooth,連唔到小屏。</p>
           <p className="muted small">
-            👉 用 <b>Android 手機 Chrome</b> 或 <b>電腦 Chrome / Edge</b> 開呢版就得。 iPhone / iPad
-            想用,可以裝免費嘅 <b>Bluefy</b> 瀏覽器再開。
+            <span aria-hidden="true">👉 </span>用 <b>Android 手機 Chrome</b> 或 <b>電腦 Chrome / Edge</b>{' '}
+            開呢版就得。 iPhone / iPad 想用,可以裝免費嘅 <b>Bluefy</b> 瀏覽器再開。
           </p>
         </div>
       ) : (
@@ -193,27 +244,35 @@ export default function ClockPush({ onExit }: { onExit: () => void }) {
               const k = favKey(f)
               const on = picked.includes(k)
               return (
-                <button key={k} className={`cp-fav ${on ? 'on' : ''}`} onClick={() => toggle(f)}>
+                <button
+                  key={k}
+                  className={`cp-fav ${on ? 'on' : ''}`}
+                  onClick={() => toggle(f)}
+                  aria-pressed={on}
+                >
                   <span className={`route-badge ${coClass(f.co)} cp-fav-badge`}>{f.route}</span>
                   <span className="cp-fav-name">
                     往 {f.dest} · {f.stopName}
                   </span>
-                  <span className="cp-fav-tick">{on ? '✓' : ''}</span>
+                  <span className="cp-fav-tick" aria-hidden="true">
+                    {on ? '✓' : ''}
+                  </span>
                 </button>
               )
             })}
           </div>
 
           <div className="cp-preview-wrap">
-            <div className="cp-preview-label">
+            <div className="cp-preview-label" id="cp-preview-label">
               小屏預覽(模擬 e-ink 黑白{status?.tri !== false ? '紅' : ''})
             </div>
-            <canvas ref={previewRef} className="cp-preview" />
+            <canvas ref={previewRef} className="cp-preview" role="img" aria-labelledby="cp-preview-label" />
           </div>
 
           {connected && status && (
             <div className="cp-status">
-              📟 {status.width}×{status.height} · {status.tri ? '三色' : '黑白'}
+              <span aria-hidden="true">📟 </span>
+              {status.width}×{status.height} · {status.tri ? '三色' : '黑白'}
               {status.batteryMv ? ` · 電${(status.batteryMv / 1000).toFixed(2)}V` : ''}
               {status.tempC != null ? ` · ${status.tempC}°C` : ''}
               {status.fw ? ` · fw${status.fw}` : ''}
@@ -222,25 +281,42 @@ export default function ClockPush({ onExit }: { onExit: () => void }) {
 
           <div className="cp-btns">
             {!connected ? (
-              <button className="primary-btn full" onClick={() => void connect()}>
-                🔗 連線小屏
+              <button className="primary-btn full" onClick={() => void connect()} disabled={connecting}>
+                {connecting ? (
+                  '連線中…'
+                ) : (
+                  <>
+                    <span aria-hidden="true">🔗 </span>連線小屏
+                  </>
+                )}
               </button>
             ) : (
               <>
                 <button className="preset-chip" onClick={pushOnce} disabled={busy}>
-                  {busy ? '推送中…' : '⬆️ 推送一次'}
+                  {busy ? (
+                    '推送中…'
+                  ) : (
+                    <>
+                      <span aria-hidden="true">⬆️ </span>推送一次
+                    </>
+                  )}
                 </button>
+                {/* 字會跟狀態轉(開 / 停),所以唔再加 aria-pressed,免讀屏讀成「停止自動,已按下」 */}
                 <button className={`preset-chip ${auto ? 'on' : ''}`} onClick={() => setAuto((a) => !a)}>
-                  {auto ? '⏸ 停止自動' : '▶️ 每分鐘自動推'}
+                  <span aria-hidden="true">{auto ? '⏸ ' : '▶️ '}</span>
+                  {auto ? '停止自動' : '每分鐘自動推'}
                 </button>
-                <button className="preset-chip" onClick={() => void clockRef.current?.disconnect()}>
+                <button className="preset-chip" onClick={() => void disconnect()}>
                   斷開
                 </button>
               </>
             )}
           </div>
 
-          {msg && <div className="cp-msg">{msg}</div>}
+          {/* live region 一直喺度(先讀到後來嘅訊息);冇訊息就唔出 .cp-msg,唔會多咗格 margin */}
+          <div role="status" aria-live="polite">
+            {msg && <div className="cp-msg">{msg}</div>}
+          </div>
         </>
       )}
     </div>

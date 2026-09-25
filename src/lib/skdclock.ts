@@ -3,6 +3,7 @@
 // 只做需要嘅:連線、讀狀態(解像度/色彩/電量/槽位)、對時、上圖、顯示。
 //
 // ⚠️ Web Bluetooth 淨係喺桌面 Chrome/Edge、Android Chrome 有;iOS Safari/PWA 一律唔支援。
+import { zhErrorOr } from './errorText'
 
 const SERVICE = 0xff00
 const CHAR_WRITE = 0xff01
@@ -59,6 +60,32 @@ interface GattChar {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
+/** 藍牙錯誤 → 俾用家睇嘅廣東話(Web Bluetooth 拋嘅係英文 DOMException,唔好直接顯示) */
+export function bleErrorText(e: unknown): string {
+  if (e == null) return '已取消'
+  const name = (e as { name?: string }).name ?? ''
+  const message = (e as { message?: string }).message ?? ''
+  switch (name) {
+    case 'NotFoundError':
+      // 用家閂咗揀裝置個窗 / 附近搵唔到 / 搵唔到指定 service 都係呢個
+      return /cancel/i.test(message) ? '已取消' : '搵唔到小屏,確認佢開咗機又喺附近'
+    case 'SecurityError':
+    case 'NotAllowedError':
+      return '瀏覽器唔畀用藍牙,去設定開返藍牙權限再試'
+    case 'NotSupportedError':
+      return '呢部機 / 瀏覽器唔支援呢部小屏'
+    case 'NetworkError':
+      return '藍牙連線斷咗,拎近啲再試'
+    case 'InvalidStateError':
+      return '藍牙忙緊,等陣再試'
+    case 'TimeoutError':
+    case 'AbortError':
+      return '藍牙太耐冇回應,再試一次'
+  }
+  // 自己拋嘅錯(例如「未連線」)本身已經係中文就照出
+  return zhErrorOr(e, '藍牙出錯,再試一次')
+}
+
 export class SkdClock {
   device: BluetoothDeviceLike | null = null
   private cmd: GattChar | null = null
@@ -77,18 +104,27 @@ export class SkdClock {
     })
     this.device = dev
     dev.addEventListener('gattserverdisconnected', () => {
+      // 自己 disconnect() 過(device 已清走)就唔通知 —— 免得蓋過 caller 自己講緊嘅訊息
+      if (this.device !== dev) return
       this.cmd = null
       this.onDisconnect?.()
     })
-    const gatt = await dev.gatt!.connect()
-    const svc = await gatt.getPrimaryService(SERVICE)
-    this.cmd = await svc.getCharacteristic(CHAR_WRITE)
-    const notify = await svc.getCharacteristic(CHAR_NOTIFY)
-    notify.addEventListener('characteristicvaluechanged', (e: Event) => {
-      const dv = (e.target as BluetoothRemoteGATTCharacteristic).value
-      if (dv) this.parseStatus(dv)
-    })
-    await notify.startNotifications()
+    try {
+      if (!dev.gatt) throw new Error('呢部小屏冇藍牙 GATT 服務')
+      const gatt = await dev.gatt.connect()
+      const svc = await gatt.getPrimaryService(SERVICE)
+      this.cmd = await svc.getCharacteristic(CHAR_WRITE)
+      const notify = await svc.getCharacteristic(CHAR_NOTIFY)
+      notify.addEventListener('characteristicvaluechanged', (e: Event) => {
+        const dv = (e.target as BluetoothRemoteGATTCharacteristic).value
+        if (dv) this.parseStatus(dv)
+      })
+      await notify.startNotifications()
+    } catch (e) {
+      // 連咗 GATT 但攞唔到 service / characteristic → 主動斷開,唔好留條 BLE link 霸住部小屏
+      await this.disconnect()
+      throw e
+    }
     // 等固件出第一個狀態封包(最多 ~2s)
     for (let i = 0; i < 20 && !this.status; i++) await sleep(100)
   }
@@ -131,13 +167,16 @@ export class SkdClock {
   }
 
   async disconnect() {
+    // 先清 device 再斷:Chrome 喺 gatt.disconnect() 入面「同步」派 gattserverdisconnected,
+    // 遲啲先清嘅話 connect() 個 listener 會當係小屏自己斷咗,照 call onDisconnect
+    const dev = this.device
+    this.device = null
+    this.cmd = null
     try {
-      this.device?.gatt?.disconnect()
+      dev?.gatt?.disconnect()
     } catch {
       /* ignore */
     }
-    this.cmd = null
-    this.device = null
   }
 
   /** 上傳 canvas 做圖片,顯示喺屏。內部:stretch → Atkinson dither → 1-bit 打包 → 分塊上傳 → 顯示。 */

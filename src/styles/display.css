@@ -153,6 +153,7 @@
   }
 }
 .dm-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 1.9vw;
@@ -161,6 +162,32 @@
   border-radius: 2vw;
   padding: 1.3vw 2.2vw;
   box-shadow: 0 0.35vw 1.2vw rgba(244, 63, 142, 0.08);
+}
+/* 連續攞唔到 ETA:內容變淡 + 虛線框,分鐘照倒數但一眼知唔係即時。
+   唔好成張卡 opacity —— 「未能更新」牌同「連線中斷」要睇得清(0.55 會跌到 ~2.4:1) */
+.dm-row.stale,
+.dm-row.offline {
+  border-style: dashed;
+}
+.dm-row.stale > :not(.dm-stale-tag),
+.dm-row.offline > .dm-badge,
+.dm-row.offline > .dm-info {
+  opacity: 0.55;
+}
+/* 「未能更新」小牌騎喺卡邊(好似 legend),唔會遮到分鐘大字 */
+.dm-stale-tag {
+  position: absolute;
+  top: -0.95vw;
+  right: 2vw;
+  font-size: 1.25vw;
+  line-height: 1.6vw;
+  font-weight: 800;
+  color: var(--muted);
+  background: var(--card);
+  border: 0.17vw solid var(--line);
+  border-radius: 999px;
+  padding: 0 0.7vw;
+  white-space: nowrap;
 }
 .dm-badge.route-badge {
   min-width: 11vw;
@@ -269,6 +296,11 @@
   border-radius: 2vw;
   pointer-events: none;
   animation: dmLockPop 0.25s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dm-lock {
+    animation: none;
+  }
 }
 @keyframes dmLockPop {
   from {
