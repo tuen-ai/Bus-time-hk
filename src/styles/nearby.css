@@ -11,6 +11,120 @@
   cursor: pointer;
   margin-top: 8px;
 }
+.primary-btn[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* 營辦商 chips + 重新定位:chips 一行橫向捲(唔換行),重新定位永遠喺右邊、唔會斷開兩行 */
+.nearby-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.nearby-cos {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 7px;
+  padding: 4px; /* 焦點外框唔好俾捲軸區切走 */
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  /* 右邊淡出 → 睇得出後面仲有得捲 */
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 18px), transparent);
+}
+.nearby-cos::-webkit-scrollbar {
+  display: none;
+}
+/* 尾段留位:捲到尾最後粒 chip 唔會俾淡出食咗 */
+.nearby-cos::after {
+  content: '';
+  flex: 0 0 12px;
+}
+.nearby-cos .co-chip {
+  flex: 0 0 auto;
+  min-height: 44px;
+  white-space: nowrap;
+}
+/* 揀咗唔止靠顏色;讀屏已經有 aria-pressed,剔號唔使讀(舊瀏覽器唔識 / '' 就用第一行) */
+.nearby-cos .co-chip.on::before {
+  content: '✓ ';
+  content: '✓ ' / '';
+}
+.nearby-relocate {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1.5px solid color-mix(in srgb, var(--red) 45%, transparent);
+  border-radius: 999px;
+  background: var(--card);
+  color: color-mix(in srgb, var(--red) 50%, var(--text));
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.nearby-relocate[aria-disabled='true'] {
+  cursor: default;
+}
+.nearby-relocate-ic {
+  display: inline-block;
+  font-size: 1.1em;
+  line-height: 1;
+}
+.nearby-relocate[aria-busy='true'] .nearby-relocate-ic {
+  animation: nearby-spin 0.9s linear infinite;
+}
+@keyframes nearby-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 上次結果 / 斷網 / 用緊上次位置 提示 */
+.nearby-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 2px 8px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.nearby-notice > span {
+  flex: 1;
+  min-width: 0;
+}
+.nearby-notice.warn {
+  color: var(--text);
+}
+.nearby-notice .preset-chip {
+  flex: 0 0 auto;
+  min-height: 44px;
+  white-space: nowrap;
+}
+.nearby-notice .preset-chip[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: default;
+}
+/* 舊結果:分鐘轉灰 + 虛線框,一眼分到唔係即時(唔用 opacity,免得字太淡睇唔清) */
+.nearby-list.is-stale .nearby-row {
+  border-style: dashed;
+  box-shadow: none;
+}
+.nearby-list.is-stale .nearby-min {
+  color: var(--muted);
+}
+
 .nearby-list {
   list-style: none;
   margin: 0;
@@ -82,4 +196,19 @@ button.nearby-row:active,
   font-weight: 700;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nearby-row,
+  .suggest-card {
+    transition: none;
+  }
+  button.nearby-row:active,
+  .suggest-card:active,
+  .fav-open:active {
+    transform: none;
+  }
+  .nearby-relocate[aria-busy='true'] .nearby-relocate-ic {
+    animation: none;
+  }
 }

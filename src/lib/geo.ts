@@ -1,3 +1,5 @@
+import { zhErrorOr } from './errorText'
+
 // 地理距離計算(Haversine,單位:米)
 export function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371000
@@ -17,11 +19,12 @@ function once(opts: PositionOptions): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, opts))
 }
 
-const isPermissionDenied = (e: unknown): boolean =>
+/** 用家拒絕咗定位權限(唔好喺背景再問) */
+export const isGeoDenied = (e: unknown): boolean =>
   typeof e === 'object' && e !== null && (e as GeolocationPositionError).code === 1
 
 /** watchPosition:GPS 一有 fix 即取,自設 timeout(對手機較可靠) */
-function watch(timeoutMs: number): Promise<GeolocationPosition> {
+function watch(timeoutMs: number, maxAgeMs: number): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     let done = false
     const id = navigator.geolocation.watchPosition(
@@ -37,7 +40,7 @@ function watch(timeoutMs: number): Promise<GeolocationPosition> {
         navigator.geolocation.clearWatch(id)
         reject(err)
       },
-      { enableHighAccuracy: true, maximumAge: 600000 },
+      { enableHighAccuracy: true, maximumAge: maxAgeMs },
     )
     setTimeout(() => {
       if (done) return
@@ -48,18 +51,23 @@ function watch(timeoutMs: number): Promise<GeolocationPosition> {
   })
 }
 
+export interface PositionOpts {
+  /** 最舊接受幾耐之前嘅瀏覽器快取位置(ms),預設 10 分鐘。「附近」要而家嘅位置就畀細啲 */
+  maxAgeMs?: number
+}
+
 /**
  * 取得目前位置:
- *  1. 先試低精度 + 接受 10 分鐘快取(最快,室內都易中)
+ *  1. 先試低精度 + 接受 maxAgeMs 內嘅快取(最快,室內都易中)
  *  2. 失敗(非權限問題)就用 watchPosition 等 GPS 首個 fix(最長 35 秒)
  */
-export async function getPosition(): Promise<GeolocationPosition> {
+export async function getPosition({ maxAgeMs = 600_000 }: PositionOpts = {}): Promise<GeolocationPosition> {
   if (!('geolocation' in navigator)) throw new Error('此裝置不支援定位')
   try {
-    return await once({ enableHighAccuracy: false, timeout: 9000, maximumAge: 600000 })
+    return await once({ enableHighAccuracy: false, timeout: 9000, maximumAge: maxAgeMs })
   } catch (e) {
-    if (isPermissionDenied(e)) throw e
-    return await watch(35000)
+    if (isGeoDenied(e)) throw e
+    return await watch(35000, maxAgeMs)
   }
 }
 
@@ -71,5 +79,6 @@ export function describeGeoError(e: unknown): string {
     if (code === 3) return '定位逾時。請確認手機「定位服務 / GPS」已開啟,並喺空曠位置或近窗口再試。'
   }
   if (!window.isSecureContext) return '定位需要 HTTPS 安全連線。'
-  return e instanceof Error ? e.message : '定位失敗,請再試。'
+  // 只顯示自己寫嘅中文訊息;其他(英文)錯誤唔好直接出俾用家睇
+  return zhErrorOr(e, '定位失敗,請再試。')
 }

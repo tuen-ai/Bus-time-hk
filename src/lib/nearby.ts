@@ -3,15 +3,26 @@
 // - CTB:planGraph 站座標 + 逐路線 /eta(冇 stop-eta endpoint,批量發)
 // - GMB:planGraph 站座標 + /stop-route + /eta/stop(一站兩炮)
 // 另附 localStorage 結果 cache,畀「一開 tab 即有嘢睇」。
+// 斷網 ≠ 附近冇車:全部請求都失敗就 throw,等畫面保留上次結果 + 出重試。
 import { fetchStopEta, type Stop } from '../api/kmb'
 import { fetchCtbEta } from '../api/ctb'
 import { fetchGmbStopAll } from '../api/gmb'
 import { getStopMap } from './store'
 import { distanceMeters } from './geo'
 import { minutesUntil } from './time'
-import { loadGraph, nearStops, type Indexed } from './planGraph'
+import { loadGraph, nearStops, toAppKey, type Indexed } from './planGraph'
+import { friendlyError } from './http'
+import { zhErrorOr } from './errorText'
+import { lsGet, lsSet } from './ls'
 
 export type NearbyCo = 'kmb' | 'ctb' | 'gmb'
+export const NEARBY_COS: NearbyCo[] = ['kmb', 'ctb', 'gmb']
+export type NearbyTab = NearbyCo | 'fit'
+
+export interface LatLng {
+  lat: number
+  lng: number
+}
 
 export interface NearbyRow {
   co: NearbyCo
@@ -48,6 +59,34 @@ export function sortRows(rows: NearbyRow[]): NearbyRow[] {
     )
 }
 
+// ---- 錯誤 ----
+/** message 已經係俾用家睇嘅廣東話 */
+export class NearbyError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'NearbyError'
+  }
+}
+
+const OFFLINE_MSG = '攞唔到到站時間 · 冇網絡連線'
+
+/** 逐個請求可以獨立失敗(照顯示其他站);但全部都失敗(多數係斷網)就唔好扮「附近冇車」 */
+export function settledOrThrow<T>(results: PromiseSettledResult<T>[]): T[] {
+  const ok: T[] = []
+  let failed: { reason: unknown } | null = null
+  for (const r of results) {
+    if (r.status === 'fulfilled') ok.push(r.value)
+    else if (!failed) failed = { reason: r.reason }
+  }
+  if (failed && ok.length === 0) throw new NearbyError(`攞唔到到站時間 · ${friendlyError(failed.reason)}`)
+  return ok
+}
+
+/** 俾畫面顯示嘅錯誤文字(唔會出 "Failed to fetch" 之類英文;自己寫嘅中文訊息例如路線圖載入唔到就照出) */
+export function nearbyErrorText(e: unknown): string {
+  return e instanceof NearbyError ? e.message : zhErrorOr(e, friendlyError(e))
+}
+
 // ---- KMB(照舊:官方 stop-eta)----
 // 同一位置每 5 秒刷新一次 → 6000+ 個站嘅距離排序記住,唔使每次重計
 let nearestMemo: { key: string; list: { s: Stop; d: number }[] } | null = null
@@ -65,45 +104,41 @@ function nearestKmbStops(stopMap: Map<string, Stop>, lat: number, lng: number) {
 
 async function nearbyKmb(lat: number, lng: number): Promise<NearbyRow[]> {
   const stopMap = await getStopMap()
-  if (stopMap.size === 0) throw new Error('未能載入車站資料,請重試')
+  if (stopMap.size === 0) throw new NearbyError('未能載入車站資料,請重試')
   const nearest = nearestKmbStops(stopMap, lat, lng)
 
   const now = Date.now()
-  const batches = await Promise.all(
+  const settled = await Promise.allSettled(
     nearest.map(async ({ s, d }) => {
-      try {
-        const etas = await fetchStopEta(s.stop)
-        const groups = new Map<string, NearbyRow>()
-        for (const e of etas) {
-          if (!e.eta) continue
-          const m = minutesUntil(e.eta, now)
-          if (m == null) continue
-          const key = `${e.route}|${e.dir}|${e.service_type}`
-          let row = groups.get(key)
-          if (!row) {
-            row = {
-              co: 'kmb',
-              route: e.route,
-              dir: e.dir,
-              serviceType: String(e.service_type),
-              dest: e.dest_tc,
-              stopId: s.stop,
-              stopName: s.name_tc,
-              dist: d,
-              mins: [],
-            }
-            groups.set(key, row)
+      const etas = await fetchStopEta(s.stop)
+      const groups = new Map<string, NearbyRow>()
+      for (const e of etas) {
+        if (!e.eta) continue
+        const m = minutesUntil(e.eta, now)
+        if (m == null) continue
+        const key = `${e.route}|${e.dir}|${e.service_type}`
+        let row = groups.get(key)
+        if (!row) {
+          row = {
+            co: 'kmb',
+            route: e.route,
+            dir: e.dir,
+            serviceType: String(e.service_type),
+            dest: e.dest_tc,
+            stopId: s.stop,
+            stopName: s.name_tc,
+            dist: d,
+            mins: [],
           }
-          row.mins.push(m)
+          groups.set(key, row)
         }
-        for (const row of groups.values()) row.mins.sort((a, b) => a - b)
-        return [...groups.values()]
-      } catch {
-        return []
+        row.mins.push(m)
       }
+      for (const row of groups.values()) row.mins.sort((a, b) => a - b)
+      return [...groups.values()]
     }),
   )
-  return sortRows(batches.flat())
+  return sortRows(settledOrThrow(settled).flat())
 }
 
 // ---- planGraph 站(ctb / gmb 共用)----
@@ -135,51 +170,51 @@ async function nearbyCtb(lat: number, lng: number): Promise<NearbyRow[]> {
   const jobs: { st: GraphStop; route: string; bound: 'I' | 'O'; dest: string }[] = []
   for (const st of stops) {
     const seen = new Set<string>()
-    for (const { ri } of ix.stopRoutes.get(st.id) ?? []) {
+    for (const { ri, seq } of ix.stopRoutes.get(st.id) ?? []) {
       const r = ix.routeByIdx[ri]
       if (r.co !== 'ctb') continue
-      const k = `${r.r}|${r.b}`
+      // 循環線(OI / IO)睇呢個站喺邊半程,轉返 app 嘅 I / O
+      const bound = toAppKey(ix, ri, seq).bound
+      const k = `${r.r}|${bound}`
       if (seen.has(k)) continue
       seen.add(k)
-      jobs.push({ st, route: r.r, bound: r.b, dest: r.d })
+      jobs.push({ st, route: r.r, bound, dest: r.d })
       if (jobs.length >= MAX_ROUTE_CALLS) break
     }
     if (jobs.length >= MAX_ROUTE_CALLS) break
   }
 
   const now = Date.now()
-  const rows: NearbyRow[] = []
+  const settled: PromiseSettledResult<NearbyRow | null>[] = []
   // 8 個一批
   for (let i = 0; i < jobs.length; i += 8) {
-    const part = await Promise.all(
+    const part = await Promise.allSettled(
       jobs.slice(i, i + 8).map(async (j) => {
-        try {
-          const etas = await fetchCtbEta(j.st.id, j.route, j.bound)
-          const mins = etas
-            .map((e) => (e.eta ? minutesUntil(e.eta, now) : null))
-            .filter((m): m is number => m != null)
-            .sort((a, b) => a - b)
-          if (!mins.length) return null
-          const row: NearbyRow = {
-            co: 'ctb',
-            route: j.route,
-            dir: j.bound,
-            serviceType: '1',
-            dest: etas[0]?.dest_tc || j.dest,
-            stopId: j.st.id,
-            stopName: j.st.name,
-            dist: j.st.dist,
-            mins,
-          }
-          return row
-        } catch {
-          return null
+        const etas = await fetchCtbEta(j.st.id, j.route, j.bound)
+        const mins = etas
+          .map((e) => (e.eta ? minutesUntil(e.eta, now) : null))
+          .filter((m): m is number => m != null)
+          .sort((a, b) => a - b)
+        if (!mins.length) return null
+        const row: NearbyRow = {
+          co: 'ctb',
+          route: j.route,
+          dir: j.bound,
+          serviceType: '1',
+          dest: etas[0]?.dest_tc || j.dest,
+          stopId: j.st.id,
+          stopName: j.st.name,
+          dist: j.st.dist,
+          mins,
         }
+        return row
       }),
     )
-    rows.push(...part.filter((x): x is NearbyRow => x !== null))
+    settled.push(...part)
+    // 成批都失敗 → 多數斷咗網,唔好再逐條路線撞
+    if (part.every((p) => p.status === 'rejected')) break
   }
-  return sortRows(rows)
+  return sortRows(settledOrThrow(settled).filter((x): x is NearbyRow => x !== null))
 }
 
 // ---- GMB(/eta/stop 一站全路線)----
@@ -188,7 +223,7 @@ async function nearbyGmb(lat: number, lng: number): Promise<NearbyRow[]> {
   const stops = await graphNearStops(ix, lat, lng, 'gmb')
   if (!stops.length) return []
 
-  const batches = await Promise.all(
+  const settled = await Promise.allSettled(
     stops.map(async (st) => {
       const all = await fetchGmbStopAll(st.id)
       return all.map<NearbyRow>((g) => {
@@ -213,7 +248,7 @@ async function nearbyGmb(lat: number, lng: number): Promise<NearbyRow[]> {
   )
   // 同一路線喺幾個站出現 → 留最近嗰個站
   const best = new Map<string, NearbyRow>()
-  for (const r of batches.flat()) {
+  for (const r of settledOrThrow(settled).flat()) {
     const k = `${r.route}|${r.dir}`
     const cur = best.get(k)
     if (!cur || r.dist < cur.dist) best.set(k, r)
@@ -222,9 +257,60 @@ async function nearbyGmb(lat: number, lng: number): Promise<NearbyRow[]> {
 }
 
 export async function nearbyBuses(lat: number, lng: number, co: NearbyCo): Promise<NearbyRow[]> {
-  if (co === 'ctb') return nearbyCtb(lat, lng)
-  if (co === 'gmb') return nearbyGmb(lat, lng)
-  return nearbyKmb(lat, lng)
+  const rows =
+    co === 'ctb'
+      ? await nearbyCtb(lat, lng)
+      : co === 'gmb'
+        ? await nearbyGmb(lat, lng)
+        : await nearbyKmb(lat, lng)
+  // 有啲 API 層會將斷網吞咗變空結果 → 明明冇網就講清楚,唔好話「附近冇車」
+  if (!rows.length && typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new NearbyError(OFFLINE_MSG)
+  }
+  return rows
+}
+
+/** 舊結果照倒數:減走過咗嘅分鐘;開走咗嘅班次、冇晒班次嘅路線唔再顯示 */
+export function ageRows(rows: NearbyRow[], ageMs: number): NearbyRow[] {
+  const gone = Math.floor(Math.max(0, ageMs) / 60_000)
+  if (gone === 0) return rows
+  return sortRows(
+    rows
+      .map((r) => ({ ...r, mins: r.mins.map((m) => m - gone).filter((m) => m >= 0) }))
+      .filter((r) => r.mins.length > 0),
+  )
+}
+
+/** 列表上面嗰行提示(冇列表嘅錯誤由大公仔 + 重試負責,呢度唔出) */
+export function nearbyNotice(s: {
+  hasRows: boolean
+  stale: boolean
+  error: string | null
+  oldLoc: boolean
+}): { text: string; retry: boolean } | null {
+  if (!s.hasRows) {
+    // 「附近暫時冇車」都要講明係上次位置,唔係你而家身處嘅地方
+    return s.oldLoc && !s.error ? { text: '📍 定位唔到,顯示緊上次位置附近嘅車', retry: true } : null
+  }
+  if (s.error) {
+    const why = s.stale ? '(顯示緊上次結果)' : s.oldLoc ? '(顯示緊上次位置附近嘅車)' : ''
+    return { text: `⚠️ ${s.error}${why}`, retry: true }
+  }
+  if (s.oldLoc) return { text: '📍 定位唔到,顯示緊上次位置附近嘅車', retry: true }
+  if (s.stale) return { text: '⏳ 顯示緊上次結果,更新緊…', retry: false }
+  return null
+}
+
+// ---- 上次揀嘅 tab(storage 被封都唔好炒車)----
+const TAB_KEY = 'kkcx.nearby.co'
+
+export function readNearbyTab(): NearbyTab {
+  const s = lsGet(TAB_KEY)
+  return s === 'ctb' || s === 'gmb' || s === 'fit' ? s : 'kmb'
+}
+
+export function writeNearbyTab(t: NearbyTab): void {
+  lsSet(TAB_KEY, t)
 }
 
 // ---- 結果 cache(即開即有)----
@@ -239,18 +325,33 @@ const CACHE_TTL = 15 * 60 * 1000
 
 export function readNearbyCache(co: NearbyCo): NearbyCache | null {
   try {
-    const c = JSON.parse(localStorage.getItem(`kkcx.nearby.${co}`) || 'null') as NearbyCache | null
-    if (c && Date.now() - c.ts < CACHE_TTL && Array.isArray(c.rows) && c.rows.length) return c
+    const c = JSON.parse(lsGet(`kkcx.nearby.${co}`) || 'null') as NearbyCache | null
+    if (
+      c &&
+      Date.now() - c.ts < CACHE_TTL &&
+      Number.isFinite(c.lat) &&
+      Number.isFinite(c.lng) &&
+      Array.isArray(c.rows) &&
+      c.rows.length
+    )
+      return c
   } catch {
-    /* ignore */
+    /* 壞咗嘅 JSON 當冇 */
   }
   return null
 }
 
 export function writeNearbyCache(co: NearbyCo, lat: number, lng: number, rows: NearbyRow[]): void {
-  try {
-    localStorage.setItem(`kkcx.nearby.${co}`, JSON.stringify({ ts: Date.now(), lat, lng, rows }))
-  } catch {
-    /* ignore */
+  if (!rows.length) return // 空結果唔好蓋咗上次好嘅 cache
+  lsSet(`kkcx.nearby.${co}`, JSON.stringify({ ts: Date.now(), lat, lng, rows }))
+}
+
+/** 最近一次成功查詢嘅位置(任何營辦商);只喺定位失敗時用,畫面會標明係「上次位置」 */
+export function lastKnownLoc(): LatLng | null {
+  let best: NearbyCache | null = null
+  for (const co of NEARBY_COS) {
+    const c = readNearbyCache(co)
+    if (c && (!best || c.ts > best.ts)) best = c
   }
+  return best ? { lat: best.lat, lng: best.lng } : null
 }
