@@ -63,6 +63,11 @@
   font-size: 1.1rem;
   margin-bottom: 8px;
 }
+/* 全屏面板嘅 ✕:成粒 44px(alerts.css 嘅 .fb-x 得 26px) */
+.cp-head .fb-x {
+  width: 44px;
+  height: 44px;
+}
 .cp-warn {
   background: var(--card);
   border: 1px solid var(--line);
@@ -79,6 +84,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  min-height: 44px; /* 手指目標 */
   padding: 8px 10px;
   border: 1.5px solid var(--line);
   border-radius: 12px;
@@ -144,7 +150,7 @@
   margin-top: 10px;
 }
 .cp-btns .preset-chip {
-  flex: 1;
+  flex: 1; /* 44px 高度跟 planner.css .preset-chip 嘅 --chip-h */
 }
 .cp-msg {
   margin-top: 10px;
@@ -209,6 +215,12 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+/* 揀咗唔止靠顏色:加個剔(讀屏已經有 aria-pressed,剔唔使讀);
+   淨係金句模式 —— ClockPush 嘅「自動推」開關唔好有剔 */
+.qp-modes .preset-chip.on::before {
+  content: '✓ ';
+  content: '✓ ' / '';
 }
 .qp-select,
 .qp-input {

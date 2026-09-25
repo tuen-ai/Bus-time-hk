@@ -73,6 +73,11 @@
   color: var(--on-accent);
   border-color: var(--accent-fill);
 }
+/* 兩個狀態都係粗字,淨係靠底色分唔夠 → 揀咗加個剔(JSX 冇剔,唔會重複;讀屏靠 aria-pressed) */
+.variant-chip.on::before {
+  content: '✓ ';
+  content: '✓ ' / '';
+}
 
 .route-map-wrap {
   margin-bottom: 12px;

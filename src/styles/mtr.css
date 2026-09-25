@@ -37,6 +37,11 @@
     inset 0 0 0 1px var(--line-c),
     inset 0 -3px 0 var(--line-c);
 }
+/* 揀咗唔止靠顏色:加個剔(讀屏已經有 aria-pressed,剔唔使讀) */
+.mtr-line-chip.on::before {
+  content: '✓ ';
+  content: '✓ ' / '';
+}
 /* 深色底:屯馬綫 / 將軍澳綫呢啲深色邊框睇唔到(2.2:1)→ 未揀嘅用墨色描邊 */
 :root[data-theme='dark'] .mtr-line-chip:not(.on) {
   border-color: var(--line-ink);

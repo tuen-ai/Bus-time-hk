@@ -1,8 +1,16 @@
 // 📺 門口顯示模式(iPad 橫擺 kiosk):
 // 大時鐘 + 是日勵志名句 + 天氣 + 收藏路線大字 ETA(10 秒刷新)+ 新聞輪播 + 雙公仔。
 // 19:00–07:00 自動轉深色;wake lock 防瞓;畫面鎖定 —— 長按 3 秒先退出,誤觸只會彈提示。
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
-import { getEta, coClass } from '../api/bus'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type PointerEvent,
+} from 'react'
+import { getEta, coClass, type Eta } from '../api/bus'
 import { getFavorites, favKey, type Favorite } from '../lib/store'
 import { getWeather, type Weather } from '../api/weather'
 import { quoteForDisplay } from '../data/quotes'
@@ -14,12 +22,15 @@ import { PandaFace, BearFace } from './Mascots'
 import { getStamps, unlocked } from '../lib/stamps'
 import { useBackLayer } from '../hooks/useBackLayer'
 import { usePolling } from '../hooks/usePolling'
+import { isUpdateReady, onUpdateReady, reloadOnce } from '../lib/appUpdate'
 
 const ETA_MS = 10_000
 const NEWS_MS = 10 * 60_000
 const NEWS_ROTATE_MS = 12_000
 const MAX_ROWS = 6
 const HOLD_MS = 3000
+/** 有新版:冇人掂 60 秒就自動 reload(kiosk 冇人撳「更新」) */
+const UPDATE_IDLE_MS = 60_000
 
 const isNight = (d: Date) => d.getHours() >= 19 || d.getHours() < 7
 const fmtMin = (m: number) => (m <= 0 ? '即將' : `${m}分`)
@@ -63,26 +74,25 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
   // ETA 每 10 秒刷新(背景分頁暫停,返嚟即刻補)。
   // 存到站「絕對時間」,render 時先對住 now 計分鐘:攞唔到嘅線照倒數 + 變灰,唔會凍住扮新鮮。
   // 上一輪未返就唔疊(卡死 30 秒先照開新一輪)—— usePolling 自己會睇住,唔使再加 guard。
+  // 逐行一返就即刻更新:一條慢線唔會拖住其他行;Promise.all 等齊先完,usePolling 先知呢輪完咗。
   const loadEtas = async () => {
     const reqAt = Date.now()
-    const results = await Promise.all(
+    await Promise.all(
       favs.map(async (f) => {
+        const k = favKey(f)
+        let list: Eta[] | null = null
         try {
-          return { k: favKey(f), list: await getEta(favToRoute(f), f.stopId) }
+          list = await getEta(favToRoute(f), f.stopId)
         } catch {
-          return { k: favKey(f), list: null } // 呢條線今次攞唔到,下一輪再試
+          // 呢條線今次攞唔到,下一輪再試
         }
+        // 以請求時間比新舊:卡死後遲到嘅舊一輪唔會蓋咗新資料
+        setEtas((prev) => ({ ...prev, [k]: mergeRow(prev[k], reqAt, list) }))
+        // 「最後更新」只計成功:失敗唔好扮更新咗
+        if (list) setUpdatedAt(new Date())
+        setNow(new Date()) // 分鐘對住最新時間重計
       }),
     )
-    // 以請求時間比新舊:卡死後遲到嘅舊一輪唔會蓋咗新資料
-    setEtas((prev) => {
-      const next = { ...prev }
-      for (const r of results) next[r.k] = mergeRow(prev[r.k], reqAt, r.list)
-      return next
-    })
-    // 「最後更新」只計成功:全部失敗就唔好扮更新咗
-    if (results.some((r) => r.list != null)) setUpdatedAt(new Date())
-    setNow(new Date()) // 分鐘對住最新時間重計
   }
   usePolling(loadEtas, ETA_MS, { enabled: favs.length > 0 })
 
@@ -133,6 +143,8 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
   const hintRef = useRef<number | null>(null)
   const heldRef = useRef(false)
   const pointersRef = useRef(new Set<number>())
+  /** 有新版等緊 reload 時 = 重新計 60 秒;冇就 null */
+  const reloadBumpRef = useRef<(() => void) | null>(null)
   const clearHold = () => {
     if (holdRef.current != null) clearTimeout(holdRef.current)
     holdRef.current = null
@@ -143,6 +155,7 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
     hintRef.current = window.setTimeout(() => setLockHint(false), 2200)
   }, [])
   const holdStart = (e: PointerEvent<HTMLDivElement>) => {
+    reloadBumpRef.current?.() // 有人掂緊:自動更新再等多 60 秒
     const ps = pointersRef.current
     // primary = 新一下(之前冇手指喺度)→ 清走可能漏咗 pointerup 嘅舊記錄
     if (e.isPrimary) ps.clear()
@@ -169,6 +182,26 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
     },
     [],
   )
+
+  // 📦 新版就緒(SW 已經接手):閒置 60 秒自動 reload。顯示模式記喺 localStorage('kkcx.display'),
+  // reload 完直接返嚟 kiosk。reloadOnce 10 分鐘最多一次,server 有事都唔會 reload 到停唔到。
+  const updateReady = useSyncExternalStore(onUpdateReady, isUpdateReady)
+  useEffect(() => {
+    if (!updateReady) return
+    let id: number | undefined
+    const arm = () => {
+      clearTimeout(id)
+      id = window.setTimeout(() => {
+        if (!reloadOnce()) arm() // 啱啱 reload 過:遲啲再試
+      }, UPDATE_IDLE_MS)
+    }
+    arm()
+    reloadBumpRef.current = arm
+    return () => {
+      clearTimeout(id)
+      reloadBumpRef.current = null
+    }
+  }, [updateReady])
 
   // 鎖定嘅 kiosk 畫面:撳返回鍵唔會退出,亦唔會閂咗成個 app —— 只彈提示叫你長按 3 秒
   useBackLayer(true, onExit, { locked: true, onBlocked: showLockHint })

@@ -5,6 +5,7 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  min-height: 44px; /* 成條係掣:手指目標 */
   padding: 6px 14px;
   background: var(--card);
   border: none;

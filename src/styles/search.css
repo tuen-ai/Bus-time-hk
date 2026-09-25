@@ -65,9 +65,10 @@
     border-color 0.15s,
     box-shadow 0.15s;
 }
+/* 上面 outline:none 壓咗全域焦點框 → 邊框用 --focus(≥3:1),光猛粉紅得 2.8:1 唔夠 */
 .search input:focus {
-  border-color: var(--red);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 22%, transparent);
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 25%, transparent);
 }
 .search input::-webkit-search-cancel-button {
   display: none;

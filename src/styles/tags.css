@@ -2,7 +2,7 @@
 /* ---- Route tags (night / special) ---- */
 .tag {
   display: inline-block;
-  font-size: 0.68rem;
+  font-size: var(--fs-xs); /* 中文最細 12px */
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 6px;
@@ -46,16 +46,17 @@
 .tag-nlb {
   background: #00857c;
 }
+/* 漸變淺嗰頭都要夠白字 AA(舊 #00a99d / #2bb24c / #0e9aa7 得 ~3:1) */
 .route-badge.co-nlb {
-  background: linear-gradient(135deg, #00a99d, #00857c);
+  background: linear-gradient(135deg, #00857c, #006b63);
 }
 .tag-gmb {
   background: #167a3a;
 }
 .route-badge.co-gmb {
-  background: linear-gradient(135deg, #2bb24c, #167a3a);
+  background: linear-gradient(135deg, #167a3a, #0f5c2b);
 }
 /* CTB 路線號用青色作區分 */
 .route-badge.co-ctb {
-  background: linear-gradient(135deg, #0e9aa7, #0e7490);
+  background: linear-gradient(135deg, #0e7490, #0b5c73);
 }

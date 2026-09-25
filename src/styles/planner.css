@@ -66,25 +66,23 @@
   margin: 4px 0 12px;
   flex-wrap: wrap;
 }
+/* 尺寸同 .variant-chip / .co-chip / .mtr-line-chip 共用 --chip-*(44px 手指目標) */
 .preset-chip {
-  border: 1px solid var(--line);
+  border: var(--chip-border) solid var(--line);
   background: var(--card);
   border-radius: 999px;
-  padding: 9px 14px;
-  min-height: 40px;
+  padding: var(--chip-pad);
+  min-height: var(--chip-h);
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: var(--chip-fs);
   cursor: pointer;
   color: var(--text);
 }
+/* 光猛粉紅底白字得 2.3:1 → 用 accent 實心底(深色主題自動轉淺粉紅底深字) */
 .preset-chip.on {
-  background: var(--red);
-  border-color: var(--red);
-  color: #fff;
-}
-/* 規劃頁啲 chip 係主要操作:撳位夠 44px */
-.preset-chips .preset-chip {
-  min-height: 44px;
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--on-accent);
 }
 /* 揀咗唔好淨係靠顏色分(色弱都睇到);讀屏已經有 aria-pressed,剔號唔使再讀 */
 .preset-chips .preset-chip.on::before {
@@ -132,7 +130,8 @@
 }
 .jfare {
   margin-left: auto;
-  background: linear-gradient(135deg, #ffb066, #ff8f43);
+  /* 深橙先夠白字 AA(舊 #ffb066 得 1.8:1) */
+  background: linear-gradient(135deg, #c2410c, #9a3412);
   color: #fff;
   font-weight: 800;
   padding: 4px 13px;
@@ -140,8 +139,8 @@
   font-size: 0.95rem;
 }
 .tagbest {
-  background: linear-gradient(135deg, #ff8fc0, #ff4f95);
-  color: #fff;
+  background: var(--accent-fill); /* 舊 #ff8fc0 白字得 2.1:1 */
+  color: var(--on-accent);
   font-size: 0.7rem;
   font-weight: 800;
   padding: 3px 9px;
@@ -223,7 +222,7 @@
 }
 .leaveby.missed {
   background: color-mix(in srgb, var(--soon) 14%, transparent);
-  color: var(--soon);
+  color: var(--soon-text);
   font-weight: 700;
 }
 .remind-btn {
@@ -232,7 +231,7 @@
   color: var(--red-dark);
   background: var(--card);
   border-radius: 999px;
-  padding: 5px 12px;
+  padding: 7px 12px; /* 同 fitness.css .goto-btn 一樣高 */
   font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
@@ -246,7 +245,7 @@
 }
 .remind-ok {
   margin-left: auto;
-  color: var(--green);
+  color: var(--ok-text);
   font-weight: 700;
   font-size: 0.85rem;
 }

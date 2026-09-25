@@ -14,6 +14,13 @@
   touch-action: none;
   display: flex;
   flex-direction: column;
+  /* 大粗字 kiosk 數字要 ≥3:1:--bg 3.1、--card 3.4 */
+  --dm-green: #2b9c80;
+  --dm-soon: #eb5f00;
+}
+/* 夜間 / 深色底:用返光猛薄荷綠同橙 */
+.dmode.night,
+:root[data-theme='dark'] .dmode {
   --dm-green: #3ccaa6;
   --dm-soon: #ff8f43;
 }
@@ -33,7 +40,8 @@
   padding: 1.6vw 2.5vw 1.2vw;
   /* iOS 全屏後 status bar 浮喺頂 —— 頂欄讓開瀏海/狀態欄 */
   padding-top: calc(1.6vw + env(safe-area-inset-top, 0px));
-  background: linear-gradient(135deg, #ffa6cd, #ff4f95);
+  /* 同 app 頂欄一樣深莓色漸變:白字喺淺粉紅得 ~1.8:1 */
+  background: linear-gradient(135deg, #db2777, #be185d);
   color: #fff;
   border-radius: 0 0 2.2vw 2.2vw;
 }
@@ -63,12 +71,12 @@
 }
 .dm-date {
   font-size: 1.7vw;
-  opacity: 0.95;
   margin-top: 0.3vw;
   white-space: nowrap;
 }
+/* 深莓色頂欄上面白字:淡底 12% + 出處唔再半透明,細字都有 ~4.5:1 */
 .dm-quote {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 1.5vw;
   padding: 1vw 1.7vw;
   font-size: 2vw;
@@ -78,7 +86,6 @@
 }
 .dm-src {
   font-size: 1.5vw;
-  opacity: 0.85;
   margin-left: 0.6vw;
   white-space: nowrap;
 }
@@ -99,7 +106,7 @@
 }
 .dm-warn {
   display: inline-block;
-  background: #d97706;
+  background: #b45309; /* 白字 5.0:1(#d97706 得 3.2:1) */
   padding: 0.2vw 1.1vw;
   border-radius: 999px;
   font-weight: 700;

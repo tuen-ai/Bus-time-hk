@@ -15,6 +15,18 @@
 .error {
   color: var(--accent-text);
 }
+/* 淨係畀讀屏聽(例如搜尋結果數目、icon 嘅文字);全 app 共用呢一個,唔好各自再抄 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 .crash {
   max-width: 420px;

@@ -20,11 +20,11 @@
 .eta-mins {
   font-weight: 700;
   font-size: 1.1rem;
-  color: var(--green);
+  color: var(--ok-text);
   min-width: 92px;
 }
 .eta-mins.soon {
-  color: var(--soon);
+  color: var(--soon-text);
 }
 .eta-clock {
   color: var(--muted);
@@ -71,7 +71,7 @@
   min-height: 44px;
 }
 .eta-updated {
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   margin-top: 4px;
   display: flex;
   align-items: center;
@@ -86,7 +86,7 @@
   border-radius: 8px;
   padding: 6px 10px;
   min-height: 34px;
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   cursor: pointer;
   white-space: nowrap;
 }

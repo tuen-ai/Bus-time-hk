@@ -138,18 +138,24 @@ export default function BackupPanel({
               </p>
             )}
             {qp.mode === 'fixed' && (
-              <select
-                className="qp-select"
-                aria-label="揀一句固定金句"
-                value={qp.idx}
-                onChange={(e) => saveQp({ mode: 'fixed', idx: Number(e.target.value) })}
-              >
-                {QUOTES.map((x, i) => (
-                  <option key={i} value={i}>
-                    {x.q} ——{x.by}
-                  </option>
-                ))}
-              </select>
+              <>
+                {/* 睇得到嘅標籤:撳個標籤都會 focus 落下拉 */}
+                <label htmlFor="qp-fixed" className="small">
+                  揀一句固定金句
+                </label>
+                <select
+                  id="qp-fixed"
+                  className="qp-select"
+                  value={qp.idx}
+                  onChange={(e) => saveQp({ mode: 'fixed', idx: Number(e.target.value) })}
+                >
+                  {QUOTES.map((x, i) => (
+                    <option key={i} value={i}>
+                      {x.q} ——{x.by}
+                    </option>
+                  ))}
+                </select>
+              </>
             )}
             {qp.mode === 'custom' && (
               <>

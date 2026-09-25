@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Polyline } from 'react-leaflet'
 import type { Weather } from '../api/weather'
 import { fetchTsm, type TsmData, type TsmLevel } from '../api/tsm'
 import { fetchTrafficNews, type Notice } from '../api/stn'
-import { TILE_URL, TILE_ATTRIB } from '../lib/mapConfig'
+import { TILE_URL, TILE_ATTRIB, TOUCH_MAP_HINT, isTouchMap } from '../lib/mapConfig'
 import { usePolling } from '../hooks/usePolling'
 
 const LEVEL_COLOR: Record<TsmLevel, string> = {
@@ -18,7 +18,10 @@ export default function WeatherPanel({ w, id }: { w: Weather; id?: string }) {
   const [tsm, setTsm] = useState<TsmData | null | 'loading'>('loading')
   const [news, setNews] = useState<Notice[]>([])
   const [showAllNews, setShowAllNews] = useState(false)
+  // 觸控機:一隻手指留返畀頁面捲動,兩隻手指先郁地圖;MapContainer 只睇第一次 render
+  const [touch] = useState(isTouchMap)
 
+  // 唔開 pauseOffline:離線打開面板都要行第一轉,fetchTsm 會即刻回快取 / null,唔會卡喺「載入路況…」
   usePolling(() => fetchTsm().then(setTsm), REFRESH_MS)
   useEffect(() => {
     let alive = true
@@ -86,6 +89,7 @@ export default function WeatherPanel({ w, id }: { w: Weather; id?: string }) {
               zoom={11}
               className="map tsm-map"
               scrollWheelZoom={false}
+              dragging={!touch}
               attributionControl={false}
             >
               <TileLayer url={TILE_URL} attribution={TILE_ATTRIB} />
@@ -102,6 +106,7 @@ export default function WeatherPanel({ w, id }: { w: Weather; id?: string }) {
               ))}
             </MapContainer>
           </div>
+          {touch && <div className="map-disclaimer">{TOUCH_MAP_HINT}</div>}
           <div className="tsm-legend">
             <span>
               <i aria-hidden="true" style={{ background: LEVEL_COLOR.good }} />
