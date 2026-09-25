@@ -41,7 +41,7 @@
 - 部署為純靜態檔案
 - 所有定時刷新(到站 / 附近 / 港鐵 / 路況 / 路線地圖)喺分頁轉去背景時自動暫停,返嚟即刻補一次,上一輪未返唔會疊請求(`src/hooks/usePolling.ts`);藍牙小屏推送刻意照跑
 - 每個 API 請求都有 timeout(`src/lib/http.ts`);同一個 API 多處同時要都只會發一次請求(`src/lib/cache.ts`)
-- 規劃圖、綠van 站序(16 份分片)、車費等大資料全部 lazy load;首屏 JS 約 47KB gzip
+- 規劃圖、綠van 站序(16 份分片)、車費、路線頁等全部 lazy load;首屏 JS 約 84KB gzip(app 39KB + React 45KB,React 嗰份跨版本 cache)
 
 ## API
 

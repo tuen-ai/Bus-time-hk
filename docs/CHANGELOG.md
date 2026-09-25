@@ -8,12 +8,15 @@
 
 用 6 個角度(async 正確性、資料 / 網絡穩健、效能、UI 一致性 + 深色模式、無障礙、code 結構)審查成個 codebase,
 每個發現都由兩個獨立 reviewer 驗證(真係會發生?修法安唔安全?),82 個入面 78 個確認後分 11 組平行修正,
-每組再有 reviewer 覆核。單元測試由 51 個增加到 449 個。
+每組再有 reviewer 覆核;最後再用 5 個角度(跨組整合、用家流程 regression、截圖視覺、無障礙 + 廣東話用字、效能)
+覆核全部改動,29 個發現入面 24 個確認並修正。單元測試由 51 個增加到 521 個。
 
 #### 效能
 
-- 首屏 JS 263KB → 151KB(gzip 86 → 47KB):規劃、附近、顯示模式、設定等全部 lazy load,載入失敗自動重試一次
-- 唔再每次開 app 喺背景下載 2MB 規劃圖;規劃圖站 ID interning,2.26MB → 1.24MB(gzip 674 → 440KB)
+- 首屏 JS 271KB → 265KB(gzip 89 → 84KB),而且拆成兩份:app 本身 123KB(gzip 39KB)+ React 142KB(gzip 45KB);
+  React 嗰份跨版本 hash 唔變,之後每次更新只需重新下載 39KB。規劃、附近、路線頁、顯示模式、設定等全部 lazy load,載入失敗自動重試一次
+- 最大嘅實際慳位:唔再每次開 app 喺背景下載規劃圖(以前 674KB gzip)
+- 規劃圖站 ID interning,2.26MB → 1.24MB(gzip 674 → 440KB),只喺打開規劃 / 附近城巴綠van 先載;SW 亦唔會預載佢
 - 綠van 站序拆 16 份按需載入(以前開一條線要成份 144KB gzip)
 - 路線地圖唔再每秒重繪;搜尋排序用共用 Intl.Collator + useDeferredValue;JSON 資料改 JSON.parse 字串
 - 城巴站資料存 IndexedDB,再開同一條線唔使逐個站重新攞;門口顯示模式時鐘改每分鐘 render
