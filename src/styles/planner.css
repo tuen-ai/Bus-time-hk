@@ -54,6 +54,12 @@
   cursor: pointer;
   box-shadow: var(--shadow-sm);
 }
+/* 睇落 34px,撳得中嘅範圍 44px */
+.swap::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+}
 .preset-chips {
   display: flex;
   gap: 8px;
@@ -75,6 +81,15 @@
   background: var(--red);
   border-color: var(--red);
   color: #fff;
+}
+/* 規劃頁啲 chip 係主要操作:撳位夠 44px */
+.preset-chips .preset-chip {
+  min-height: 44px;
+}
+/* 揀咗唔好淨係靠顏色分(色弱都睇到);讀屏已經有 aria-pressed,剔號唔使再讀 */
+.preset-chips .preset-chip.on::before {
+  content: '✓ ';
+  content: '✓ ' / '';
 }
 .primary-btn.full {
   width: 100%;
@@ -221,6 +236,13 @@
   font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
+  position: relative;
+}
+/* 個掣唔好谷大撐高張卡,撳得中嘅範圍另外加 */
+.remind-btn::after {
+  content: '';
+  position: absolute;
+  inset: -8px -4px;
 }
 .remind-ok {
   margin-left: auto;

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { PickedPlace } from './LocationPicker'
 
 // 地圖揀點(Leaflet)按需載入
@@ -123,8 +123,21 @@ export default function PlannerView({ onOpenLeg, initialDest }: Props) {
     d: { lat: number; lng: number }
   } | null>(null) // 的士估價用
 
-  // 揀地點(全屏地圖)撳返回 = 取消,唔好退埋出 app
+  // 揀地點(全屏地圖)撳返回 / Esc = 取消,唔好退埋出 app
   useBackLayer(picking !== null, () => setPicking(null))
+
+  // 揀點畫面會成個換走規劃頁 —— 記住由邊個掣開,閂返之後焦點放返去嗰度
+  const rootRef = useRef<HTMLDivElement>(null)
+  const reopenFocus = useRef<string | null>(null)
+  const openPicker = (p: NonNullable<Picking>, from: string) => {
+    reopenFocus.current = from
+    setPicking(p)
+  }
+  useEffect(() => {
+    if (picking || !reopenFocus.current) return
+    rootRef.current?.querySelector<HTMLElement>(`[data-pick="${reopenFocus.current}"]`)?.focus()
+    reopenFocus.current = null
+  }, [picking])
 
   // 「已經過咗最遲出門時間」要跟時鐘行:有結果 + 有設到達時間先每 30 秒 tick
   const [now, setNow] = useState(() => Date.now())
@@ -184,7 +197,10 @@ export default function PlannerView({ onOpenLeg, initialDest }: Props) {
     if (sp) {
       setDest({ label: `${sp.icon} ${sp.label}`, lat: sp.lat, lng: sp.lng })
     } else {
-      setPicking({ kind: 'preset', presetId: id, icon: def.icon, title: `設定:${def.icon} ${def.label}` })
+      openPicker(
+        { kind: 'preset', presetId: id, icon: def.icon, title: `設定:${def.icon} ${def.label}` },
+        `chip-${id}`,
+      )
     }
   }
 
@@ -216,35 +232,50 @@ export default function PlannerView({ onOpenLeg, initialDest }: Props) {
   const shown = results && directOnly ? results.filter((j) => j.transfers === 0) : results
 
   return (
-    <div>
+    <div ref={rootRef}>
       <div className="plan-card">
-        <button className="plan-field" onClick={() => setPicking({ kind: 'origin', title: '揀起點' })}>
+        <button
+          className="plan-field"
+          data-pick="origin"
+          onClick={() => openPicker({ kind: 'origin', title: '揀起點' }, 'origin')}
+        >
           <span className="plan-dot o" />
+          <span className="sr-only">起點:</span>
           {origin ? (
             <span className="plan-val">{epLabel(origin)}</span>
           ) : (
             <span className="plan-ph">揀起點</span>
           )}
         </button>
-        <button className="plan-field" onClick={() => setPicking({ kind: 'dest', title: '揀終點' })}>
+        <button
+          className="plan-field"
+          data-pick="dest"
+          onClick={() => openPicker({ kind: 'dest', title: '揀終點' }, 'dest')}
+        >
           <span className="plan-dot d" />
+          <span className="sr-only">終點:</span>
           {dest ? (
             <span className="plan-val">{epLabel(dest)}</span>
           ) : (
             <span className="plan-ph">輸入終點 / 喺地圖揀</span>
           )}
         </button>
-        <button className="swap" onClick={swap} aria-label="對調起訖">
-          ⇅
+        <button className="swap" onClick={swap} aria-label="對調起點同終點">
+          <span aria-hidden="true">⇅</span>
         </button>
 
         <div className="preset-chips">
-          <button className="preset-chip" onClick={() => setOrigin('mylocation')}>
-            📍 我的位置
+          <button className="preset-chip" onClick={() => setOrigin('mylocation')} aria-label="起點用我的位置">
+            <span aria-hidden="true">📍</span> 我的位置
           </button>
           {PRESET_DEFS.map((d) => (
-            <button key={d.id} className="preset-chip" onClick={() => pickPreset(d.id)}>
-              {d.icon} {presetOf(d.id) ? d.label : `設定${d.label}`}
+            <button
+              key={d.id}
+              className="preset-chip"
+              data-pick={`chip-${d.id}`}
+              onClick={() => pickPreset(d.id)}
+            >
+              <span aria-hidden="true">{d.icon}</span> {presetOf(d.id) ? d.label : `設定${d.label}`}
             </button>
           ))}
           <button
@@ -256,12 +287,14 @@ export default function PlannerView({ onOpenLeg, initialDest }: Props) {
               if (results) void doPlan(v) // 已有結果就即刻重計
             }}
           >
-            🚌 只睇直達
+            <span aria-hidden="true">🚌</span> 只睇直達
           </button>
         </div>
 
         <div className="arrive-row">
-          <label htmlFor="arriveBy">⏰ 幾點前要到?</label>
+          <label htmlFor="arriveBy">
+            <span aria-hidden="true">⏰</span> 幾點前要到?
+          </label>
           <input
             id="arriveBy"
             type="time"
@@ -283,7 +316,13 @@ export default function PlannerView({ onOpenLeg, initialDest }: Props) {
           disabled={!origin || !dest || planning}
           onClick={() => void doPlan()}
         >
-          {planning ? '計緊…' : '🧭 搵最快路線'}
+          {planning ? (
+            '計緊…'
+          ) : (
+            <>
+              <span aria-hidden="true">🧭</span> 搵最快路線
+            </>
+          )}
         </button>
       </div>
 
@@ -291,7 +330,11 @@ export default function PlannerView({ onOpenLeg, initialDest }: Props) {
         <MascotWelcome title="一齊去邊度玩呢? 💕" sub="揀起點同終點,搵最快路線~ 🥰" />
       )}
 
-      {planErr && <div className="error pad">⚠️ {planErr}</div>}
+      {planErr && (
+        <div className="error pad" role="alert">
+          <span aria-hidden="true">⚠️</span> {planErr}
+        </div>
+      )}
       {shown && shown.length === 0 && !planning && (
         <MascotState
           mood="sad"
@@ -326,7 +369,7 @@ export default function PlannerView({ onOpenLeg, initialDest }: Props) {
                           <span className="remind-ok">✓ 已設提醒</span>
                         ) : (
                           <button className="remind-btn" onClick={() => void remindLeave(j, i)}>
-                            ⏰ 夠鐘提我
+                            <span aria-hidden="true">⏰</span> 夠鐘提我
                           </button>
                         )}
                       </>
@@ -368,16 +411,20 @@ export default function PlannerView({ onOpenLeg, initialDest }: Props) {
             <button
               key={d.id}
               className="preset-chip"
+              data-pick={`fav-${d.id}`}
               onClick={() =>
-                setPicking({
-                  kind: 'preset',
-                  presetId: d.id,
-                  icon: d.icon,
-                  title: `設定:${d.icon} ${d.label}`,
-                })
+                openPicker(
+                  {
+                    kind: 'preset',
+                    presetId: d.id,
+                    icon: d.icon,
+                    title: `設定:${d.icon} ${d.label}`,
+                  },
+                  `fav-${d.id}`,
+                )
               }
             >
-              {d.icon} {d.label}
+              <span aria-hidden="true">{d.icon}</span> {d.label}
               {sp ? (
                 <span className="muted small"> · 已設</span>
               ) : (

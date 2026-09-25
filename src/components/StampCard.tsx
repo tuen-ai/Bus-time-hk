@@ -19,7 +19,9 @@ export default function StampCard() {
   return (
     <div className="stamp-card">
       <div className="stamp-head">
-        <span>🐼 集印卡 · {s.total} 個印</span>
+        <span>
+          <span aria-hidden="true">🐼</span> 集印卡 · {s.total} 個印
+        </span>
         {next && (
           <span className="muted small">
             仲差 {next.at - s.total} 個 → {next.emoji} {next.label}
@@ -28,7 +30,13 @@ export default function StampCard() {
       </div>
       <div className="stamp-week">
         {days.map((d, i) => (
-          <span key={i} className={`stamp-dot ${d.got ? 'got' : ''}`}>
+          // 讀屏讀「星期一 有印」,唔好讀「一 paw prints」
+          <span
+            key={i}
+            className={`stamp-dot ${d.got ? 'got' : ''}`}
+            role="img"
+            aria-label={`星期${d.label} ${d.got ? '有印' : '冇印'}`}
+          >
             <i>{d.label}</i>
             {d.got ? '🐾' : '·'}
           </span>
@@ -43,7 +51,15 @@ export default function StampCard() {
         </div>
       )}
       {next && (
-        <div className="stamp-bar">
+        <div
+          className="stamp-bar"
+          role="progressbar"
+          aria-label={`${next.label}進度`}
+          aria-valuemin={0}
+          aria-valuemax={next.at}
+          aria-valuenow={Math.min(s.total, next.at)}
+          aria-valuetext={`${s.total} / ${next.at} 個印`}
+        >
           <i style={{ width: `${Math.min(100, (s.total / next.at) * 100)}%` }} />
         </div>
       )}

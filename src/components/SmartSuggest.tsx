@@ -21,7 +21,9 @@ export default function SmartSuggest({ routes, onOpen }: Props) {
 
   return (
     <div className="suggest">
-      <div className="section-title">🐼 依你習慣,呢個時間通常搭…</div>
+      <div className="section-title">
+        <span aria-hidden="true">🐼</span> 依你習慣,呢個時間通常搭…
+      </div>
       <div className="suggest-row">
         {items.map(({ s, r }) => (
           <button
@@ -34,7 +36,9 @@ export default function SmartSuggest({ routes, onOpen }: Props) {
               <span className="muted small">{coLabel(r.co)} 往</span>
               <span className="suggest-dest">{r.dest_tc}</span>
             </span>
-            <span className="chev">›</span>
+            <span className="chev" aria-hidden="true">
+              ›
+            </span>
           </button>
         ))}
       </div>

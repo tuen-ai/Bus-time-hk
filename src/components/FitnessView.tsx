@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MapContainer, TileLayer, Marker, CircleMarker, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { TILE_URL, TILE_ATTRIB } from '../lib/mapConfig'
+import { TILE_URL, TILE_ATTRIB, TOUCH_MAP_HINT, isTouchMap } from '../lib/mapConfig'
+import { prefersReducedMotion } from '../lib/motion'
 import { getPosition, describeGeoError, distanceMeters, formatDistance } from '../lib/geo'
 import { MascotState } from './Mascots'
 
@@ -21,10 +22,11 @@ export interface PlanTo {
   lng: number
 }
 
+// 分店名交畀 Marker 嘅 title 做讀屏名,emoji 唔使讀
 const gymIcon = (active: boolean) =>
   L.divIcon({
     className: 'gym-icon',
-    html: `<div class="gym ${active ? 'on' : ''}">🏋️</div>`,
+    html: `<div class="gym ${active ? 'on' : ''}" aria-hidden="true">🏋️</div>`,
     iconSize: [30, 30],
     iconAnchor: [15, 15],
   })
@@ -32,7 +34,10 @@ const gymIcon = (active: boolean) =>
 function FlyTo({ target }: { target: [number, number] | null }) {
   const map = useMap()
   useEffect(() => {
-    if (target) map.flyTo(target, 16, { duration: 0.5 })
+    if (!target) return
+    // 減少動態效果:唔好飛,直接跳(setView 預設都會郁,要 animate:false)
+    if (prefersReducedMotion()) map.setView(target, 16, { animate: false })
+    else map.flyTo(target, 16, { duration: 0.5 })
   }, [target, map])
   return null
 }
@@ -44,6 +49,8 @@ export default function FitnessView({ onPlanTo }: { onPlanTo: (t: PlanTo) => voi
   const [me, setMe] = useState<{ lat: number; lng: number } | null>(null)
   const [geoErr, setGeoErr] = useState<string | null>(null)
   const [focus, setFocus] = useState<[number, number] | null>(null)
+  // 觸控機:一隻手指留返畀頁面捲動,兩隻手指先郁 / 縮放地圖(唔好一掃就被地圖食咗)
+  const [touch] = useState(isTouchMap)
 
   useEffect(() => {
     if (cache !== undefined) return
@@ -88,6 +95,7 @@ export default function FitnessView({ onPlanTo }: { onPlanTo: (t: PlanTo) => voi
           zoom={me ? 14 : 11}
           className="map tsm-map"
           scrollWheelZoom={false}
+          dragging={!touch}
           attributionControl={false}
         >
           <TileLayer url={TILE_URL} attribution={TILE_ATTRIB} />
@@ -103,12 +111,18 @@ export default function FitnessView({ onPlanTo }: { onPlanTo: (t: PlanTo) => voi
             <Marker
               key={`${b.lat},${b.lng}`}
               position={[b.lat, b.lng]}
+              title={b.n}
               icon={gymIcon(focus?.[0] === b.lat && focus?.[1] === b.lng)}
               eventHandlers={{ click: () => setFocus([b.lat, b.lng]) }}
             />
           ))}
         </MapContainer>
       </div>
+      {touch && (
+        <div className="muted small gym-map-hint" aria-hidden="true">
+          {TOUCH_MAP_HINT}
+        </div>
+      )}
       {geoErr && (
         <div className="muted small" style={{ marginBottom: 8 }}>
           ⚠️ {geoErr}(清單未能按距離排)
@@ -119,8 +133,13 @@ export default function FitnessView({ onPlanTo }: { onPlanTo: (t: PlanTo) => voi
         {sorted.map((b) => (
           <li key={`${b.lat},${b.lng}`}>
             <div className="nearby-row" style={{ cursor: 'default' }}>
-              <button className="gym-pick" aria-label="喺地圖顯示" onClick={() => setFocus([b.lat, b.lng])}>
-                🏋️
+              <button
+                className="gym-pick"
+                aria-label={`喺地圖顯示${b.n}`}
+                aria-pressed={focus?.[0] === b.lat && focus?.[1] === b.lng}
+                onClick={() => setFocus([b.lat, b.lng])}
+              >
+                <span aria-hidden="true">🏋️</span>
               </button>
               <span className="nearby-info">
                 <span className="nearby-dest">{b.n}</span>
@@ -131,9 +150,10 @@ export default function FitnessView({ onPlanTo }: { onPlanTo: (t: PlanTo) => voi
               </span>
               <button
                 className="goto-btn"
+                aria-label={`帶我去${b.n}`}
                 onClick={() => onPlanTo({ label: `🏋️ ${b.n}`, lat: b.lat, lng: b.lng })}
               >
-                🧭 帶我去
+                <span aria-hidden="true">🧭</span> 帶我去
               </button>
             </div>
           </li>

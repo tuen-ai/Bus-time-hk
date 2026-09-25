@@ -1,6 +1,13 @@
 // 底部浮動提示條:出門倒數 + 落車鬧鐘(全 app 常駐,唔會因轉 tab 唔見)。
-import { useEffect, useState } from 'react'
-import { getReminder, setReminder, subscribeReminder, fmtClock, type LeaveReminder } from '../lib/reminder'
+import { useEffect, useRef, useState } from 'react'
+import {
+  getReminder,
+  setReminder,
+  subscribeReminder,
+  reminderDue,
+  fmtClock,
+  type LeaveReminder,
+} from '../lib/reminder'
 import { getAlarm, stopAlarm, subscribeAlarm, type AlightAlarm } from '../lib/alarm'
 import { alertAll, formatCountdown } from '../lib/chime'
 import { formatDistance } from '../lib/geo'
@@ -9,7 +16,8 @@ export default function AlertBanners() {
   const [reminder, setR] = useState<LeaveReminder | null>(getReminder)
   const [alarm, setA] = useState<AlightAlarm | null>(getAlarm)
   const [now, setNow] = useState(() => Date.now())
-  const [leaveFired, setLeaveFired] = useState(false)
+  // 呢個 session 響過邊個(用 at 認);StrictMode 重跑 effect 都唔會響兩次
+  const firedAt = useRef<number | null>(null)
 
   useEffect(() => subscribeReminder(setR), [])
   useEffect(() => subscribeAlarm(setA), [])
@@ -21,20 +29,17 @@ export default function AlertBanners() {
     return () => clearInterval(id)
   }, [reminder, alarm])
 
-  // 夠鐘出門 → 響一次
+  // 夠鐘出門 → 每個提醒響一次。fired 寫返入 store:換過新提醒會再響,reload 唔會重響舊嗰個
   useEffect(() => {
-    if (!reminder) {
-      setLeaveFired(false)
-      return
-    }
-    if (!leaveFired && now >= reminder.at) {
-      setLeaveFired(true)
-      alertAll(
-        '🏃 夠鐘出門喇!',
-        `去「${reminder.destLabel}」要 ${reminder.journeyMins} 分鐘,而家出發先趕到 ${reminder.arriveBy}~`,
-      )
-    }
-  }, [now, reminder, leaveFired])
+    if (!reminderDue(reminder, now) || firedAt.current === reminder.at) return
+    firedAt.current = reminder.at
+    // 先響,再持久化(storage 出錯都唔會食咗個提醒)
+    alertAll(
+      '🏃 夠鐘出門喇!',
+      `去「${reminder.destLabel}」要 ${reminder.journeyMins} 分鐘,而家出發先趕到 ${reminder.arriveBy}~`,
+    )
+    setReminder({ ...reminder, fired: true })
+  }, [now, reminder])
 
   if (!reminder && !alarm) return null
 
@@ -45,7 +50,9 @@ export default function AlertBanners() {
       <div className="banners">
         {reminder && (
           <div className={`fbanner ${now >= reminder.at ? 'urgent' : ''}`}>
-            <span className="fb-icon">{now >= reminder.at ? '🏃' : '⏰'}</span>
+            <span className="fb-icon" aria-hidden="true">
+              {now >= reminder.at ? '🏃' : '⏰'}
+            </span>
             <span className="fb-text">
               {now >= reminder.at ? (
                 <>
@@ -65,7 +72,9 @@ export default function AlertBanners() {
         )}
         {alarm && (
           <div className={`fbanner ${alarm.fired ? 'urgent' : ''}`}>
-            <span className="fb-icon">🔔</span>
+            <span className="fb-icon" aria-hidden="true">
+              🔔
+            </span>
             <span className="fb-text">
               {alarm.fired ? (
                 <>就快到「{alarm.stopName}」,準備落車!</>

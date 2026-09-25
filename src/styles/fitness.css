@@ -8,13 +8,30 @@
 .gym-icon .gym.on {
   transform: scale(1.5);
 }
+@media (prefers-reduced-motion: reduce) {
+  .gym-icon .gym {
+    transition: none;
+  }
+}
+/* 觸控機地圖:一隻手指捲頁,提示兩隻手指先郁地圖 */
+.gym-map-hint {
+  text-align: center;
+  margin: -4px 0 8px;
+}
 .gym-pick {
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 12px;
   font-size: 1.2rem;
   padding: 8px 10px;
+  min-width: 44px;
+  min-height: 44px;
   cursor: pointer;
+  flex-shrink: 0;
+}
+.gym-pick[aria-pressed='true'] {
+  border-color: var(--red);
+  background: color-mix(in srgb, var(--red) 12%, var(--card));
 }
 .goto-btn {
   border: 1.5px solid var(--red);
@@ -22,6 +39,7 @@
   background: var(--card);
   border-radius: 999px;
   padding: 7px 12px;
+  min-height: 44px;
   font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
