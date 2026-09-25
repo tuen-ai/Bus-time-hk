@@ -49,6 +49,24 @@ export const lrRoutes = (): Route[] =>
     dest_tc: r.dTc,
   }))
 
+// ---- ETA 對方向用 ----
+/** hkbus 用 '*' 標特別班次(例如 751* 天逸→屯門碼頭);Next Train API 嘅 route_no 冇 '*' */
+export const lrBase = (route: string): string => route.replace(/\*$/, '')
+
+/** 「兆康 (循環線)」→「兆康」:API 嘅 dest_ch 冇括號註解 */
+const bareDest = (s: string): string => s.replace(/\s*[(（].*[)）]\s*$/, '').trim()
+
+/** 兩個終點站名係咪同一個站(API 同 hkbus 寫法有少少出入 → 容許前綴) */
+export function lrSameDest(a: string, b: string): boolean {
+  const x = bareDest(a)
+  const y = bareDest(b)
+  return x !== '' && y !== '' && (x.startsWith(y) || y.startsWith(x))
+}
+
+/** 同一個路綫號(連 '*' 特別班)所有已知終點 —— 用嚟分「API 寫法唔同」定「呢個方向真係冇車」 */
+export const lrKnownDests = (route: string): string[] =>
+  data.routes.filter((r) => lrBase(r.route) === lrBase(route)).map((r) => r.dTc)
+
 const key = (route: string, bound: string, st: string) => `${route}|${bound}|${st}`
 const stopsByRoute = new Map<string, string[]>(data.routes.map((r) => [key(r.route, r.bound, r.st), r.stops]))
 

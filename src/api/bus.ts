@@ -1,10 +1,10 @@
-// 統一營辦商層:KMB + CTB。components 一律用呢度,唔直接 call 個別營辦商。
+// 統一營辦商層:九巴、城巴、輕鐵、嶼巴、綠van。components 一律用呢度,唔直接 call 個別營辦商。
 import * as kmb from './kmb'
 import * as ctb from './ctb'
 import { fetchLrtSchedule } from './lrt'
 import { fetchNlbEta } from './nlb'
 import { fetchGmbEta } from './gmb'
-import { lrRoutes, lrRouteStops } from '../lib/lrData'
+import { lrBase, lrKnownDests, lrRoutes, lrRouteStops, lrSameDest } from '../lib/lrData'
 import { nlbRoutes, nlbRouteStops, nlbRouteId } from '../lib/nlbData'
 import { gmbRoutesAsync, gmbRouteStops } from '../lib/gmbData'
 import { getStopMap } from '../lib/store'
@@ -19,7 +19,9 @@ export interface Route {
   service_type: string
   orig_tc: string
   dest_tc: string
-  uid?: string // GMB 用 gtfsId 做唯一鍵(route 號跨區重複)
+  // 同 key(co|route|bound|st)多條時嘅唯一鍵:GMB = gtfsId(route 號跨區重複,O / I 共用);
+  // 嶼巴 = nlbUid(同號同方向有幾個變體)。其他營辦商冇。
+  uid?: string
 }
 
 export interface Stop {
@@ -75,6 +77,96 @@ export const routeKey = (k: RouteKeyLike): string => `${k.co}|${k.route}|${k.bou
 
 export const routeKeyOf = (r: Route): string => `${r.co}|${r.route}|${r.bound}|${r.service_type}`
 
+// ---- 由 key 對返 Route(收藏 / 附近 / 推薦 / 規劃 leg 共用)----
+// GMB 同號跨區、嶼巴同號變體會撞 key → 有 uid 用 uid,冇就用目的地 / 經過嘅站 tiebreak。
+
+/** 同一條線先當係同一條:key 一樣之外,uid 都要一樣(變體 chip 邊個「揀咗」用呢個) */
+export const sameRoute = (a: Route, b: Route): boolean =>
+  routeKeyOf(a) === routeKeyOf(b) && (a.uid ?? '') === (b.uid ?? '')
+
+/** co|route|bound|serviceType → Route[](同 key 可能多條,保持清單次序) */
+export function indexRoutes(routes: Route[]): Map<string, Route[]> {
+  const m = new Map<string, Route[]>()
+  for (const r of routes) {
+    const k = routeKeyOf(r)
+    const arr = m.get(k)
+    if (arr) arr.push(r)
+    else m.set(k, [r])
+  }
+  return m
+}
+
+export interface RouteQuery extends RouteKeyLike {
+  uid?: string
+  /** 目的地(收藏 / 附近 / 規劃 leg 本身有):同 key 多條時用嚟 tiebreak */
+  dest?: string
+}
+
+function candidatesOf(index: Map<string, Route[]>, q: RouteKeyLike): Route[] {
+  const cands = index.get(routeKey(q)) ?? []
+  // 嶼巴 2026-09 上游將回程 bound 由 O 改 I → 舊收藏用相反方向再試一次
+  if (!cands.length && q.co === 'nlb') {
+    return index.get(routeKey({ ...q, bound: q.bound === 'I' ? 'O' : 'I' })) ?? []
+  }
+  return cands
+}
+
+function byDest(cands: Route[], dest?: string): Route | undefined {
+  const d = dest?.trim()
+  if (cands.length <= 1 || !d) return cands[0]
+  // 兩邊字串來源唔同(API / 靜態資料)→ 先全等,再寬鬆 includes
+  return (
+    cands.find((x) => x.dest_tc.trim() === d) ??
+    cands.find((x) => x.dest_tc !== '' && (x.dest_tc.includes(d) || d.includes(x.dest_tc))) ??
+    cands[0]
+  )
+}
+
+/** 同步版:uid 啱就用;否則目的地 tiebreak;都唔得就清單第一條 */
+export function pickRoute(index: Map<string, Route[]>, q: RouteQuery): Route | undefined {
+  const cands = candidatesOf(index, q)
+  return (q.uid ? cands.find((x) => x.uid === q.uid) : undefined) ?? byDest(cands, q.dest)
+}
+
+/**
+ * 同 pickRoute,但 GMB / 嶼巴同號多條又冇 uid(舊收藏、附近)時,
+ * 再睇邊條真係經過 stopId(兩間都係靜態站序,唔使上網)。
+ */
+export async function pickRouteAtStop(
+  index: Map<string, Route[]>,
+  q: RouteQuery & { stopId?: string },
+): Promise<Route | undefined> {
+  const cands = candidatesOf(index, q)
+  const hit = q.uid ? cands.find((x) => x.uid === q.uid) : undefined
+  if (hit) return hit
+  const { stopId } = q
+  if (cands.length > 1 && stopId && (q.co === 'gmb' || q.co === 'nlb')) {
+    const serving = await Promise.all(
+      cands.map((r) =>
+        getRouteStops(r).then(
+          (ss) => ss.some((s) => s.stopId === stopId),
+          () => false,
+        ),
+      ),
+    )
+    const atStop = cands.filter((_, i) => serving[i])
+    if (atStop.length) return byDest(atStop, q.dest)
+  }
+  return byDest(cands, q.dest)
+}
+
+// GMB 同號跨區:變體 bar 只列同區嗰啲(同 uid = 同線兩個方向;特別班 uid 唔同但會共用總站)
+const ends = (r: Route): string[] => [r.orig_tc, r.dest_tc].map((s) => s.trim()).filter(Boolean)
+const sameArea = (a: Route, b: Route): boolean =>
+  a.uid === b.uid || ends(a).some((x) => ends(b).some((y) => x.includes(y) || y.includes(x)))
+
+/** 路線頁頂嘅方向 / 特別班 chip:同營辦商同號;GMB 再剔走其他區嘅同號線 */
+export function routeVariants(routes: Route[], sel: Route): Route[] {
+  return routes.filter(
+    (r) => r.co === sel.co && r.route === sel.route && (r.co !== 'gmb' || !sel.uid || sameArea(r, sel)),
+  )
+}
+
 export const CO_COLOR: Record<Co, string> = {
   kmb: '#c8102e',
   ctb: '#0e7490',
@@ -98,6 +190,9 @@ async function batchMap<T, R>(items: T[], size: number, fn: (x: T) => Promise<R>
 // ---- 路線清單(五個營辦商合併,IndexedDB 緩存)----
 const DAY = 24 * 60 * 60 * 1000
 const ROUTES_KEY = 'bus.routes'
+/** 清單次序(同 fetchAllFresh 合併次序一致) */
+const ORDER: Co[] = ['kmb', 'ctb', 'lrt', 'nlb', 'gmb']
+/** 齊料清單先會入 routeMem —— 殘缺嘅留喺外面,撳重試先會真係再 fetch */
 let routeMem: Route[] | null = null
 
 /** 上次拎路線清單時攞唔到嘅營辦商(網絡 / CORS 問題)。殘缺清單唔會寫入快取。 */
@@ -107,6 +202,22 @@ export const missingOperators = (): Co[] => missing
 /** 九巴佔成個清單約四成 —— 冇九巴多數係當時 fetch 失敗,唔好信呢份快取 */
 const looksComplete = (rs: Route[]): boolean => rs.some((r) => r.co === 'kmb')
 
+// 靜態資料(bundle 入面)—— 理論上唔會 throw,但壞 JSON 都唔好拖冧成個清單
+const safe = (fn: () => Route[]): Route[] | null => {
+  try {
+    const rs = fn()
+    return rs.length ? rs : null
+  } catch {
+    return null
+  }
+}
+
+/** 輕鐵 / 嶼巴係 bundle 入面嘅靜態資料 → 用返今個版本(舊快取嘅嶼巴行冇 uid,分唔到同號變體) */
+function withStaticRoutes(rs: Route[]): Route[] {
+  const fresh: Partial<Record<Co, Route[] | null>> = { lrt: safe(lrRoutes), nlb: safe(nlbRoutes) }
+  return ORDER.flatMap((co) => fresh[co] ?? rs.filter((r) => r.co === co))
+}
+
 /**
  * stale-while-revalidate:7 日內嘅 cache 即刻回(app 即開即用);
  * 過咗 1 日就背景刷新,完成後經 onRefresh 靜靜更新 UI。
@@ -114,33 +225,52 @@ const looksComplete = (rs: Route[]): boolean => rs.some((r) => r.co === 'kmb')
  */
 export async function getAllRoutes(onRefresh?: (rs: Route[]) => void): Promise<Route[]> {
   if (routeMem) return routeMem
-  const hit = await cacheGet<Route[]>(ROUTES_KEY, 7 * DAY)
+  // 讀埋過咗 7 日嘅:網絡唔得時仲可以頂住先
+  const hit = await cacheGet<Route[]>(ROUTES_KEY, Infinity)
   // 舊版本可能快取咗殘缺清單(例如當時九巴 fetch 失敗)—— 當佢冇,重新攞過
-  if (hit && hit.data.length > 0 && looksComplete(hit.data)) {
-    routeMem = hit.data
-    if (hit.age >= DAY) {
+  const cached = hit && hit.data.length > 0 && looksComplete(hit.data) ? hit : null
+  if (cached && cached.age < 7 * DAY) {
+    const rs = withStaticRoutes(cached.data)
+    routeMem = rs
+    missing = [] // 快取只會係齊料嗰份(例如另一個分頁啱啱寫咗)→ 唔好留住上次失敗嘅提示
+    if (cached.age >= DAY) {
       void fetchAllFresh()
-        .then((all) => {
+        .then(({ all, miss }) => {
+          // 背景刷新唔齊料(例如九巴 timeout)→ 繼續用手上齊料嘅清單,唔好用殘缺嗰份蓋過佢
+          if (miss.length || !looksComplete(all)) return
           routeMem = all
-          saveRoutes(all)
+          void cachePut(ROUTES_KEY, all)
           onRefresh?.(all)
         })
         .catch(() => {})
     }
-    return hit.data
+    return rs
   }
-  const all = await fetchAllFresh()
-  routeMem = all
-  saveRoutes(all)
-  return all
+
+  let fresh: { all: Route[]; miss: Co[] } | null = null
+  try {
+    fresh = await fetchAllFresh()
+  } catch (e) {
+    // 全部失敗(離線):有舊清單就頂住先,冇就照拋錯俾 App 顯示重試
+    if (!cached) throw e
+  }
+  if (fresh && fresh.miss.length === 0 && looksComplete(fresh.all)) {
+    missing = []
+    routeMem = fresh.all
+    void cachePut(ROUTES_KEY, fresh.all) // 齊料先寫快取:殘缺清單一寫落去就會賴足 7 日
+    return fresh.all
+  }
+  // 唔齊料:攞唔到嘅營辦商用舊快取補返(唔寫快取、唔入 routeMem → 下次重試會再 fetch)
+  const got = fresh?.all ?? []
+  const miss = fresh?.miss ?? ORDER
+  const old = cached ? withStaticRoutes(cached.data) : []
+  const merged = ORDER.flatMap((co) => (miss.includes(co) ? old : got).filter((r) => r.co === co))
+  // 用緊舊資料都照記低:搵唔到新路線時先講得出係「九巴資料攞唔到」,唔係叫人改關鍵字
+  missing = [...miss]
+  return merged
 }
 
-/** 齊料先寫快取:殘缺清單一寫落去就會賴足 7 日,搵唔到成間營辦商嘅路線 */
-function saveRoutes(all: Route[]): void {
-  if (missing.length === 0 && looksComplete(all)) void cachePut(ROUTES_KEY, all)
-}
-
-async function fetchAllFresh(): Promise<Route[]> {
+async function fetchAllFresh(): Promise<{ all: Route[]; miss: Co[] }> {
   const [k, c] = await Promise.all([
     kmb
       .fetchRoutes()
@@ -157,15 +287,6 @@ async function fetchAllFresh(): Promise<Route[]> {
       .catch(() => null),
     ctb.fetchCtbRoutes().catch(() => null),
   ])
-  // 靜態資料(bundle 入面)—— 理論上唔會 throw,但壞 JSON 都唔好拖冧成個清單
-  const safe = (fn: () => Route[]): Route[] | null => {
-    try {
-      const rs = fn()
-      return rs.length ? rs : null
-    } catch {
-      return null
-    }
-  }
   const lr = safe(lrRoutes)
   const nl = safe(nlbRoutes)
   const gm = await gmbRoutesAsync().catch(() => null)
@@ -177,12 +298,22 @@ async function fetchAllFresh(): Promise<Route[]> {
     ['nlb', nl],
     ['gmb', gm],
   ]
-  missing = parts.filter(([, rs]) => !rs?.length).map(([co]) => co)
+  const miss = parts.filter(([, rs]) => !rs?.length).map(([co]) => co)
   const all = parts.flatMap(([, rs]) => rs ?? [])
   // 全部失敗(離線/CORS)→ 唔好快取空陣列毒化一日,直接拋錯俾 App 顯示重試
   if (all.length === 0) throw new Error('路線資料載入失敗,請稍後重試')
-  return all
+  return { all, miss }
 }
+
+// ---- GMB:uid 跨組過渡 ----
+// GMB uid(gtfsId)就係 etagmb 嘅 route_id(同一條線 O / I 共用):fetchGmbEta 有 routeId
+// 先分得開同一個站、同號嘅唔同線(例如 101M 幾條特別班)。未加呢個參數之前會被忽略,行為同以前一樣。
+const gmbEtaOf = fetchGmbEta as (
+  stopId: string,
+  routeCode: string,
+  bound: 'I' | 'O',
+  routeId?: string,
+) => Promise<Eta[]>
 
 // ---- 路線站序 + 站名/座標 ----
 export async function getRouteStops(r: Route): Promise<RouteStopInfo[]> {
@@ -190,10 +321,11 @@ export async function getRouteStops(r: Route): Promise<RouteStopInfo[]> {
     return lrRouteStops(r.route, r.bound, r.service_type)
   }
   if (r.co === 'nlb') {
-    return nlbRouteStops(r.route, r.bound, r.service_type)
+    return nlbRouteStops(r)
   }
   if (r.co === 'gmb') {
-    return r.uid ? gmbRouteStops(r.uid) : []
+    // uid 去程回程共用 → 要連 bound 先攞啱方向
+    return r.uid ? gmbRouteStops(r.uid, r.bound) : []
   }
   if (r.co === 'kmb') {
     const [rs, stopMap] = await Promise.all([
@@ -233,17 +365,18 @@ export async function getRouteStops(r: Route): Promise<RouteStopInfo[]> {
 // ---- 指定站 + 路線到站時間 ----
 export async function getEta(r: Route, stopId: string): Promise<Eta[]> {
   if (r.co === 'kmb') {
+    // /eta/{stop}/{route}/{st} 會連埋另一個方向一齊回(總站 / 兩邊共用嘅站)→ 只要本方向
     const data = await kmb.fetchEta(stopId, r.route, r.service_type)
-    return data.map((e) => ({ ...e, co: 'kmb' }))
+    return data.filter((e) => e.dir === r.bound).map((e) => ({ ...e, co: 'kmb' }))
   }
   if (r.co === 'ctb') {
     return ctb.fetchCtbEta(stopId, r.route, r.bound)
   }
   if (r.co === 'gmb') {
-    return fetchGmbEta(stopId, r.route, r.bound)
+    return gmbEtaOf(stopId, r.route, r.bound, r.uid)
   }
   if (r.co === 'nlb') {
-    const id = nlbRouteId(r.route, r.bound, r.service_type)
+    const id = nlbRouteId(r, stopId)
     if (!id) return []
     const arrs = await fetchNlbEta(id, stopId)
     return arrs.map((a, i) => ({
@@ -259,11 +392,26 @@ export async function getEta(r: Route, stopId: string): Promise<Eta[]> {
       data_timestamp: '',
     }))
   }
-  // 輕鐵:由站取所有路綫下一班,filter 出本路綫,轉成統一 Eta
+  return lrtEta(r, stopId)
+}
+
+/**
+ * 輕鐵:一個站所有月台、所有路綫嘅下一班 → 揀本路綫、本方向(按終點站),按分鐘排好。
+ * 同一個站兩邊月台都有同號車(一邊一個方向),淨係對路綫號會撈埋對面嗰啲。
+ */
+async function lrtEta(r: Route, stopId: string): Promise<Eta[]> {
   const trains = await fetchLrtSchedule(Number(stopId.slice(2)))
   const now = Date.now()
-  return trains
-    .filter((t) => t.route === r.route)
+  const base = lrBase(r.route)
+  const same = trains.filter((t) => lrBase(t.route) === base)
+  const mine = same.filter((t) => lrSameDest(t.destTc, r.dest_tc))
+  // 對唔到終點:唔知方向(舊收藏冇目的地)或者冇一班認得(API 寫法唔同)先當晒係本路綫,
+  // 免得全部收埋;認得但係去第二度 = 呢個方向暫時冇車。'*' 特別班永遠唔借正常班次嘅車。
+  const known = lrKnownDests(r.route)
+  const unsure = !r.dest_tc.trim() || !same.some((t) => known.some((d) => lrSameDest(t.destTc, d)))
+  const list = mine.length || !unsure || r.route.endsWith('*') ? mine : same
+  return [...list]
+    .sort((a, b) => a.mins - b.mins)
     .map((t, i) => ({
       co: 'lrt' as const,
       route: r.route,
