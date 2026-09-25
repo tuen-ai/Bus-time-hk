@@ -15,8 +15,8 @@ vi.mock('../api/bus', () => {
     sameRoute: (a: Route, b: Route) => key(a) === key(b) && (a.uid ?? '') === (b.uid ?? ''),
   }
 })
-vi.mock('../lib/store', () => ({
-  favKey: (f: { stopId: string }) => f.stopId,
+vi.mock('../lib/store', async (orig) => ({
+  ...(await orig<typeof import('../lib/store')>()),
   getFavorites: () => [],
   toggleFavorite: () => [],
 }))

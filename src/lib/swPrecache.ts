@@ -11,7 +11,7 @@ export interface BuiltFile {
 /** 大過呢個 size 嘅 chunk 唔預載:用到先 cache,之後跨版本帶過去 */
 export const PRECACHE_MAX_BYTES = 1_000_000
 
-/** 點都唔預載(就算將來縮細咗):規劃圖只係撳「規劃」先要,唔好第一次開 app 就喺背景下載 */
+/** 點都唔預載(就算將來縮細咗):規劃圖只係「規劃」同「附近」城巴/綠van 用到先載,唔好第一次開 app 就喺背景下載 */
 export const NEVER_PRECACHE = /\/planGraph-[^/]*\.js$/
 
 export interface SwLists {

@@ -115,7 +115,7 @@ const StopMarkers = memo(function StopMarkers({
         const on = s.stopId === focusStopId
         return (
           <CircleMarker
-            key={s.stopId}
+            key={`${s.seq}-${s.stopId}`}
             center={centers.get(s.stopId) ?? [s.lat, s.lng]}
             radius={on ? 7 : 4}
             pathOptions={on ? STOP_STYLE_ON : STOP_STYLE}
