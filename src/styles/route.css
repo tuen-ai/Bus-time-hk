@@ -58,7 +58,8 @@
   justify-content: center;
   min-width: 58px;
   padding: 7px 9px;
-  background: linear-gradient(135deg, var(--red), var(--red-dark));
+  /* 九巴(預設)深粉紅:白字 4.6–6:1;兩個主題都用實色,唔跟 --red(淺粉紅白字得 2.8:1) */
+  background: linear-gradient(135deg, #e30d6a, #be185d);
   color: #fff;
   font-weight: 800;
   letter-spacing: 0.3px;
@@ -74,13 +75,28 @@
 
 /* ---- Route detail head ---- */
 .back-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px; /* 手指目標 */
   border: none;
   background: none;
-  color: var(--red);
+  color: var(--accent-text);
   font-size: 1rem;
   cursor: pointer;
-  padding: 4px 0;
+  padding: 10px 12px 10px 0;
   margin-bottom: 8px;
+}
+/* 路線頁「‹ 返回」變粒 pill 黐住頂欄下面:捲到第 40 個站都撳得返(分頁列喺路線頁收埋)。
+   唔整全闊 bar,免得撳空位都誤退 */
+.route-back {
+  position: sticky;
+  top: calc(var(--topbar-h) + 6px);
+  z-index: 8;
+  padding: 0 16px 0 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
 }
 .route-head {
   display: flex;
@@ -114,7 +130,7 @@
   gap: 8px;
   background: none;
   border: none;
-  color: var(--soon);
+  color: var(--soon-text);
   font-weight: 700;
   font-size: 0.88rem;
   text-align: left;
@@ -149,7 +165,7 @@
 .fare-badge {
   margin-left: auto;
   align-self: center;
-  background: var(--green);
+  background: var(--ok-fill);
   color: #fff;
   font-weight: 800;
   font-size: 1rem;
@@ -161,8 +177,9 @@
 .fare-pill {
   font-size: 0.78rem;
   font-weight: 700;
-  color: var(--green);
-  background: color-mix(in srgb, var(--green) 12%, transparent);
+  color: var(--ok-text);
+  /* 撈 --card 唔撈 transparent:透明疊喺粉紅 --bg 上對比會跌穿 4.5 */
+  background: color-mix(in srgb, var(--green) 12%, var(--card));
   padding: 1px 7px;
   border-radius: 999px;
   font-variant-numeric: tabular-nums;
@@ -219,8 +236,21 @@
   font-size: 1.3rem;
   color: var(--muted);
   cursor: pointer;
-  padding: 8px;
 }
 .star.on {
-  color: #f59e0b;
+  color: var(--star);
+}
+/* 🔔 同 ☆ 並排:各自 44×44,唔會撳收藏撳咗落車提醒 */
+.bell,
+.star {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+/* 未開嘅鐘仔:灰色但唔好淡到睇唔見(舊 0.45 約 1.5:1);開咗由 alerts.css .bell.on 變返全彩 */
+.bell {
+  opacity: 0.7;
 }

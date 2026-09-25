@@ -1,20 +1,46 @@
 /* 設計 token、reset、focus、數字等寬 */
 :root {
+  /* 光猛粉紅:只做裝飾(邊框、漸變、淡底)。做字色 / 白字底色對比唔夠 → 用下面 accent 系列 */
   --red: #ff5fa2;
-  --red-dark: #f43f8e;
+  --red-dark: #c2185b; /* 淨係做字色用:白底 5.9:1、--bg 5.3:1(舊 #f43f8e 得 3.2:1) */
   --bg: #fff0f7;
   --card: #ffffff;
   --text: #5b3a4d;
-  --muted: #8f6a80; /* 白底 4.6:1,過 WCAG AA(舊 #b98aa6 只有 2.9:1) */
+  --muted: #7b5b6e; /* --bg 5.35:1、--line 4.6:1(舊 #8f6a80 喺粉紅底得 4.2:1) */
   --line: #ffd9ec;
-  --green: #3ccaa6;
+  --green: #3ccaa6; /* 薄荷綠 / 橙:裝飾同深色主題字色;淺色做字用 --ok-text / --soon-text */
   --soon: #ff8f43;
+
+  /* 對比達標嘅語意色(WCAG AA 4.5:1) */
+  --accent-text: #c2185b; /* 粉紅字:白 5.9、--bg 5.3、--line 4.6 */
+  --accent-fill: #e30d6a; /* 粉紅實心底(主按鈕、揀咗嘅 chip)+ --on-accent 白字 4.6:1 */
+  --on-accent: #fff;
+  --ok-text: #1f7560; /* 到站分鐘 / 車費綠字:--bg 5.1:1 */
+  --ok-fill: #1f7560; /* 綠底白字 5.6:1(兩個主題通用) */
+  --soon-text: #ad4500; /* 「就到」橙字:--bg 5.3:1 */
+  --star: #b45309; /* 已收藏 ★:--bg 4.6:1(舊 #f59e0b 得 2:1,比未收藏仲淡) */
+  --focus: #c2185b; /* 鍵盤焦點框:白 5.9、--bg 5.3(≥3:1) */
+
+  /* 字級:中文最細 12px,再細筆劃會糊 */
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.85rem;
+  --fs-md: 0.95rem;
+  --fs-lg: 1.05rem;
+
+  /* 揀一個嘅 chip 共用尺寸(方向 / 港鐵綫 / 營辦商 / 預設) */
+  --chip-h: 44px; /* 手指目標 */
+  --chip-pad: 8px 14px;
+  --chip-border: 1.5px;
+  --chip-fs: 0.9rem;
+
   --radius: 20px;
   --radius-sm: 13px;
   --shadow-sm: 0 1px 3px rgba(244, 63, 142, 0.1), 0 1px 2px rgba(244, 63, 142, 0.08);
   --shadow: 0 4px 18px rgba(244, 63, 142, 0.16);
   --topbar-h: 84px; /* JS 量度後覆蓋(ResizeObserver) */
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* 原生控件(時間揀選、下拉、捲軸)跟返主題 */
+  color-scheme: light;
   font-family:
     system-ui,
     -apple-system,
@@ -32,8 +58,16 @@
   --line: #3d2030;
   --red: #ff7ab6;
   --red-dark: #ff5fa2;
+  --accent-text: #ff7ab6; /* 深底 7.2:1 */
+  --accent-fill: #ff7ab6; /* 淺粉紅底配深字 7.5:1(白字只有 2.4:1) */
+  --on-accent: #2a0a1a;
+  --ok-text: #3ccaa6; /* 深底 8.4:1 */
+  --soon-text: #ff8f43; /* 深底 7.6:1 */
+  --star: #fbbf24;
+  --focus: #ffd1e6;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
 }
 
 * {
@@ -54,6 +88,16 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* 表單控件預設唔會跟頁面字色 / 字型:冇寫 color 嘅 <button> 會用瀏覽器黑字,
+   深色模式黑字落深莓色卡(1.2:1)等於隱形。有 class 寫咗 color 嘅照舊贏。 */
+button,
+input,
+select,
+textarea {
+  color: inherit;
+  font-family: inherit;
+}
+
 .app {
   max-width: 560px;
   margin: 0 auto;
@@ -62,13 +106,22 @@ body {
   flex-direction: column;
 }
 
-/* 鍵盤焦點可見(WCAG 2.4.7) */
-button:focus-visible,
-a:focus-visible,
-input:focus-visible {
-  outline: 2px solid var(--red);
+/* 鍵盤焦點可見(WCAG 2.4.7 / 1.4.11)。
+   :where() 零權重:組件自己寫 outline 嘅(例如搜尋框)照用自己嗰套;
+   唔再設 border-radius —— 新瀏覽器個框會跟返元素本身嘅圓角,pill / 圓掣唔會變方 */
+:where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
-  border-radius: 6px;
+}
+/* 粉紅漸變頂欄:白框 + 深莓色外圈,漸變淺嗰頭深嗰頭都睇到 */
+.topbar :focus-visible,
+.dm-top :focus-visible {
+  outline-color: #fff;
+  box-shadow: 0 0 0 7px #7a1a48;
+}
+/* 實心粉紅緊急橫額(夠鐘出門 / 準備落車):粉紅框落粉紅底睇唔到(1.8–2.1:1),框跟返 ✕ 嘅字色 */
+.fbanner.urgent :focus-visible {
+  outline-color: currentColor;
 }
 
 /* 數字等寬,ETA 唔會跳 */
@@ -76,4 +129,16 @@ input:focus-visible {
 .mtr-mins,
 .eta-clock {
   font-variant-numeric: tabular-nums;
+}
+
+/* 用家開咗「減少動態效果」:全部動畫 / 過渡即刻完,唔好郁嚟郁去 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

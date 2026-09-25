@@ -6,15 +6,40 @@
   gap: 7px;
   margin-bottom: 12px;
 }
+/* 綫色由 JSX 經 --line-c 傳入(唔好 inline 寫字色):
+   淺黃綠、橙、淺藍做白底字 / 白字底都唔夠 2.3:1 → 字用綫色 40% 撈主題字色(兩個主題都 ≥4.8:1),
+   綫色留畀邊框、圓點同揀咗嘅淡底。 */
 .mtr-line-chip {
-  border: 1.5px solid;
+  --line-ink: color-mix(in srgb, var(--line-c, var(--muted)) 40%, var(--text));
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: var(--chip-border) solid var(--line-c, var(--line));
   background: var(--card);
+  color: var(--line-ink);
   border-radius: 999px;
-  padding: 8px 14px;
-  min-height: 40px;
-  font-size: 0.88rem;
+  padding: var(--chip-pad);
+  min-height: var(--chip-h);
+  font-size: var(--chip-fs);
   font-weight: 700;
   cursor: pointer;
+}
+.mtr-line-chip .mtr-dot {
+  width: 10px;
+  height: 10px;
+  background: var(--line-c);
+}
+/* 揀咗:綫色淡底 + 主題字色 + 內框同底線(唔改 border 闊度,chip 唔會跳位) */
+.mtr-line-chip.on {
+  background: color-mix(in srgb, var(--line-c) 22%, var(--card));
+  color: var(--text);
+  box-shadow:
+    inset 0 0 0 1px var(--line-c),
+    inset 0 -3px 0 var(--line-c);
+}
+/* 深色底:屯馬綫 / 將軍澳綫呢啲深色邊框睇唔到(2.2:1)→ 未揀嘅用墨色描邊 */
+:root[data-theme='dark'] .mtr-line-chip:not(.on) {
+  border-color: var(--line-ink);
 }
 .mtr-dest-name {
   font-weight: 800;
@@ -35,15 +60,22 @@
   border: 1px solid #fff;
   box-shadow: 0 0 0 1px var(--line);
 }
+/* 轉車綫名(唔止靠色點,色弱同讀屏都知轉邊條綫) */
+.mtr-ic-names {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin-top: 1px;
+}
 .mtr-sched,
 .mtr-special {
   padding: 4px 4px 12px 38px;
 }
 .mtr-special {
-  color: var(--soon);
+  color: var(--soon-text);
 }
 .mtr-delay {
-  color: var(--red-dark);
+  color: var(--accent-text);
   font-weight: 700;
   margin-bottom: 6px;
 }
@@ -76,11 +108,11 @@
 }
 .mtr-mins {
   font-weight: 700;
-  color: var(--green);
+  color: var(--ok-text);
   min-width: 76px;
 }
 .mtr-mins.soon {
-  color: var(--soon);
+  color: var(--soon-text);
 }
 .mtr-plat {
   font-size: 0.78rem;

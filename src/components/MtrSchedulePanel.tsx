@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { fetchSchedule, type StationSchedule, type TrainArrival } from '../api/mtr'
 import { stationNameTc } from '../lib/mtrData'
 import { usePolling } from '../hooks/usePolling'
+import { friendlyError } from '../lib/http'
+import { zhErrorOr } from '../lib/errorText'
 
 const REFRESH_MS = 15_000
 
@@ -61,7 +63,8 @@ export default function MtrSchedulePanel({
         setError(null)
       } catch (e) {
         if (ctrl.signal.aborted || (e as Error)?.name === 'AbortError') return
-        setError(e instanceof Error ? e.message : '載入失敗')
+        // 英文原文(HTTP 500 / Failed to fetch)唔好直出,轉做廣東話
+        setError(zhErrorOr(e, friendlyError(e)))
       } finally {
         if (!ctrl.signal.aborted) setLoading(false)
       }
@@ -71,13 +74,20 @@ export default function MtrSchedulePanel({
   )
 
   if (loading) return <div className="muted pad">載入班次…</div>
-  if (error) return <div className="error pad">⚠️ {error}</div>
+  if (error)
+    return (
+      <div className="error pad">
+        <span aria-hidden="true">⚠️ </span>
+        {error}(15 秒後自動再試)
+      </div>
+    )
   if (!sched) return null
 
   if (sched.special) {
     return (
       <div className="mtr-special">
-        ⚠️ {sched.message || '車務有特別安排,暫無實時班次。'}
+        <span aria-hidden="true">⚠️ </span>
+        {sched.message || '車務有特別安排,暫無實時班次。'}
         {sched.url && (
           <>
             {' '}
@@ -93,7 +103,11 @@ export default function MtrSchedulePanel({
   const empty = sched.up.length === 0 && sched.down.length === 0
   return (
     <div className="mtr-sched">
-      {sched.isDelay && <div className="mtr-delay">⚠️ 服務延誤</div>}
+      {sched.isDelay && (
+        <div className="mtr-delay">
+          <span aria-hidden="true">⚠️ </span>服務延誤
+        </div>
+      )}
       {empty && <div className="muted pad">此站暫無班次(可能為總站方向)</div>}
       <Direction trains={sched.up} color={color} />
       <Direction trains={sched.down} color={color} />

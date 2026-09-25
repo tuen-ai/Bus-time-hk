@@ -6,15 +6,20 @@
   background: rgba(0, 0, 0, 0.45);
   z-index: 1100;
   display: flex;
-  align-items: center;
+  /* 唔好 align-items:center —— 張卡高過螢幕時會上下兩頭一齊切走,✕ 同匯出匯入掣撳唔到。
+     改做由頂排 + 成個 overlay 可以捲;卡用 margin:auto,夠位時照樣置中 */
+  align-items: flex-start;
   justify-content: center;
-  padding: 20px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: max(20px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
 }
 .backup-card {
   background: var(--card);
   border-radius: var(--radius);
   padding: 18px;
   width: min(420px, 100%);
+  margin: auto 0;
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
@@ -33,6 +38,10 @@
 .backup-msg {
   font-size: 0.9rem;
   font-weight: 700;
+}
+/* 讀屏 status 區一直喺度,冇訊息時唔好食多一格 gap */
+.backup-msg:empty {
+  margin-top: -10px;
 }
 /* ---- 🖥️ 推送去藍牙小屏 ---- */
 .clockpush {
@@ -98,7 +107,7 @@
   text-overflow: ellipsis;
 }
 .cp-fav-tick {
-  color: var(--red-dark);
+  color: var(--accent-text);
   font-weight: 800;
   width: 18px;
   text-align: center;
@@ -142,7 +151,7 @@
   text-align: center;
   font-weight: 700;
   font-size: 0.9rem;
-  color: var(--red-dark);
+  color: var(--accent-text);
 }
 /* 收藏顯示排序 */
 .fav-order {
@@ -209,6 +218,6 @@
   color: var(--text);
   border-radius: 10px;
   padding: 10px 12px;
-  font-size: 0.9rem;
+  font-size: 16px; /* 細過 16px iOS 撳落去會自動 zoom 入 modal */
   font-family: inherit;
 }

@@ -13,7 +13,7 @@
   padding: 18px 4px;
 }
 .error {
-  color: var(--red-dark);
+  color: var(--accent-text);
 }
 
 .crash {
@@ -25,7 +25,7 @@
 .crash-title {
   font-size: 1.15rem;
   font-weight: 800;
-  color: var(--red-dark);
+  color: var(--accent-text);
   margin: 10px 0 6px;
 }
 .crash-detail {
@@ -46,5 +46,18 @@
   color: var(--muted);
 }
 .footer a {
-  color: var(--red);
+  color: var(--accent-text); /* 光猛粉紅做字喺粉紅底得 2.6:1 */
+}
+
+/* ---- 最細字 12px 下限 ----
+   呢啲細標籤散落各檔(tags / alerts / planner / home / eta / topbar),
+   utility.css 係最後 import,喺度統一谷返上 --fs-xs;中文細過 12px 筆劃會糊。 */
+.tag,
+.geo-tag,
+.tagbest,
+.stamp-dot i,
+.refresh-btn,
+.eta-updated,
+.topbar-sub {
+  font-size: var(--fs-xs);
 }
