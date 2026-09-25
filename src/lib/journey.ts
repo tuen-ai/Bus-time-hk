@@ -4,8 +4,10 @@ import { loadGraph, nearStops, toAppKey, type Indexed, type PlanRoute } from './
 import { distanceMeters } from './geo'
 import { getFares } from './fares'
 import type { Co } from '../api/bus'
+import { WALK_MPM } from './catchable' // 步行 米/分鐘:同收藏 / 附近「趕唔趕到」共用一個
 
-const WALK_MPM = 80 // 步行 米/分鐘
+export { WALK_MPM }
+
 const STOP_MIN = 1.6 // 每站分鐘(jt 缺失時)
 const BOARD_WAIT = 4 // 每程上車估候車(分鐘)
 const TRANSFER_M = 250 // 轉乘最大步行

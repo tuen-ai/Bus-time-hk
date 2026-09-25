@@ -1,6 +1,7 @@
 // 純展示:一個站嘅未來班次清單 + 最後更新 / 刷新 / 讀出。
 // 邊個負責 fetch 由 caller 決定(EtaPanel 自己輪詢;Favorites 一個 loop 攞晒所有收藏)。
 import type { Eta, Route } from '../api/bus'
+import { catchPlan, type CatchPlan } from '../lib/catchable'
 import { etaTrust } from '../lib/etaTrust'
 import { clockLabel, etaLabel } from '../lib/time'
 import { speak, speechSupported } from '../lib/speech'
@@ -85,11 +86,57 @@ interface Props {
   onRefresh: () => void
   /** true = 今次攞唔到,顯示緊 updatedAt 嗰陣嘅舊資料(caller 已經去走過咗嘅班次) */
   stale?: boolean
+  /** 行去站要幾多分鐘(收藏卡先有);冇 / 0 = 唔計趕唔趕到,同以前一樣 */
+  walkMins?: number
 }
 
-export default function EtaList({ route, etas, updatedAt, refreshSec, onRefresh, stale = false }: Props) {
+/** 🚶 最遲幾時出門 / 即刻出門 / 頭幾班都趕唔切(ETA 係估算 → 講「應該」) */
+function LeaveLine({ plan, etas, walkMins }: { plan: CatchPlan; etas: Eta[]; walkMins: number }) {
+  const walk = (
+    <>
+      <span aria-hidden="true">🚶 </span>行 {walkMins} 分鐘 ·{' '}
+    </>
+  )
+  if (plan.catchIdx == null || plan.leaveAt == null) {
+    const n = etas.filter((e) => e.eta).length
+    return (
+      <div className="eta-leave none">
+        {walk}
+        {n > 1 ? `頭 ${n} 班都趕唔切` : '呢班趕唔切'},之後班次未有資料
+      </div>
+    )
+  }
+  const bus = clockLabel(etas[plan.catchIdx].eta)
+  return (
+    <div className={plan.leaveNow ? 'eta-leave now' : 'eta-leave'}>
+      {walk}
+      {plan.leaveNow ? (
+        <b>而家即刻出門!</b>
+      ) : (
+        <>
+          最遲 <b>{hhmm(plan.leaveAt)}</b> 出門
+        </>
+      )}{' '}
+      <span aria-hidden="true">→ </span>應該趕到 {bus} 班
+    </div>
+  )
+}
+
+export default function EtaList({
+  route,
+  etas,
+  updatedAt,
+  refreshSec,
+  onRefresh,
+  stale = false,
+  walkMins,
+}: Props) {
   const hasAny = etas.some((e) => e.eta)
   const staleFrom = stale && updatedAt != null ? updatedAt : null
+  // 冇設步行時間 → plan = null,畫面同以前一模一樣(路線頁 EtaPanel 唔傳)
+  const plan = walkMins != null && walkMins > 0 && hasAny ? catchPlan(etas, walkMins) : null
+  // 全部趕唔切:唔好逐行標三次「趕唔切」,淡咗 + 上面一句講晒
+  const tagMissed = plan?.catchIdx != null
   return (
     <div className={`eta-panel ${staleFrom != null ? 'stale' : ''}`}>
       {staleFrom != null && (
@@ -99,18 +146,32 @@ export default function EtaList({ route, etas, updatedAt, refreshSec, onRefresh,
       )}
       {/* 舊資料啲車走晒唔等於冇車:唔好講「暫無預計班次」 */}
       {!hasAny && <div className="muted">{staleFrom != null ? '暫時攞唔到最新班次' : '暫無預計班次'}</div>}
+      {plan && walkMins != null && <LeaveLine plan={plan} etas={etas} walkMins={walkMins} />}
       {hasAny && (
         <ul className="eta-list">
-          {etas.map((e, i) => (
-            <li key={`${e.eta ?? 'na'}-${e.eta_seq}-${i}`} className="eta-row">
-              {/* 舊資料唔好用「就到」嘅顏色催人 */}
-              <span className={`eta-mins ${staleFrom == null && etaIsSoon(e.eta) ? 'soon' : ''}`}>
-                {etaLabel(e.eta)}
-              </span>
-              <span className="eta-clock">{clockLabel(e.eta)}</span>
-              <EtaNotes rmk={e.rmk_tc} />
-            </li>
-          ))}
+          {etas.map((e, i) => {
+            const missed = plan?.missed[i] ?? false
+            const isCatch = plan?.catchIdx === i
+            const cls = missed ? 'eta-row missed' : isCatch ? 'eta-row catch' : 'eta-row'
+            return (
+              <li key={`${e.eta ?? 'na'}-${e.eta_seq}-${i}`} className={cls}>
+                {/* 舊資料 / 趕唔切嘅唔好用「就到」嘅顏色催人 */}
+                <span
+                  className={`eta-mins ${staleFrom == null && !missed && etaIsSoon(e.eta) ? 'soon' : ''}`}
+                >
+                  {etaLabel(e.eta)}
+                </span>
+                <span className="eta-clock">{clockLabel(e.eta)}</span>
+                {missed && tagMissed && <span className="tag tag-missed">趕唔切</span>}
+                {isCatch && (
+                  <span className="tag tag-catch">
+                    <span aria-hidden="true">🚶 </span>搭呢班
+                  </span>
+                )}
+                <EtaNotes rmk={e.rmk_tc} />
+              </li>
+            )
+          })}
         </ul>
       )}
       {updatedAt != null && (

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { Fragment, lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import {
   ageRows,
   lastKnownLoc,
@@ -16,6 +16,7 @@ import {
   type NearbyTab,
 } from '../lib/nearby'
 import { getPosition, describeGeoError, formatDistance, isGeoDenied } from '../lib/geo'
+import { catchPlanMins, walkFromDist } from '../lib/catchable'
 import { coClass, CO_COLOR, coLabel } from '../api/bus'
 import { MascotState } from './Mascots'
 import type { PlanTo } from './FitnessView'
@@ -35,6 +36,8 @@ const LOC_FRESH_MS = 2 * 60_000
 const LOC_WAIT_MS = 3_000
 const FIT_COLOR = '#7d3c98'
 const timeLabel = (m: number) => (m <= 0 ? '即將' : `${m}分`)
+// 冇步行估算:冇班趕唔切、唔標「搭呢班」
+const NO_CATCH: ReturnType<typeof catchPlanMins> = { missed: [], catchIdx: null }
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 // 品牌色經 --co 交俾 CSS(search.css .co-chip 按主題揀字色,深色模式都夠對比)
 const coVar = (color: string) => ({ '--co': color }) as CSSProperties
@@ -322,35 +325,66 @@ export default function NearbyView({
           )}
 
           <ul className={`nearby-list ${stale ? 'is-stale' : ''}`}>
-            {rows.map((r, i) => (
-              <li key={`${r.co}-${r.route}-${r.dir}-${r.stopId}-${i}`}>
-                <button className="nearby-row" onClick={() => onOpen(r)}>
-                  <span className={`route-badge sm ${coClass(r.co)}`}>{r.route}</span>
-                  <span className="nearby-info">
-                    <span className="nearby-dest">{r.dest ? `往 ${r.dest}` : coLabel(r.co)}</span>
-                    <span className="muted small">
-                      {r.stopName} · {formatDistance(r.dist)}
-                    </span>
-                  </span>
-                  <span className="nearby-eta">
-                    <span className="muted small">下一班</span>
-                    <span className="nearby-times">
-                      <span className={`nearby-min ${(r.mins[0] ?? 99) <= 3 ? 'soon' : ''}`}>
-                        {timeLabel(r.mins[0] ?? 0)}
+            {rows.map((r, i) => {
+              // 直線距離估步行(兜路 ×1.25);ETA 同距離都係估 → 「約」
+              const walk = walkFromDist(r.dist)
+              // 估唔到步行(距離 0 / 壞咗)就唔標趕唔切,同收藏冇設步行時間一樣
+              const { missed, catchIdx } = walk > 0 ? catchPlanMins(r.mins, walk) : NO_CATCH
+              return (
+                <li key={`${r.co}-${r.route}-${r.dir}-${r.stopId}-${i}`}>
+                  <button className="nearby-row" onClick={() => onOpen(r)}>
+                    <span className={`route-badge sm ${coClass(r.co)}`}>{r.route}</span>
+                    <span className="nearby-info">
+                      <span className="nearby-dest">{r.dest ? `往 ${r.dest}` : coLabel(r.co)}</span>
+                      <span className="muted small">
+                        {r.stopName} · {formatDistance(r.dist)}
+                        {walk > 0 && (
+                          <>
+                            {' '}
+                            <span className="nearby-walk">
+                              · <span aria-hidden="true">🚶</span>
+                              <span className="sr-only">步行</span>約{walk}分
+                            </span>
+                          </>
+                        )}
                       </span>
-                      {r.mins.length > 1 && (
-                        <span className="nearby-next">
-                          {r.mins
-                            .slice(1)
-                            .map((m) => timeLabel(m))
-                            .join(', ')}
-                        </span>
-                      )}
                     </span>
-                  </span>
-                </button>
-              </li>
-            ))}
+                    <span className="nearby-eta">
+                      <span className="muted small">下一班</span>
+                      <span className="nearby-times">
+                        {/* 趕唔切:淡 + 刪除線(唔再用「就到」橙色催人);讀屏另外講 */}
+                        <span
+                          className={`nearby-min ${missed[0] ? 'missed' : (r.mins[0] ?? 99) <= 3 ? 'soon' : ''}`}
+                        >
+                          {timeLabel(r.mins[0] ?? 0)}
+                          {missed[0] && <span className="sr-only">(趕唔切)</span>}
+                        </span>
+                        {r.mins.length > 1 && (
+                          <span className="nearby-next">
+                            {r.mins.slice(1).map((m, j) => {
+                              const k = j + 1
+                              // 前面班次趕唔切先特登標「🚶 搭呢班」;第一班已經趕到就唔使多嘢
+                              const isCatch = catchIdx === k
+                              return (
+                                <Fragment key={k}>
+                                  {j > 0 && ', '}
+                                  <span className={missed[k] ? 'missed' : isCatch ? 'catch' : undefined}>
+                                    {isCatch && <span aria-hidden="true">🚶</span>}
+                                    {timeLabel(m)}
+                                    {missed[k] && <span className="sr-only">(趕唔切)</span>}
+                                    {isCatch && <span className="sr-only">(應該趕到)</span>}
+                                  </span>
+                                </Fragment>
+                              )
+                            })}
+                          </span>
+                        )}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
           </ul>
           {rows.length > 0 && (
             <p className="small muted" style={{ textAlign: 'center' }}>

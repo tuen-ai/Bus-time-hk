@@ -203,3 +203,27 @@ button.nearby-row:active,
     animation: none;
   }
 }
+
+/* ---- 🚶 步行估算 + 趕唔趕到 ---- */
+.nearby-walk {
+  white-space: nowrap;
+}
+/* 趕唔切:灰 + 刪除線(舊結果本身已經灰,照加刪除線) */
+.nearby-min.missed {
+  color: var(--muted);
+  font-weight: 700;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+.nearby-next .missed {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+/* 頭幾班趕唔切 → 之後第一班趕得切嗰班:綠色加粗 */
+.nearby-next .catch {
+  color: var(--ok-text);
+  font-weight: 800;
+}
+.nearby-list.is-stale .nearby-next .catch {
+  color: var(--muted);
+}

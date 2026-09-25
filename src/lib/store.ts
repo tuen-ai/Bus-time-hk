@@ -2,6 +2,7 @@
 import { fetchStops, type Stop } from '../api/kmb'
 import type { Co } from '../api/bus'
 import { cacheGet, cachePut } from './kv'
+import { validWalk } from './catchable'
 
 const DAY = 24 * 60 * 60 * 1000
 const STOPS_KEY = 'kmb.stops'
@@ -68,6 +69,8 @@ export interface Favorite {
   dest: string
   // 同 key 多條時分得開(GMB gtfsId / 嶼巴 nlbUid);舊收藏冇,靠 dest + stopId 對返。唔入 favKey,舊星照對到
   uid?: string
+  // 行去呢個站要幾多分鐘(1–30;冇 = 未設定)。跟收藏一齊入備份;唔入 favKey
+  walkMins?: number
 }
 
 const FAV_KEY = 'kmb.favorites'
@@ -98,6 +101,25 @@ export function moveFavorite(idx: number, dir: -1 | 1): Favorite[] {
   const j = idx + dir
   if (idx < 0 || idx >= list.length || j < 0 || j >= list.length) return list
   ;[list[idx], list[j]] = [list[j], list[idx]]
+  try {
+    localStorage.setItem(FAV_KEY, JSON.stringify(list))
+  } catch {
+    // 存唔到都回傳記憶體版本
+  }
+  window.dispatchEvent(new Event(FAVS_CHANGED))
+  return list
+}
+
+/** 設定 / 清除(null、0)某個收藏嘅步行時間:原地改,次序不變;搵唔到就原封不動 */
+export function setFavoriteWalk(key: string, mins: number | null): Favorite[] {
+  const list = getFavorites()
+  const idx = list.findIndex((x) => favKey(x) === key)
+  if (idx < 0) return list
+  const next = { ...list[idx] }
+  const m = validWalk(mins)
+  if (m) next.walkMins = m
+  else delete next.walkMins
+  list[idx] = next
   try {
     localStorage.setItem(FAV_KEY, JSON.stringify(list))
   } catch {

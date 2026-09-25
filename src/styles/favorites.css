@@ -21,11 +21,16 @@
   align-items: center;
   gap: 10px;
 }
+/* 巴士收藏:打開 + 🚶 + ★ 三粒並排,gap 細啲,窄屏唔好逼爆(港鐵收藏卡冇 🚶,照舊) */
+.fav-head.has-walk {
+  gap: 6px;
+}
 .fav-info {
   flex: 1;
 }
 .fav-open {
   flex: 1;
+  min-width: 0; /* 站名長就換行,唔好頂走 🚶 / ★ */
   display: flex;
   align-items: center;
   gap: 10px;
@@ -36,4 +41,102 @@
   cursor: pointer;
   padding: 0;
   color: var(--text);
+}
+/* 🚶 步行時間掣:睇落 36px,撳得中 44px(同 .refresh-btn 一樣做法) */
+.walk-chip {
+  position: relative;
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 36px;
+  padding: 0 9px;
+  border: var(--chip-border) dashed var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.walk-chip::after {
+  content: '';
+  position: absolute;
+  inset: -4px 0;
+}
+/* 設咗:實線 + 正常字色,一眼分到 */
+.walk-chip.set {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--green) 55%, var(--line));
+  color: var(--text);
+}
+.walk-chip[aria-expanded='true'] {
+  border-style: solid;
+  border-color: var(--accent-text);
+}
+.walk-chip:active {
+  background: var(--line);
+}
+
+/* 快揀一行(2 / 5 / 8 / 12 / 清除);尺寸由 .preset-chip 負責(44px) */
+.fav-card .walk-presets {
+  align-items: center;
+  margin: 8px 0 4px;
+}
+.walk-q {
+  flex-basis: 100%;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+/* ---- 趕唔趕到(EtaList walkMins;淨係收藏卡有)---- */
+/* 最遲出門一句:淡綠底;即刻出門 / 全部趕唔切:淡橙底。字色用 --text,兩個主題都夠對比 */
+.fav-card .eta-leave {
+  display: inline-block;
+  max-width: 100%;
+  margin: 0 0 8px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--green) 14%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--green) 45%, var(--line));
+  color: var(--text);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+}
+.fav-card .eta-leave b {
+  font-variant-numeric: tabular-nums;
+}
+.fav-card .eta-leave.now,
+.fav-card .eta-leave.none {
+  background: color-mix(in srgb, var(--soon) 12%, var(--card));
+  border-color: color-mix(in srgb, var(--soon) 55%, var(--line));
+}
+/* 趕唔切:分鐘 + 時間轉灰 + 刪除線(唔用 opacity,字太淡會唔夠對比) */
+.fav-card .eta-row.missed .eta-mins,
+.fav-card .eta-row.missed .eta-clock {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+.fav-card .eta-row.missed .eta-mins {
+  font-weight: 600;
+}
+.fav-card .eta-row.catch .eta-mins {
+  font-weight: 800;
+}
+.fav-card .tag-missed,
+.fav-card .tag-catch {
+  margin-left: 0;
+}
+.fav-card .tag-missed {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  padding: 0 5px;
+}
+/* 綠底白字 5.6:1(--ok-fill 兩個主題通用) */
+.fav-card .tag-catch {
+  background: var(--ok-fill);
+  color: #fff;
 }
