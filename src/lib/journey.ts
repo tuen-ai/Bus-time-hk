@@ -1,8 +1,9 @@
 // 點對點行程規劃:離線圖 + 直達 + 1 轉乘(meet-in-middle),時間估算 + 車費。
 // 無時刻表 → 等候/車程屬估算,僅供參考。
-import { loadGraph, nearStops, type Indexed, type PlanRoute } from './planGraph'
+import { loadGraph, nearStops, toAppKey, type Indexed, type PlanRoute } from './planGraph'
 import { distanceMeters } from './geo'
 import { getFares } from './fares'
+import type { Co } from '../api/bus'
 
 const WALK_MPM = 80 // 步行 米/分鐘
 const STOP_MIN = 1.6 // 每站分鐘(jt 缺失時)
@@ -13,17 +14,21 @@ const MAX_NEAR = 14
 
 export interface Leg {
   kind: 'walk' | 'ride'
-  co?: string
+  // ride leg 嘅 app 路線 key(已經由 toAppKey 轉好:lightRail→lrt、城巴循環線拆返 I/O)
+  // + 上車站,畀「開路線睇實時 ETA」直接用
+  co?: Co
   route?: string
   dest?: string
   fromName?: string
   toName?: string
   nStops?: number
   mins: number
-  // ride leg 嘅完整 route key + 上車站(畀「開路線睇實時 ETA」用)
   bound?: 'I' | 'O'
   serviceType?: string
   boardStopId?: string
+  // ride leg:planGraph 路線編號 + 上車站序(計車費用,唔好靠站名估)
+  ri?: number
+  fromSeq?: number
 }
 export interface Journey {
   mins: number
@@ -92,7 +97,7 @@ export async function planJourneys(
         fare: null,
         legs: [
           ...(wO > 1 ? [{ kind: 'walk' as const, mins: wO, toName: name(ix, r.st[bSeq]) }] : []),
-          ride1(ix, r, bSeq, best.aSeq, ride),
+          ride1(ix, ri, bSeq, best.aSeq, ride),
           ...(wD > 1 ? [{ kind: 'walk' as const, mins: wD }] : []),
         ],
       })
@@ -137,9 +142,9 @@ export async function planJourneys(
               fare: null,
               legs: [
                 ...(a.wO > 1 ? [{ kind: 'walk' as const, mins: a.wO, toName: name(ix, rA.st[a.bSeq]) }] : []),
-                ride1(ix, rA, a.bSeq, a.xSeq, rideMins(rA, a.bSeq, a.xSeq)),
+                ride1(ix, a.ri, a.bSeq, a.xSeq, rideMins(rA, a.bSeq, a.xSeq)),
                 { kind: 'walk' as const, mins: Math.max(1, walkMins(tw)), toName: name(ix, yId) },
-                ride1(ix, rB, b.ySeq, b.aSeq, rideMins(rB, b.ySeq, b.aSeq)),
+                ride1(ix, b.ri, b.ySeq, b.aSeq, rideMins(rB, b.ySeq, b.aSeq)),
                 ...(b.wD > 1 ? [{ kind: 'walk' as const, mins: b.wD }] : []),
               ],
             })
@@ -158,19 +163,23 @@ export async function planJourneys(
   return ranked
 }
 
-function ride1(ix: Indexed, r: PlanRoute, from: number, to: number, mins: number): Leg {
+function ride1(ix: Indexed, ri: number, from: number, to: number, mins: number): Leg {
+  const r = ix.routeByIdx[ri]
+  const k = toAppKey(ix, ri, from)
   return {
     kind: 'ride',
-    co: r.co,
+    co: k.co,
     route: r.r,
     dest: r.d,
     fromName: name(ix, r.st[from]),
     toName: name(ix, r.st[to]),
     nStops: to - from,
     mins,
-    bound: r.b,
-    serviceType: r.s,
+    bound: k.bound,
+    serviceType: k.serviceType,
     boardStopId: r.st[from],
+    ri,
+    fromSeq: from,
   }
 }
 const name = (ix: Indexed, id: string) => ix.graph.stops[id]?.[2] ?? id
@@ -225,22 +234,15 @@ function dedupe(js: Journey[]): Journey[] {
   return out
 }
 
-async function fillFare(ix: Indexed, j: Journey): Promise<void> {
+export async function fillFare(ix: Indexed, j: Journey): Promise<void> {
   let total = 0
   let unknown = false
   for (const leg of j.legs) {
-    if (leg.kind !== 'ride' || !leg.co || !leg.route) continue
-    // 搵返該 ride 嘅 route 同 board seq(有 bound/serviceType 就精確匹配)
-    const r = ix.routeByIdx.find(
-      (x) =>
-        x.co === leg.co &&
-        x.r === leg.route &&
-        (!leg.bound || x.b === leg.bound) &&
-        (!leg.serviceType || x.s === leg.serviceType),
-    )
+    if (leg.kind !== 'ride') continue
+    // 直接用 ride1 記低嘅路線編號 + 上車站序:同 key 有幾條線、同名站唔同價都唔會搵錯
+    const r = leg.ri != null ? ix.routeByIdx[leg.ri] : undefined
     const fares = r && (r.co === 'kmb' || r.co === 'ctb') ? await getFares(r.co, r.r, r.b, r.s) : null
-    const boardSeq = r ? r.st.findIndex((s) => name(ix, s) === leg.fromName) : -1
-    const f = fares && boardSeq >= 0 && boardSeq < fares.length ? fares[boardSeq] : null
+    const f = fares && leg.fromSeq != null ? (fares[leg.fromSeq] ?? null) : null
     if (f == null) unknown = true
     else total += f
   }

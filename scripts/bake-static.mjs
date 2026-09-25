@@ -13,9 +13,13 @@
 //   kmbGtfs.json    {"route|bound|serviceType": gtfsId}           KMB/LWB(所有有 bound 嘅 co)
 //   ctbGtfs.json    同上,CTB
 //   routeFares.json {"co|route|bound|serviceType": number[]}      逐站車費(index = 站序),只 kmb/ctb,primary co
-//   planGraph.json  {routes:[{k,co,r,b,s,o,d,jt,st}], stops:{id:[lat,lng,nameTc]}}   kmb/ctb/nlb/gmb/lightRail,primary co
+//   planGraph.json  {v:2, ids:[stopId], ll:[[lat,lng]], n:[nameTc], routes:[[co,r,b,s,o,d,jt,[站 index…]]]}
+//                   kmb/ctb/nlb/gmb/lightRail,primary co。站 id 只寫一次,路線站序用 ids 嘅 index(細 ~35%);
+//                   script 內部照用 {routes:[{k,co,r,b,s,o,d,jt,st}], stops:{id:[lat,lng,nameTc]}},寫檔先 pack
 //   gmbRoutes.json  [{route,uid,bound,st,oTc,dTc}]                 uid = hkbus gtfsId
-//   gmbData.json    {routes:[...gmbRoutes + stops[]], stops:{id:{n,lat,lng}}}
+//   gmb-NN.json     綠van 站序,按 uid 範圍分 GMB_SHARDS 份:{r:{"uid|bound":[stopId]}, s:{id:[lat,lng,nameTc]}}
+//   gmbShards.json  分片界線 [uid…](第 n+1 份由第 n 個 uid 開始;committed 界線仲平均就沿用)
+//                   (開一條線只載一份;--only 名照叫 gmbData,兩樣一齊寫;舊 gmbData.json 寫檔時會刪走)
 //   nlbData.json    {routes:[{route,id,bound,st,oTc,dTc,stops}], stops:{id:{n,lat,lng}}}   id = nlbId
 //   lrData.json     {routes:[{route,bound,st,oTc,dTc,stops}], stops:{id:{n,lat,lng}}}     stop id 統一 LR 三位數(LR60→LR060)
 //
@@ -23,7 +27,7 @@
 // 免行程規劃出兩條一樣嘅車;gtfs 映射就兩間都出(前端按 co 查)。呢個同 6 月 committed 檔一致。
 //
 // 唔處理:lightRail.json(無 src/ 用家、有人手 _note)、mtrLines.json、hkDistricts.json、quotes.ts。
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, resolve, relative } from 'node:path'
 
@@ -193,6 +197,46 @@ function buildPlanGraph(rl, sl, warn) {
   return { routes, stops }
 }
 
+// planGraph 寫檔格式 v2:九巴站 id(16 位 hex,壓唔細)喺站序入面重複 7 萬幾次 → 抽做 ids 表,路線用 index;
+// k 可以由 co|r|b|s 砌返,唔寫。前端 src/lib/planGraph.ts inflateGraph 解返。
+function packPlanGraph(g) {
+  const ids = Object.keys(g.stops)
+  const idx = new Map(ids.map((id, i) => [id, i]))
+  const at = (r, id) => {
+    const i = idx.get(id)
+    if (i === undefined) throw new Error(`planGraph:${r.k} 個站 ${id} 唔喺站表`)
+    return i
+  }
+  return {
+    v: 2,
+    ids,
+    ll: ids.map((id) => [g.stops[id][0], g.stops[id][1]]),
+    n: ids.map((id) => g.stops[id][2]),
+    routes: g.routes.map((r) => [r.co, r.r, r.b, r.s, r.o, r.d, r.jt, r.st.map((id) => at(r, id))]),
+  }
+}
+
+/** committed 檔 → 內部格式(比較用)。key 次序要同 buildPlanGraph 一樣,因為 diff 係 JSON.stringify 比 */
+function unpackPlanGraph(p) {
+  if (!p || p.v !== 2) return p // 舊格式本身就係內部格式
+  const stops = {}
+  p.ids.forEach((id, i) => {
+    stops[id] = [p.ll[i][0], p.ll[i][1], p.n[i]]
+  })
+  const routes = p.routes.map(([co, r, b, s, o, d, jt, st]) => ({
+    k: `${co}|${r}|${b}|${s}`,
+    co,
+    r,
+    b,
+    s,
+    o,
+    d,
+    jt,
+    st: st.map((i) => p.ids[i]),
+  }))
+  return { routes, stops }
+}
+
 function buildStopsMap(sl, ids) {
   const stops = {}
   for (const id of [...ids].sort()) {
@@ -236,7 +280,100 @@ function buildGmb(rl, sl, warn) {
     oTc: r.oTc,
     dTc: r.dTc,
   }))
-  return { small, full: { routes, stops: buildStopsMap(sl, used) } }
+  // 站序用 uid|bound 做 key:同一個 uid 去程回程共用(站序唔同),淨係 uid 會食咗一邊
+  const seqs = {}
+  let dup = 0
+  for (const x of routes) {
+    const k = `${x.uid}|${x.bound}`
+    if (k in seqs) dup++
+    else seqs[k] = x.stops // 撞 key 先到先得
+  }
+  if (dup) warn(`gmb:${dup} 條線 uid|bound 撞 key,用咗第一條嘅站序`)
+  const stopT = {}
+  for (const [id, v] of Object.entries(buildStopsMap(sl, used))) stopT[id] = [v.lat, v.lng, v.n]
+  return { small, full: { r: seqs, s: stopT } }
+}
+
+// 綠van 分片:開一條線只載一份(~12KB gzip),唔使成個 1149 線大檔。
+// 按 uid 範圍分(唔用 hash):相鄰 gtfsId 多數同區、共用站 → 分片之間重複站少好多
+// (16 份 hash 分全部加埋 ~285KB gzip,範圍分 ~187KB;SW 會預載晒全部分片,所以總數都要細)。
+// 界線寫落 gmbShards.json,src/lib/gmbData.ts 嘅 cmpUid / gmbShardOf 要同呢度一致(gmbData.test.ts 逐條對)。
+const GMB_SHARDS = 16
+const GMB_BOUNDS_FILE = 'gmbShards.json'
+/** uid 次序:先比長度 → 純數字 uid 即係按數值 */
+const cmpUid = (a, b) => a.length - b.length || (a < b ? -1 : a > b ? 1 : 0)
+/** uid → 分片號:第 n+1 份由 from[n] 開始 */
+const gmbShardOf = (from, uid) => {
+  let n = 0
+  while (n < from.length && cmpUid(from[n], uid) <= 0) n++
+  return n
+}
+const uidOfKey = (k) => k.slice(0, k.lastIndexOf('|'))
+// 放喺 src/data 頂層(唔開子目錄):.prettierignore 嘅 src/data/*.json 先包到
+const gmbShardFile = (n) => `gmb-${String(n).padStart(2, '0')}.json`
+const isGmbShard = (f) => /^gmb-\d+\.json$/.test(f)
+
+/**
+ * 分片界線。committed 界線仲分得平均(最大份 ≤ 平均 2 倍)就沿用:每月重焗只係改咗線嗰幾份換 hash,
+ * SW 唔使成套重新下載;唔平均 / 冇 / 份數改咗先按 uid 數平均重切。
+ */
+function gmbShardBounds(uids) {
+  const sorted = [...new Set(uids)].sort(cmpUid)
+  if (!sorted.length) return []
+  const cap = 2 * Math.ceil(sorted.length / GMB_SHARDS)
+  const p = join(DATA_DIR, GMB_BOUNDS_FILE)
+  if (existsSync(p)) {
+    const old = JSON.parse(readFileSync(p, 'utf8'))
+    const ok =
+      Array.isArray(old) &&
+      old.length === GMB_SHARDS - 1 &&
+      old.every((u, i) => typeof u === 'string' && (i === 0 || cmpUid(old[i - 1], u) < 0))
+    if (ok) {
+      const counts = new Array(GMB_SHARDS).fill(0)
+      for (const u of sorted) counts[gmbShardOf(old, u)]++
+      if (Math.max(...counts) <= cap) return old
+    }
+  }
+  const from = []
+  for (let n = 1; n < GMB_SHARDS; n++) {
+    const u = sorted[Math.floor((n * sorted.length) / GMB_SHARDS)]
+    if (u !== undefined && (!from.length || cmpUid(from[from.length - 1], u) < 0)) from.push(u)
+  }
+  return from
+}
+
+/** {r, s} → { from: 界線, shards: [{r, s}](份數 = 界線 + 1) } */
+function shardGmb(full) {
+  const from = gmbShardBounds(Object.keys(full.r).map(uidOfKey))
+  const shards = Array.from({ length: from.length + 1 }, () => ({ r: {}, s: {} }))
+  for (const [k, stops] of Object.entries(full.r)) {
+    const sh = shards[gmbShardOf(from, uidOfKey(k))]
+    sh.r[k] = stops
+    for (const id of stops) if (full.s[id]) sh.s[id] = full.s[id]
+  }
+  return { from, shards: shards.map((sh) => ({ r: sh.r, s: sortedObj(sh.s) })) }
+}
+
+/** committed 綠van 資料 → {r, s}(比較用):讀分片;冇就讀舊 gmbData.json 再轉 */
+function readCommittedGmb() {
+  const files = readdirSync(DATA_DIR).filter(isGmbShard)
+  if (files.length) {
+    const out = { r: {}, s: {} }
+    for (const f of files.sort()) {
+      const sh = JSON.parse(readFileSync(join(DATA_DIR, f), 'utf8'))
+      Object.assign(out.r, sh.r)
+      Object.assign(out.s, sh.s)
+    }
+    return out
+  }
+  const p = join(DATA_DIR, 'gmbData.json')
+  if (!existsSync(p)) return null
+  const old = JSON.parse(readFileSync(p, 'utf8')) // 舊格式 {routes:[{uid,bound,stops…}], stops:{id:{n,lat,lng}}}
+  const r = {}
+  for (const x of old.routes ?? []) r[`${x.uid}|${x.bound}`] ??= x.stops
+  const s = {}
+  for (const [id, v] of Object.entries(old.stops ?? {})) s[id] = [v.lat, v.lng, v.n]
+  return { r, s }
 }
 
 function buildNlb(rl, sl, warn) {
@@ -289,7 +426,6 @@ function buildLr(rl, sl) {
 const routeKeyers = {
   planGraph: (r) => `${r.k}|${r.o}|${r.d}`,
   gmbRoutes: (r) => `${r.route}|${r.uid}|${r.bound}|${r.st}`,
-  gmbData: (r) => `${r.route}|${r.uid}|${r.bound}|${r.st}`,
   nlbData: (r) => `${r.route}|${r.id}|${r.bound}|${r.st}`,
   lrData: (r) => `${r.route}|${r.bound}|${r.st}`,
 }
@@ -309,6 +445,12 @@ function facets(name, data) {
   if (!data) return []
   if (name === 'kmbGtfs' || name === 'ctbGtfs' || name === 'routeFares') return [{ name, map: data }]
   if (name === 'gmbRoutes') return [{ name, map: arrToMap(data, routeKeyers[name]) }]
+  // 綠van 站序本身已經係 uid|bound → stops map
+  if (name === 'gmbData')
+    return [
+      { name: 'gmbData.routes', map: data.r ?? {} },
+      { name: 'gmbData.stops', map: data.s ?? {} },
+    ]
   return [
     { name: `${name}.routes`, map: arrToMap(data.routes ?? [], routeKeyers[name]) },
     { name: `${name}.stops`, map: data.stops ?? {} },
@@ -356,15 +498,29 @@ function routesPerCo(name, data) {
   else if (name === 'routeFares') for (const k of Object.keys(data)) bump(k.split('|')[0])
   else if (name === 'planGraph') for (const r of data.routes) bump(r.co)
   else if (name === 'gmbRoutes') out.gmb = data.length
-  else if (name === 'gmbData') out.gmb = data.routes.length
+  else if (name === 'gmbData') out.gmb = Object.keys(data.r ?? {}).length
   else if (name === 'nlbData') out.nlb = data.routes.length
   else if (name === 'lrData') out.lightRail = data.routes.length
   return out
 }
 
+// committed 檔一律轉返 script 內部格式先比較(planGraph v2 要解 pack;綠van 讀分片)
 const readCommitted = (name) => {
+  if (name === 'gmbData') return readCommittedGmb()
   const p = join(DATA_DIR, `${name}.json`)
-  return existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : null
+  if (!existsSync(p)) return null
+  const data = JSON.parse(readFileSync(p, 'utf8'))
+  return name === 'planGraph' ? unpackPlanGraph(data) : data
+}
+
+/** 一個邏輯檔 → 實際要寫嘅 [相對路徑, 內容](planGraph pack;綠van 分片) */
+function outputsOf(name, data) {
+  if (name === 'planGraph') return [['planGraph.json', packPlanGraph(data)]]
+  if (name === 'gmbData') {
+    const { from, shards } = shardGmb(data)
+    return [...shards.map((sh, n) => [gmbShardFile(n), sh]), [GMB_BOUNDS_FILE, from]]
+  }
+  return [[`${name}.json`, data]]
 }
 
 // ---------- main ----------
@@ -488,11 +644,25 @@ if (soft.length) console.log('\n--force:略過縮細保護\n  ' + soft.join('\n 
 let bytes = 0
 mkdirSync(OUT_DIR, { recursive: true })
 for (const name of FILES) {
-  const text = JSON.stringify(built[name]) // minified 單行、無尾 newline,同 committed 檔一致
-  const dest = join(OUT_DIR, `${name}.json`)
-  writeFileSync(dest, text)
-  const size = Buffer.byteLength(text)
-  bytes += size
-  console.log(`寫入 ${relative(ROOT, dest)} (${(size / 1024).toFixed(0)}KB)`)
+  const outs = outputsOf(name, built[name])
+  for (const [file, data] of outs) {
+    const text = JSON.stringify(data) // minified 單行、無尾 newline,同 committed 檔一致
+    const dest = join(OUT_DIR, file)
+    writeFileSync(dest, text)
+    const size = Buffer.byteLength(text)
+    bytes += size
+    console.log(`寫入 ${relative(ROOT, dest)} (${(size / 1024).toFixed(0)}KB)`)
+  }
+  if (name === 'gmbData') {
+    // 清走舊格式大檔 + 分片數改細後多出嚟嘅舊分片
+    const keep = new Set(outs.map(([f]) => f))
+    const stale = ['gmbData.json', ...readdirSync(OUT_DIR).filter(isGmbShard)].filter(
+      (f) => !keep.has(f) && existsSync(join(OUT_DIR, f)),
+    )
+    for (const f of stale) {
+      unlinkSync(join(OUT_DIR, f))
+      console.log(`刪走 ${relative(ROOT, join(OUT_DIR, f))}`)
+    }
+  }
 }
 console.log(`完成,共 ${(bytes / 1048576).toFixed(2)}MB。`)

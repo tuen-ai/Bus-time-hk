@@ -1,30 +1,56 @@
-// 站點快取(IndexedDB,一日有效)+ 收藏(localStorage,無限期、細、要入備份)。
+// 站點快取(IndexedDB,stale-while-revalidate)+ 收藏(localStorage,無限期、細、要入備份)。
 import { fetchStops, type Stop } from '../api/kmb'
 import type { Co } from '../api/bus'
 import { cacheGet, cachePut } from './kv'
 
 const DAY = 24 * 60 * 60 * 1000
 const STOPS_KEY = 'kmb.stops'
+const STOPS_FRESH = DAY // 過咗就背景刷新
+const STOPS_MAX_AGE = 30 * DAY // 九巴站好少變:舊資料都照用,好過顯示 stopId
 
 let stopMapP: Promise<Map<string, Stop>> | null = null
 
-/** 取得站點 Map: stopId -> Stop(每日緩存)。fetch 失敗時回傳空 Map,
+// app 只讀 stop / name_tc / lat / long;name_en / name_sc 唔存,IndexedDB 細一半
+// (所以 Map 入面嘅 Stop 冇 name_en / name_sc,唔好讀)
+const slim = (s: Stop): Stop => ({ stop: s.stop, name_tc: s.name_tc, lat: s.lat, long: s.long }) as Stop
+const toMap = (stops: Stop[]) => new Map(stops.map((s) => [s.stop, s]))
+
+/** 背景攞新站表:成功先寫快取 + 換記憶體版本;失敗靜靜哋照用舊嘅 */
+function refreshStops(): void {
+  fetchStops()
+    .then((all) => {
+      if (!all.length) return
+      const stops = all.map(slim)
+      void cachePut(STOPS_KEY, stops)
+      stopMapP = Promise.resolve(toMap(stops))
+    })
+    .catch(() => {
+      // 離線 / API 出事:下次開 app 再試
+    })
+}
+
+/** 取得站點 Map: stopId -> Stop。快取 1 日內直接用;1–30 日即用 + 背景刷新;
+ *  冇快取先等 fetch。fetch 失敗 / 空 → 回傳空 Map(唔記住,下次再試),
  *  令站名 fallback 做 stopId、座標 0,但路線同 ETA 仍可用。
- *  記憶體亦記住結果 —— 6000+ 個站每次開路線都 JSON.parse 一次好貴。 */
+ *  記憶體亦記住結果 —— 6000+ 個站每次開路線都讀一次 IndexedDB 好貴。 */
 export function getStopMap(): Promise<Map<string, Stop>> {
   if (!stopMapP) {
     stopMapP = (async () => {
-      let stops = (await cacheGet<Stop[]>(STOPS_KEY, DAY))?.data ?? null
-      if (!stops) {
-        try {
-          stops = await fetchStops()
-        } catch {
-          stopMapP = null // 下次再試
-          return new Map<string, Stop>()
-        }
-        if (stops.length > 0) void cachePut(STOPS_KEY, stops) // 唔好快取空陣列
+      const hit = await cacheGet<Stop[]>(STOPS_KEY, STOPS_MAX_AGE)
+      if (hit?.data.length) {
+        if (hit.age > STOPS_FRESH) refreshStops()
+        return toMap(hit.data)
       }
-      return new Map(stops.map((s) => [s.stop, s]))
+      let stops: Stop[]
+      try {
+        stops = (await fetchStops()).map(slim)
+      } catch {
+        stopMapP = null // 下次再試
+        return new Map<string, Stop>()
+      }
+      if (stops.length > 0) void cachePut(STOPS_KEY, stops)
+      else stopMapP = null // 唔好快取空陣列(記憶體都唔好)
+      return toMap(stops)
     })()
   }
   return stopMapP
