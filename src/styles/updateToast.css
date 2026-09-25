@@ -1,0 +1,68 @@
+/* ✨ 新版本提示(UpdateToast):頂部置中 pill,蓋過顯示模式(z 2000)同設定面板 */
+.update-toast-region {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2100;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  pointer-events: none;
+}
+.update-toast {
+  display: flex;
+  align-items: center;
+  background: var(--card);
+  color: var(--text);
+  border: 2px solid var(--red);
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  pointer-events: auto;
+  animation: update-toast-in 0.32s var(--ease);
+}
+.update-toast button {
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  min-height: 44px;
+}
+.update-toast-go {
+  min-width: 0;
+  padding: 0 4px 0 18px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.update-toast .update-toast-x {
+  min-width: 44px;
+  padding: 0 14px 0 8px;
+  color: var(--muted);
+}
+.update-toast button:focus-visible {
+  /* --focus 先夠 3:1(--red 喺白底得 2.8:1) */
+  outline: 2px solid var(--focus);
+  outline-offset: -4px;
+  border-radius: 999px;
+}
+.update-toast button:active {
+  filter: brightness(0.95);
+}
+@keyframes update-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .update-toast {
+    animation: none;
+  }
+}

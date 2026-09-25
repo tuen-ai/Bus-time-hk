@@ -7,7 +7,7 @@
   "display": "standalone",
   "display_override": ["fullscreen", "standalone"],
   "background_color": "#fff0f7",
-  "theme_color": "#ff4f95",
+  "theme_color": "#db2777",
   "lang": "zh-Hant-HK",
   "icons": [
     {

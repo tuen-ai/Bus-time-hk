@@ -3,7 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#ff4f95" />
+    <!-- 淺色狀態欄同 topbar 漸變起點 / App.tsx 一致,開 app 唔會跳色 -->
+    <meta name="theme-color" content="#db2777" />
+    <!-- 第一格畫面就用啱主題(同 App.tsx 一樣讀 kmb.theme,未揀過跟系統):深色用戶開 app 唔會閃粉紅白 -->
+    <script>
+      try {
+        var t = localStorage.getItem('kmb.theme')
+        var d =
+          t === 'dark' || t === 'light' ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches
+        document.documentElement.dataset.theme = d ? 'dark' : 'light'
+        if (d) document.querySelector('meta[name="theme-color"]').setAttribute('content', '#1a0f17')
+      } catch (e) {}
+    </script>
     <meta name="description" content="可可出行 · 香港交通實時到站、行程規劃" />
     <!-- iOS 加到主畫面後全屏 standalone(冇 Safari 上下 bar),status bar 透明浮喺頁面上 -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
