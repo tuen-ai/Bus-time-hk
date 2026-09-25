@@ -5,6 +5,7 @@ import {
   freshMtrSnap,
   getMtrFavs,
   getMtrLast,
+  hasMtrFavs,
   isMtrFav,
   keepMtrStale,
   MTR_FAVS_MAX,
@@ -108,6 +109,65 @@ describe('港鐵收藏', () => {
     expect(() => toggleMtrFav(TST_UP)).not.toThrow()
     expect(getMtrLast()).toBeNull()
     expect(() => setMtrLast({ line: 'TWL', sta: null })).not.toThrow()
+  })
+})
+
+describe('收藏目的地提示(destHint)', () => {
+  beforeEach(() => localStorage.clear())
+  afterEach(() => localStorage.clear())
+
+  it('toggle 存埋提示;讀返照有;加唔加星唔理提示', () => {
+    toggleMtrFav({ ...TST_DOWN, destHint: 'CEN' })
+    expect(getMtrFavs()).toEqual([{ ...TST_DOWN, destHint: 'CEN' }])
+    expect(isMtrFav(TST_DOWN)).toBe(true) // 冇提示都對到
+    expect(isMtrFav({ ...TST_DOWN, destHint: 'TSW' })).toBe(true)
+    // 再撳(例如首頁卡 ★ 冇帶提示)照刪到
+    expect(toggleMtrFav(TST_DOWN)).toEqual([])
+  })
+
+  it('唔識嘅目的地站碼 / 唔係字串 → 唔要提示,收藏照留', () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify([
+        { ...TST_UP, destHint: 'NOPE' },
+        { ...TST_DOWN, destHint: 5 },
+      ]),
+    )
+    expect(getMtrFavs()).toEqual([TST_UP, TST_DOWN])
+    toggleMtrFav({ line: 'ISL', sta: 'CEN', dir: 'UP', destHint: 'XYZ' })
+    expect(getMtrFavs()[0]).toEqual({ line: 'ISL', sta: 'CEN', dir: 'UP' })
+  })
+})
+
+describe('hasMtrFavs(首頁輕量判斷,唔讀站表)', () => {
+  beforeEach(() => localStorage.clear())
+  afterEach(() => localStorage.clear())
+
+  it('冇 / 空 / 壞 JSON / 形狀唔啱 → false;有一個形狀啱 → true', () => {
+    expect(hasMtrFavs()).toBe(false)
+    localStorage.setItem(KEY, '[]')
+    expect(hasMtrFavs()).toBe(false)
+    localStorage.setItem(KEY, '{oops')
+    expect(hasMtrFavs()).toBe(false)
+    localStorage.setItem(KEY, JSON.stringify([null, 'TWL', { line: 'TWL', sta: 'TST', dir: 'LEFT' }]))
+    expect(hasMtrFavs()).toBe(false)
+    localStorage.setItem(KEY, JSON.stringify([null, TST_UP]))
+    expect(hasMtrFavs()).toBe(true)
+  })
+
+  it('同 toggleMtrFav 一致', () => {
+    toggleMtrFav(TST_UP)
+    expect(hasMtrFavs()).toBe(true)
+    toggleMtrFav(TST_UP)
+    expect(hasMtrFavs()).toBe(false)
+  })
+
+  it('localStorage 被封鎖 → false,唔 throw', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError')
+    })
+    expect(hasMtrFavs()).toBe(false)
+    vi.restoreAllMocks()
   })
 })
 

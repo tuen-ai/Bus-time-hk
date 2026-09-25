@@ -67,7 +67,8 @@ export interface Favorite {
   stopId: string
   stopName: string
   dest: string
-  // 同 key 多條時分得開(GMB gtfsId / 嶼巴 nlbUid);舊收藏冇,靠 dest + stopId 對返。唔入 favKey,舊星照對到
+  // 同 key 多條時分得開(GMB gtfsId / 嶼巴 nlbUid);舊收藏冇,靠 dest + stopId 對返。
+  // 有就入 favKey(同站嘅兩個變體可以各自收藏);比較用 sameFav,舊收藏(冇 uid)照對到任何變體
   uid?: string
   // 行去呢個站要幾多分鐘(1–30;冇 = 未設定)。跟收藏一齊入備份;唔入 favKey
   walkMins?: number
@@ -75,8 +76,23 @@ export interface Favorite {
 
 const FAV_KEY = 'kmb.favorites'
 
-export const favKey = (f: Pick<Favorite, 'co' | 'route' | 'bound' | 'serviceType' | 'stopId'>) =>
-  `${f.co}|${f.route}|${f.bound}|${f.serviceType}|${f.stopId}`
+type FavKeyLike = Pick<Favorite, 'co' | 'route' | 'bound' | 'serviceType' | 'stopId' | 'uid'>
+
+/** 收藏唯一身份(React key / ETA map / 步行時間 / 藍牙揀選)。冇 uid 嘅舊收藏 key 同以前一字不差 */
+export const favKey = (f: FavKeyLike) =>
+  `${f.co}|${f.route}|${f.bound}|${f.serviceType}|${f.stopId}${f.uid ? `|${f.uid}` : ''}`
+
+/** 係咪同一個收藏(撳星 / 睇星):同線同站;兩邊都有 uid 先要 uid 一樣 → 舊收藏照對到 */
+export const sameFav = (a: FavKeyLike, b: FavKeyLike): boolean =>
+  favKey({ ...a, uid: undefined }) === favKey({ ...b, uid: undefined }) &&
+  (!a.uid || !b.uid || a.uid === b.uid)
+
+/** 喺清單搵返 f:一字不差優先,冇先用 sameFav(免得刪錯同站另一個變體) */
+function findFav(list: Favorite[], f: Favorite): number {
+  const k = favKey(f)
+  const exact = list.findIndex((x) => favKey(x) === k)
+  return exact >= 0 ? exact : list.findIndex((x) => sameFav(x, f))
+}
 
 export function getFavorites(): Favorite[] {
   try {
@@ -89,7 +105,7 @@ export function getFavorites(): Favorite[] {
 }
 
 export function isFavorite(f: Favorite): boolean {
-  return getFavorites().some((x) => favKey(x) === favKey(f))
+  return getFavorites().some((x) => sameFav(x, f))
 }
 
 /** 收藏加減 / 次序變咗 → 通知首頁收藏列表重讀 */
@@ -110,7 +126,7 @@ export function moveFavorite(idx: number, dir: -1 | 1): Favorite[] {
   return list
 }
 
-/** 設定 / 清除(null、0)某個收藏嘅步行時間:原地改,次序不變;搵唔到就原封不動 */
+/** 設定 / 清除(null、0)某個收藏(key = favKey)嘅步行時間:原地改,次序不變;搵唔到就原封不動 */
 export function setFavoriteWalk(key: string, mins: number | null): Favorite[] {
   const list = getFavorites()
   const idx = list.findIndex((x) => favKey(x) === key)
@@ -131,7 +147,7 @@ export function setFavoriteWalk(key: string, mins: number | null): Favorite[] {
 
 export function toggleFavorite(f: Favorite): Favorite[] {
   const list = getFavorites()
-  const idx = list.findIndex((x) => favKey(x) === favKey(f))
+  const idx = findFav(list, f)
   if (idx >= 0) list.splice(idx, 1)
   else list.unshift(f)
   try {

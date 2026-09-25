@@ -1,25 +1,30 @@
 // 港鐵收藏(綫 + 站 + 方向)同鐵路頁「上次揀嘅綫 / 站」:純本機 localStorage,入備份。
 // 刻意唔塞入巴士收藏(store.ts 嘅 Co / favKey / 顯示模式 / 藍牙小屏都靠嗰邊),自己一個細 store。
+// 呢個檔要 import 站表(mtrData)驗證 → 首屏唔好直接用;首頁 / App 用 mtrFavsStore(輕)。
 import type { StationSchedule, TrainArrival } from '../api/mtr'
-import { getLine } from './mtrData'
+import { getLine, stationNameTc } from './mtrData'
 import { lsGet, lsSet } from './ls'
 import { STALE_MAX_MS } from './time'
+import { MTR_FAVS_KEY, MTR_LAST_KEY as LAST_KEY, MTRFAVS_CHANGED, type MtrLast } from './mtrFavsStore'
+
+export { MTR_FAVS_KEY, MTRFAVS_CHANGED, setMtrLast, hasMtrFavs, type MtrLast } from './mtrFavsStore'
 
 export type MtrDir = 'UP' | 'DOWN'
 
 export interface MtrFav {
   line: string
   sta: string
-  /** API 嘅 UP / DOWN;目的地唔存(機場快綫 / 東鐵綫每班可以唔同),顯示時睇實時回應 */
+  /** API 嘅 UP / DOWN;顯示目的地睇實時回應(機場快綫 / 東鐵綫每班可以唔同) */
   dir: MtrDir
+  /**
+   * 收藏嗰陣第一班車嘅目的地(站碼)。淨係冇實時班次(載入中 / 出錯 / 特別車務 / 收咗車)時用嚟分方向,
+   * 唔入 mtrFavKey(加唔加星照對到);舊收藏冇
+   */
+  destHint?: string
 }
 
-export const MTR_FAVS_KEY = 'kkcx.mtrFavs'
-const LAST_KEY = 'kkcx.mtr.last'
 /** 首頁每個收藏站每 15 秒一個請求:最多 4 個,唔好拖慢首頁 / 食晒數據 */
 export const MTR_FAVS_MAX = 4
-/** 港鐵收藏加減 → 通知首頁 / 鐵路頁重讀 */
-export const MTRFAVS_CHANGED = 'kkcx:mtrfavs-changed'
 
 export const mtrFavKey = (f: MtrFav) => `${f.line}|${f.sta}|${f.dir}`
 /** 同一個站(唔理方向):首頁一個站只攞一次時間表 */
@@ -38,12 +43,19 @@ function parse(raw: string | null): unknown {
   }
 }
 
+/** 存落 / 讀返嚟嘅形狀:唔識嘅目的地站碼唔要(免得顯示「往XYZ」) */
+function slim(line: string, sta: string, dir: MtrDir, destHint: unknown): MtrFav {
+  return typeof destHint === 'string' && stationNameTc[destHint]
+    ? { line, sta, dir, destHint }
+    : { line, sta, dir }
+}
+
 function asFav(x: unknown): MtrFav | null {
   if (!x || typeof x !== 'object') return null
-  const { line, sta, dir } = x as Record<string, unknown>
+  const { line, sta, dir, destHint } = x as Record<string, unknown>
   if (typeof line !== 'string' || typeof sta !== 'string') return null
   if (dir !== 'UP' && dir !== 'DOWN') return null
-  return isMtrStation(line, sta) ? { line, sta, dir } : null
+  return isMtrStation(line, sta) ? slim(line, sta, dir, destHint) : null
 }
 
 /** 讀收藏:壞 JSON / 唔識嘅綫站(例如舊備份)靜靜哋略過,重複嘅只留一個,最多 MTR_FAVS_MAX 個 */
@@ -77,19 +89,14 @@ export function toggleMtrFav(f: MtrFav): MtrFav[] {
   const idx = list.findIndex((x) => mtrFavKey(x) === mtrFavKey(f))
   if (idx >= 0) list.splice(idx, 1)
   else if (mtrFavsFull(list) || !isMtrStation(f.line, f.sta)) return list
-  else list.unshift({ line: f.line, sta: f.sta, dir: f.dir })
+  else list.unshift(slim(f.line, f.sta, f.dir, f.destHint))
   // 私密模式 / 容量滿寫唔到:照回傳記憶體版本令 UI 更新
   lsSet(MTR_FAVS_KEY, JSON.stringify(list))
   window.dispatchEvent(new Event(MTRFAVS_CHANGED))
   return list
 }
 
-// ---- 鐵路頁記住上次揀嘅綫 / 站 ----
-
-export interface MtrLast {
-  line: string
-  sta: string | null
-}
+// ---- 鐵路頁記住上次揀嘅綫 / 站(寫就用 mtrFavsStore 嘅 setMtrLast)----
 
 /** 上次揀嘅綫 / 站;冇 / 壞 / 綫已經唔存在 → null。站對唔到嗰條綫就淨係記綫 */
 export function getMtrLast(): MtrLast | null {
@@ -98,10 +105,6 @@ export function getMtrLast(): MtrLast | null {
   const { line, sta } = raw as Record<string, unknown>
   if (typeof line !== 'string' || !getLine(line)) return null
   return { line, sta: typeof sta === 'string' && isMtrStation(line, sta) ? sta : null }
-}
-
-export function setMtrLast(v: MtrLast): void {
-  lsSet(LAST_KEY, JSON.stringify({ line: v.line, sta: v.sta }))
 }
 
 // ---- 首頁卡:時間表狀態 + 顯示 ----

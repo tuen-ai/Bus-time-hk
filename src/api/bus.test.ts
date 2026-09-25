@@ -8,6 +8,7 @@ import {
   pickRoute,
   pickRouteAtStop,
   routeKey,
+  routeFromQuery,
   routeKeyOf,
   routeVariants,
   sameRoute,
@@ -254,6 +255,27 @@ describe('pickRoute / pickRouteAtStop / routeVariants', () => {
     expect(sameRoute(A_O, { ...A_O })).toBe(true)
     expect(sameRoute(A_O, B_O)).toBe(false)
     expect(sameRoute(A_O, A_I)).toBe(false)
+  })
+})
+
+describe('routeFromQuery:清單未載好時嘅臨時路線', () => {
+  it('co / 號 / 方向 / 班次 / 目的地 / uid 照搬;冇起點', () => {
+    const r = routeFromQuery({ co: 'gmb', route: '1', bound: 'I', serviceType: '2', dest: '西貢', uid: 'A' })
+    expect(r).toEqual({
+      co: 'gmb',
+      route: '1',
+      bound: 'I',
+      service_type: '2',
+      orig_tc: '',
+      dest_tc: '西貢',
+      uid: 'A',
+    })
+    // 同清單入面嗰條係同一條線(變體 chip 揀中、ETA 用返同一個 uid)
+    expect(sameRoute(r, R({ co: 'gmb', route: '1', bound: 'I', service_type: '2', uid: 'A' }))).toBe(true)
+  })
+
+  it('冇目的地(舊收藏)→ 空字串,唔係 undefined', () => {
+    expect(routeFromQuery({ co: 'kmb', route: '1A', bound: 'O', serviceType: '1' }).dest_tc).toBe('')
   })
 })
 

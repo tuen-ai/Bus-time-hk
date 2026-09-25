@@ -148,16 +148,21 @@ function mascotMood(w: Weather | null): { umbrella: boolean; sweat: boolean; lin
   return { umbrella: false, sweat: false, line: null }
 }
 
-/** 規劃頁 / 空白頁歡迎插圖:一對公仔(印仔解鎖造型 + 天氣反應)+ 心心裝飾 */
-export function MascotWelcome({ title, sub }: { title: string; sub: string }) {
+/** 公仔天氣反應:同 WeatherBanner 共用 memoAsync 快取,唔會多發請求;攞唔到就當冇特別 */
+function useMascotMood() {
   const [wx, setWx] = useState<Weather | null>(null)
   useEffect(() => {
     getWeather()
       .then(setWx)
       .catch(() => {})
   }, [])
+  return mascotMood(wx)
+}
+
+/** 規劃頁 / 空白頁歡迎插圖:一對公仔(印仔解鎖造型 + 天氣反應)+ 心心裝飾 */
+export function MascotWelcome({ title, sub }: { title: string; sub: string }) {
   const un = unlocked(getStamps())
-  const mood = mascotMood(wx)
+  const mood = useMascotMood()
   return (
     <div className="welcome">
       <span className="welcome-float" aria-hidden="true" style={{ top: 30, left: 14 }}>
@@ -190,6 +195,44 @@ export function MascotWelcome({ title, sub }: { title: string; sub: string }) {
       {mood.line && <div className="wx-mood">{mood.line}</div>}
       <div className="confetti" aria-hidden="true">
         ♡ ✨ 💗 🎀 💞 ✨ ♡
+      </div>
+    </div>
+  )
+}
+
+const GREET_MOOD_STYLE = { marginTop: 2 } as const
+
+/** 首頁有收藏嘅熟客:細公仔 + 一句問候(唔好用成個大 hero 將收藏迫落去);天氣提示(帶遮 / 打風 / 好熱)照出 */
+export function MascotGreeting() {
+  const [hour] = useState(() => new Date().getHours())
+  const [un] = useState(() => unlocked(getStamps()))
+  const mood = useMascotMood()
+  const hi = hour < 5 ? '夜喇' : hour < 12 ? '早晨' : hour < 18 ? '午安' : '晚上好'
+  return (
+    <div className="home-greet">
+      <span className="home-greet-faces" aria-hidden="true">
+        <PandaFace
+          className="mascot greet-face a"
+          bow={un.includes('bow')}
+          starEyes={un.includes('star')}
+          umbrella={mood.umbrella}
+          sweat={mood.sweat}
+        />
+        <BearFace
+          className="mascot greet-face b"
+          knight={un.includes('knight')}
+          medal={un.includes('gold')}
+        />
+      </span>
+      <div>
+        <p className="home-greet-text">
+          {hi}!今日去邊度呢?<span aria-hidden="true"> 💕</span>
+        </p>
+        {mood.line && (
+          <div className="wx-mood" style={GREET_MOOD_STYLE}>
+            {mood.line}
+          </div>
+        )}
       </div>
     </div>
   )

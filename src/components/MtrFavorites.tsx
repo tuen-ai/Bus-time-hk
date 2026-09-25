@@ -1,7 +1,7 @@
 // 首頁港鐵收藏(站 + 方向):同一個站只攞一次時間表(兩個方向都收藏都係一個請求),每 15 秒刷新,背景分頁暫停。
 // 網絡唔穩同巴士收藏一樣:每個站各自保留上次成功嘅時間表最多 5 分鐘(分鐘數照扣),從未成功先出錯。
 // ⚠️ 延誤 / 特別車務安排直接睇嗰個站自己個回應,唔使額外請求。
-// 唔好 import MtrView / Leaflet:呢個喺首頁 bundle,鐵路頁要揀咗先載。
+// 首頁有港鐵收藏先 lazy 載呢個 chunk(連埋站表 mtrData);唔好 import MtrView / Leaflet,鐵路頁要揀咗先載。
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { fetchSchedule, type StationSchedule } from '../api/mtr'
 import { getLine, stationNameTc } from '../lib/mtrData'
@@ -49,11 +49,36 @@ function ageRows(
 const hhmm = (ms: number) => clockLabel(new Date(ms).toISOString())
 const staName = (code: string) => stationNameTc[code] ?? code
 
-export default function MtrFavorites({ onOpen }: { onOpen: (line: string, sta: string) => void }) {
+const dirWord = (d: MtrFav['dir']) => (d === 'UP' ? '上行' : '下行')
+
+interface Props {
+  onOpen: (line: string, sta: string) => void
+  /** 移除咗最後一個(成個區會消失):焦點交返首頁安排,唔好跌落 body */
+  onEmpty?: () => void
+}
+
+export default function MtrFavorites({ onOpen, onEmpty }: Props) {
   const [favs, setFavs] = useState<MtrFav[]>(getMtrFavs)
   const [rows, setRows] = useState<Record<string, MtrSnap>>({})
   // 每轉 load 一個號碼:遲返嘅舊一轉唔好蓋過新結果
   const seqRef = useRef(0)
+  // 撳 ★ 移除之後焦點去邊:下一張卡(冇就上一張)嘅 ★
+  const starRefs = useRef(new Map<string, HTMLButtonElement>())
+  const focusAfter = useRef<string | null>(null)
+  useEffect(() => {
+    const k = focusAfter.current
+    if (!k) return
+    focusAfter.current = null
+    starRefs.current.get(k)?.focus()
+  }, [favs])
+
+  const remove = (f: MtrFav, i: number) => {
+    const next = toggleMtrFav(f)
+    const target = next[Math.min(i, next.length - 1)]
+    focusAfter.current = target ? mtrFavKey(target) : null
+    setFavs(next)
+    if (!target) onEmpty?.()
+  }
 
   // 鐵路頁撳 ☆ / 另一個分頁改咗 → 重讀
   useEffect(() => {
@@ -108,9 +133,10 @@ export default function MtrFavorites({ onOpen }: { onOpen: (line: string, sta: s
       <h2 className="section-title">
         <span aria-hidden="true">🚇 </span>港鐵收藏
       </h2>
-      {favs.map((f) => {
+      {favs.map((f, i) => {
         const line = getLine(f.line)
         if (!line) return null
+        const key = mtrFavKey(f)
         const name = staName(f.sta)
         const snap = rows[mtrStaKey(f)]
         const sched = snap?.sched
@@ -118,15 +144,14 @@ export default function MtrFavorites({ onOpen }: { onOpen: (line: string, sta: s
           sched && snap.fetchedAt != null && !sched.special
             ? upcomingTrains(f.dir === 'UP' ? sched.up : sched.down, snap.at - snap.fetchedAt, SHOW_TRAINS)
             : []
-        // 目的地睇實時回應(唔存:機場快綫 / 東鐵綫每班可以唔同)
-        const dest = trains[0] ? staName(trains[0].dest) : null
+        // 目的地睇實時回應(機場快綫 / 東鐵綫每班可以唔同);冇實時班次先用收藏嗰陣記低嘅提示
+        const destCode = trains[0]?.dest ?? f.destHint
+        const dest = destCode ? staName(destCode) : null
+        // 舊收藏冇提示又冇車:同站兩個方向都收藏咗先寫上行 / 下行,唔係兩張卡一模一樣
+        const twin = !dest && favs.some((x) => x !== f && mtrStaKey(x) === mtrStaKey(f))
         const stale = snap?.fetchedAt != null && snap.error != null
         return (
-          <div
-            key={mtrFavKey(f)}
-            className="fav-card mtr-fav"
-            style={{ '--line-c': line.color } as CSSProperties}
-          >
+          <div key={key} className="fav-card mtr-fav" style={{ '--line-c': line.color } as CSSProperties}>
             <div className="fav-head">
               <button type="button" className="fav-open" onClick={() => onOpen(f.line, f.sta)}>
                 <span className="mtr-fav-badge" aria-hidden="true">
@@ -136,15 +161,20 @@ export default function MtrFavorites({ onOpen }: { onOpen: (line: string, sta: s
                   <div className="stop-name">{name}</div>
                   <div className="muted small">
                     {line.nameTc}
-                    {dest && ` · 往${dest}`} <span aria-hidden="true">›</span>
+                    {dest ? ` · 往${dest}` : twin ? ` · ${dirWord(f.dir)}` : ''}{' '}
+                    <span aria-hidden="true">›</span>
                   </div>
                 </div>
               </button>
               <button
                 type="button"
                 className="star on"
-                aria-label={`移除港鐵收藏 ${line.nameTc} ${name}${dest ? ` 往${dest}` : ''}`}
-                onClick={() => setFavs(toggleMtrFav(f))}
+                ref={(el) => {
+                  if (el) starRefs.current.set(key, el)
+                  else starRefs.current.delete(key)
+                }}
+                aria-label={`移除港鐵收藏 ${line.nameTc} ${name} ${dest ? `往${dest}` : dirWord(f.dir)}`}
+                onClick={() => remove(f, i)}
               >
                 ★
               </button>

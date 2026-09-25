@@ -169,4 +169,56 @@ describe('MtrFavorites', () => {
     expect(screen.queryByText('中環')).toBeNull()
     expect(getMtrFavs()).toEqual([{ line: 'TWL', sta: 'TST', dir: 'UP' }])
   })
+
+  it('冇實時班次:有收藏嗰陣記低嘅目的地就用;舊收藏同站兩個方向就寫上行 / 下行', async () => {
+    setFavs([
+      { line: 'TWL', sta: 'TST', dir: 'UP' },
+      { line: 'TWL', sta: 'TST', dir: 'DOWN' },
+      { line: 'ISL', sta: 'ADM', dir: 'UP', destHint: 'CHW' },
+    ])
+    fetchSchedule.mockImplementation(async () => sched({ special: true }))
+    render(<MtrFavorites onOpen={() => {}} />)
+    await flush()
+    expect(card('港島綫 · 往柴灣')).toBeTruthy()
+    expect(card('荃灣綫 · 上行')).toBeTruthy()
+    expect(card('荃灣綫 · 下行')).toBeTruthy()
+    // 讀屏:兩個移除掣分得開
+    expect(screen.getByRole('button', { name: '移除港鐵收藏 荃灣綫 尖沙咀 上行' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '移除港鐵收藏 荃灣綫 尖沙咀 下行' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '移除港鐵收藏 港島綫 金鐘 往柴灣' })).toBeTruthy()
+  })
+
+  it('實時目的地優先過提示(機場快綫 / 東鐵綫每班可以唔同)', async () => {
+    setFavs([{ line: 'TWL', sta: 'TST', dir: 'UP', destHint: 'CEN' }])
+    fetchSchedule.mockResolvedValue(TST)
+    render(<MtrFavorites onOpen={() => {}} />)
+    await flush()
+    expect(card('荃灣綫 · 往荃灣')).toBeTruthy()
+    expect(screen.queryByText(/往中環/)).toBeNull()
+  })
+
+  it('★ 移除:焦點去下一張卡嘅 ★(最尾一張就去上一張);移除晒通知首頁接手', async () => {
+    setFavs([
+      { line: 'TWL', sta: 'TST', dir: 'UP' },
+      { line: 'ISL', sta: 'CEN', dir: 'DOWN' },
+      { line: 'KTL', sta: 'MOK', dir: 'UP' },
+    ])
+    fetchSchedule.mockResolvedValue(sched({}))
+    const onEmpty = vi.fn()
+    render(<MtrFavorites onOpen={() => {}} onEmpty={onEmpty} />)
+    await flush()
+    const star = (label: RegExp) => screen.getByRole('button', { name: label })
+
+    star(/^移除港鐵收藏 荃灣綫/).focus()
+    fireEvent.click(star(/^移除港鐵收藏 荃灣綫/))
+    expect(document.activeElement).toBe(star(/^移除港鐵收藏 港島綫/))
+
+    fireEvent.click(star(/^移除港鐵收藏 觀塘綫/))
+    expect(document.activeElement).toBe(star(/^移除港鐵收藏 港島綫/))
+    expect(onEmpty).not.toHaveBeenCalled()
+
+    fireEvent.click(star(/^移除港鐵收藏 港島綫/))
+    expect(onEmpty).toHaveBeenCalledTimes(1)
+    expect(getMtrFavs()).toEqual([])
+  })
 })

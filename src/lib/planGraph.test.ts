@@ -10,6 +10,7 @@ import {
   type PlanRoute,
 } from './planGraph'
 import committed from '../data/planGraph.json'
+import { distanceMeters } from './geo'
 
 // 細圖:三個站排成一直線(每格約 111m),一條線經晒
 const graph: PlanGraph = {
@@ -143,6 +144,45 @@ describe('committed planGraph.json', () => {
   const ix = buildIndex(g)
   const COS = new Set(['kmb', 'ctb', 'nlb', 'gmb', 'lightRail'])
   const BOUNDS = new Set(['I', 'O', 'OI', 'IO'])
+
+  it('nearStops 同逐個站暴力計結果一樣,但淨係睇附近幾格(唔係掃成個香港)', () => {
+    const ids = Object.keys(g.stops)
+    // 固定種子:一半隨機點、一半真站位(保證有結果)
+    let seed = 7
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+    const pts: [number, number][] = []
+    for (let i = 0; i < 30; i++) pts.push([22.2 + rnd() * 0.3, 113.9 + rnd() * 0.45])
+    for (let i = 0; i < 30; i++) {
+      const [lat, lng] = g.stops[ids[Math.floor(rnd() * ids.length)]]
+      pts.push([lat + (rnd() - 0.5) * 0.004, lng + (rnd() - 0.5) * 0.004])
+    }
+    const byDist = (a: { id: string; dist: number }, b: { id: string; dist: number }) =>
+      a.dist - b.dist || a.id.localeCompare(b.id)
+    let lookups = 0
+    const grid = new Map(ix.grid)
+    const get = grid.get.bind(grid)
+    grid.get = (k: string) => {
+      lookups++
+      return get(k)
+    }
+    const counted = { ...ix, grid }
+    let found = 0
+    for (const radius of [300, 500, 600, 800, 1500]) {
+      for (const [lat, lng] of pts) {
+        lookups = 0
+        const got = nearStops(counted, lat, lng, radius, 100_000).sort(byDist)
+        // 500m 以前要掃 5 萬幾格;而家 ±幾格
+        if (radius <= 800) expect(lookups).toBeLessThanOrEqual(49)
+        const want = ids
+          .map((id) => ({ id, dist: distanceMeters(lat, lng, g.stops[id][0], g.stops[id][1]) }))
+          .filter((x) => x.dist <= radius)
+          .sort(byDist)
+        expect(got).toEqual(want)
+        found += got.length
+      }
+    }
+    expect(found).toBeGreaterThan(100)
+  })
 
   it('每條線 co / bound / 站都對得上型別', () => {
     expect(g.routes.length).toBeGreaterThan(1000)

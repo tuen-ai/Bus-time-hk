@@ -16,6 +16,7 @@ import {
   routeCompare,
   settledOrThrow,
   sortRows,
+  warmNearbyGraph,
   writeNearbyCache,
   writeNearbyTab,
   type NearbyRow,
@@ -298,5 +299,24 @@ describe('nearbyBuses', () => {
     vi.mocked(getStopMap).mockResolvedValue(new Map([['C', stop('C', 22.36)]]))
     vi.mocked(fetchStopEta).mockResolvedValue([])
     await expect(nearbyBuses(22.36, 114.17, 'kmb')).resolves.toEqual([])
+  })
+})
+
+describe('warmNearbyGraph', () => {
+  it('城巴 / 綠van 先預載規劃圖;九巴 / 健身唔使;載唔到唔會 throw', async () => {
+    vi.mocked(loadGraph).mockReset().mockRejectedValue(new Error('offline'))
+    warmNearbyGraph('kmb')
+    warmNearbyGraph('fit')
+    expect(loadGraph).not.toHaveBeenCalled()
+    warmNearbyGraph('ctb')
+    warmNearbyGraph('gmb')
+    await new Promise((r) => setTimeout(r, 0)) // 失敗靜靜哋食咗,唔會 unhandled rejection
+    expect(loadGraph).toHaveBeenCalledTimes(2)
+    // 同步 throw / 唔係 promise(例如 test 嘅 vi.fn())都唔會拖冧 caller
+    vi.mocked(loadGraph).mockImplementation(() => {
+      throw new Error('boom')
+    })
+    expect(() => warmNearbyGraph('gmb')).not.toThrow()
+    await new Promise((r) => setTimeout(r, 0))
   })
 })

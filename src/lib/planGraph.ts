@@ -68,7 +68,8 @@ export interface Indexed {
   variants: Map<string, number[]> // co|route|bound -> route 編號(循環線搵返單程用)
 }
 
-const CELL = 0.0045 // ~500m
+const CELL = 0.0045 // 度;緯度方向 ~500m,經度方向喺香港 ~465m(× cos 緯度)
+const M_PER_DEG = 111_320
 const gridKey = (lat: number, lng: number) => `${Math.floor(lat / CELL)}:${Math.floor(lng / CELL)}`
 
 // 成功先記住;失敗(弱網 chunk 載唔到)唔記,下次再 import。大 chunk 慢網要耐啲,唔好 30 秒就放棄
@@ -125,12 +126,16 @@ export function nearStops(
   radiusM = 500,
   limit = 16,
 ): { id: string; dist: number }[] {
-  const cells = Math.ceil(radiusM / 1000 / CELL) + 1
+  // 半徑(米)→ 要睇幾多格:以前當咗 CELL 係公里,500m 會掃 ±113 格(成個香港 5 萬幾格、1.4 萬個站),
+  // 附近城巴 / 綠van 每 12 秒一次、規劃每次兩次都咁嘥。經度格喺高緯度會縮細 → 分開計;+1 係保險
+  const latCells = Math.ceil(radiusM / (CELL * M_PER_DEG)) + 1
+  const lngCells =
+    Math.ceil(radiusM / (CELL * M_PER_DEG * Math.max(Math.cos((lat * Math.PI) / 180), 1e-6))) + 1
   const cLat = Math.floor(lat / CELL)
   const cLng = Math.floor(lng / CELL)
   const out: { id: string; dist: number }[] = []
-  for (let dx = -cells; dx <= cells; dx++) {
-    for (let dy = -cells; dy <= cells; dy++) {
+  for (let dx = -latCells; dx <= latCells; dx++) {
+    for (let dy = -lngCells; dy <= lngCells; dy++) {
       const ids = ix.grid.get(`${cLat + dx}:${cLng + dy}`)
       if (!ids) continue
       for (const id of ids) {

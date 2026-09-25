@@ -139,6 +139,21 @@ function byUid(index: Map<string, Route[]>, cands: Route[], q: RouteQuery): Rout
   return undefined
 }
 
+/**
+ * 路線清單未載好(第一次開 / 快取過咗 7 日 / 清咗快取 / 載入失敗)時,用 key 本身砌一條臨時 Route,
+ * 撳收藏 / 附近 / 規劃 leg 即刻開到路線頁(getRouteStops / getEta 有呢幾樣就夠)。
+ * 冇起點站名;清單一到 App 會用 pickRouteAtStop 換返真嗰條。
+ */
+export const routeFromQuery = (q: RouteQuery): Route => ({
+  co: q.co,
+  route: q.route,
+  bound: q.bound,
+  service_type: q.serviceType,
+  orig_tc: '',
+  dest_tc: q.dest ?? '',
+  uid: q.uid,
+})
+
 /** 同步版:uid 啱就用;否則目的地 tiebreak;都唔得就清單第一條 */
 export function pickRoute(index: Map<string, Route[]>, q: RouteQuery): Route | undefined {
   const cands = candidatesOf(index, q)
@@ -317,8 +332,9 @@ async function fetchAllFresh(): Promise<{ all: Route[]; miss: Co[] }> {
   ]
   const miss = parts.filter(([, rs]) => !rs?.length).map(([co]) => co)
   const all = parts.flatMap(([, rs]) => rs ?? [])
-  // 全部失敗(離線/CORS)→ 唔好快取空陣列毒化一日,直接拋錯俾 App 顯示重試
-  if (all.length === 0) throw new Error('路線資料載入失敗,請稍後重試')
+  // 全部失敗(離線/CORS)→ 唔好快取空陣列毒化一日,直接拋錯俾 App 顯示重試。
+  // 英文訊息係刻意:交俾 friendlyError 講「冇網絡連線」/「連唔到伺服器」,App 前綴先唔會重複「載入唔到」
+  if (all.length === 0) throw new Error('all route sources failed')
   return { all, miss }
 }
 

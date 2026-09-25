@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { getRouteStops, coLabel, coClass, routeKeyOf, sameRoute, type Route } from '../api/bus'
-import { favKey, getFavorites, toggleFavorite, type Favorite } from '../lib/store'
+import { getFavorites, sameFav, toggleFavorite, type Favorite } from '../lib/store'
 import EtaPanel from './EtaPanel'
 import type { MapStop } from './RouteMap'
 import { lazyRetry } from '../lib/lazyRetry'
@@ -10,6 +10,7 @@ import TrafficAlert from './TrafficAlert'
 import { getAlarm, startAlarm, stopAlarm, subscribeAlarm } from '../lib/alarm'
 import { primeAudio, askNotify } from '../lib/chime'
 import { friendlyError } from '../lib/http'
+import { zhErrorOr } from '../lib/errorText'
 import { pickCounterpartStop, pickReverseVariant, type StopHint } from '../lib/stopMatch'
 import { scrollBehavior } from '../lib/motion'
 
@@ -37,7 +38,15 @@ type Loaded = { id: string; rows: StopRow[] } | { id: string; error: string }
 
 const NO_STOPS: StopRow[] = []
 const routeIdOf = (r: Route): string => `${routeKeyOf(r)}|${r.uid ?? ''}`
-const stopDomId = (stopId: string): string => `stop-${stopId}`
+/** 每行嘅 DOM id:循環線(綠van 等)同一個站出現第二次先加站序,唔好撞 id(第一次照舊 stop-<站>) */
+function rowDomIds(rows: StopRow[]): string[] {
+  const seen = new Set<string>()
+  return rows.map((r) => {
+    const dup = seen.has(r.stopId)
+    seen.add(r.stopId)
+    return dup ? `stop-${r.stopId}-${r.seq}` : `stop-${r.stopId}`
+  })
+}
 
 // 撳 ⇄ 返程 / 方向 chip 時,帶「而家打開緊嘅站」過去新方向,載完站列就自動打開對面嗰個站。
 // 放 module 層:App 換線會重用呢個 component;就算將來加 key 重新 mount 都唔會唔見。
@@ -65,12 +74,20 @@ const HEAD_STYLE = { margin: 0, outline: 'none' } as const
 
 export default function RouteStopsView({ route, variants, initialOpenStop, onSwitch, onBack }: Props) {
   const routeId = routeIdOf(route)
+  // 載資料(站列 / 車費 / ETA / 地圖)用嘅 route:App 由臨時路線換返清單嗰條(同一條線,淨係補咗起點)
+  // 唔使重新載,ETA 唔會閃返 skeleton。起點 / ⇄ 返程照用最新嘅 route。站列 / ETA 只睇 key + uid + 目的地
+  const dataKey = `${routeId}|${route.dest_tc}`
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- 刻意淨係跟 dataKey 換 object
+  const dataRoute = useMemo(() => route, [dataKey])
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const [openStop, setOpenStop] = useState<string | null>(initialOpenStop ?? null)
+  // 循環線同一個站喺站列出現兩次:記住撳咗邊一行(站序),唔好兩行一齊開;冇就開第一行
+  const [openRowSeq, setOpenRowSeq] = useState<string | null>(null)
   const [fares, setFares] = useState<number[] | null>(null)
-  // 收藏 key Set:一次 JSON.parse,唔係每個站每次 render 都讀 localStorage;撳星就用 toggle 回傳嘅新清單更新
-  const [favSet, setFavSet] = useState(() => new Set(getFavorites().map(favKey)))
+  // 收藏清單:一次 JSON.parse,唔係每個站每次 render 都讀 localStorage;撳星就用 toggle 回傳嘅新清單更新。
+  // 用 sameFav 對(同站兩個綠van / 嶼巴變體分開;舊收藏冇 uid 照亮星)
+  const [favs, setFavs] = useState<Favorite[]>(getFavorites)
   const [alarmStopId, setAlarmStopId] = useState<string | null>(getAlarm()?.stopId ?? null)
   const headRef = useRef<HTMLHeadingElement>(null)
   const scrolledFor = useRef<string | null>(null)
@@ -79,6 +96,17 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
   const stops = current && 'rows' in current ? current.rows : NO_STOPS
   const error = current && 'error' in current ? current.error : null
   const loading = !current
+
+  // 打開緊邊一行:撳過嗰行(站序 + 站)優先,否則第一個係 openStop 嘅站
+  const openIdx = useMemo(() => {
+    if (!openStop) return -1
+    const exact =
+      openRowSeq != null ? stops.findIndex((s) => s.seq === openRowSeq && s.stopId === openStop) : -1
+    return exact >= 0 ? exact : stops.findIndex((s) => s.stopId === openStop)
+  }, [stops, openStop, openRowSeq])
+  const openRow = openIdx >= 0 ? stops[openIdx] : undefined
+  const domIds = useMemo(() => rowDomIds(stops), [stops])
+  const openDomId = openIdx >= 0 ? domIds[openIdx] : null
 
   useEffect(() => subscribeAlarm((a) => setAlarmStopId(a?.stopId ?? null)), [])
 
@@ -93,6 +121,7 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
   useEffect(() => {
     headRef.current?.focus({ preventScroll: true })
     window.scrollTo({ top: 0 })
+    setOpenRowSeq(null) // 換咗線:舊線嘅站序冇意思
   }, [routeId])
 
   // 撳鐘仔:設/取消落車鬧鐘
@@ -114,17 +143,17 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
 
   useEffect(() => {
     setFares(null)
-    getFares(route.co, route.route, route.bound, route.service_type)
+    getFares(dataRoute.co, dataRoute.route, dataRoute.bound, dataRoute.service_type)
       .then(setFares)
       .catch(() => setFares(null))
-  }, [route])
+  }, [dataRoute])
 
   useEffect(() => {
     let alive = true
-    const id = routeIdOf(route)
+    const id = routeIdOf(dataRoute)
     ;(async () => {
       try {
-        const rs = await getRouteStops(route)
+        const rs = await getRouteStops(dataRoute)
         if (!alive) return
         const rows = rs.map((s) => ({
           seq: String(s.seq),
@@ -133,31 +162,34 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
           lat: s.lat,
           lng: s.lng,
         }))
-        // 由對面方向轉過嚟:自動打開對面嗰個站;否則保留仲喺呢條線上面嘅站
-        const hint = takeCarry(route)
+        // 由對面方向轉過嚟:自動打開對面嗰個站;否則保留仲喺呢條線上面嘅站。
+        // 冇站(攞唔到 / 臨時路線)就唔好清走:撳重試或者 App 換返真路線之後照開返收藏嗰個站
+        const hint = takeCarry(dataRoute)
         const counterpart = hint ? pickCounterpartStop(rows, hint) : null
-        setOpenStop((cur) => (hint ? counterpart : cur && rows.some((r) => r.stopId === cur) ? cur : null))
+        setOpenStop((cur) =>
+          hint ? counterpart : cur && (rows.length === 0 || rows.some((r) => r.stopId === cur)) ? cur : null,
+        )
         setLoaded({ id, rows })
       } catch (e) {
-        if (alive) setLoaded({ id, error: `車站資料載入唔到:${friendlyError(e)}` })
+        // 自己拋嘅中文句(例如綠van「…車站資料載入唔到…」)已經講清楚,唔好再加前綴講兩次
+        if (alive) setLoaded({ id, error: zhErrorOr(e, `車站資料載入唔到:${friendlyError(e)}`) })
       }
     })()
     return () => {
       alive = false
     }
-  }, [route, reloadKey])
+  }, [dataRoute, reloadKey])
 
   // 站列一載完,將打開咗嘅站(收藏 / 附近 / 對面方向帶過嚟)捲到畫面中間;每條線只捲一次,
   // 之後用家自己撳站唔會再捲
   useEffect(() => {
     if (stops.length === 0 || scrolledFor.current === routeId) return
     scrolledFor.current = routeId
-    if (!openStop) return
-    const target = stopDomId(openStop)
+    if (!openDomId) return
     requestAnimationFrame(() => {
-      document.getElementById(target)?.scrollIntoView?.({ block: 'center', behavior: scrollBehavior() })
+      document.getElementById(openDomId)?.scrollIntoView?.({ block: 'center', behavior: scrollBehavior() })
     })
-  }, [stops, openStop, routeId])
+  }, [stops, openDomId, routeId])
 
   const sortedVariants = useMemo(
     () =>
@@ -196,7 +228,7 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
 
   // 換方向 / 班次:帶埋而家打開緊嘅站過去
   const switchTo = (v: Route) => {
-    const row = openStop ? stops.find((s) => s.stopId === openStop) : undefined
+    const row = openRow
     carry = row
       ? { to: v, hint: { stopId: row.stopId, name: row.name, lat: row.lat, lng: row.lng }, at: Date.now() }
       : null
@@ -236,7 +268,8 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
               </span>
             ))}
           </h2>
-          <div className="muted small">由 {route.orig_tc}</div>
+          {/* 路線清單未載好時由收藏 / 附近開入嚟嘅臨時路線冇起點:唔好出淨係「由 」 */}
+          {route.orig_tc && <div className="muted small">由 {route.orig_tc}</div>}
         </div>
         {(hasFare || reverse) && (
           <div style={SIDE_STYLE}>
@@ -322,25 +355,32 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
             </div>
           }
         >
-          <RouteMap route={route} stops={mapStops} focusStopId={openStop ?? undefined} />
+          <RouteMap route={dataRoute} stops={mapStops} focusStopId={openStop ?? undefined} />
         </Suspense>
       )}
 
       <ol className="stop-list">
         {stops.map((row, idx) => {
           const fav = makeFav(row)
-          const faved = favSet.has(favKey(fav))
-          const open = openStop === row.stopId
+          const faved = favs.some((x) => sameFav(x, fav))
+          const open = idx === openIdx
           const fare = fares && idx < fares.length ? fares[idx] : null
           const alarmOn = alarmStopId === row.stopId
           return (
-            <li key={row.stopId} id={stopDomId(row.stopId)} className={`stop-item ${open ? 'open' : ''}`}>
+            <li
+              key={`${row.seq}|${row.stopId}`}
+              id={domIds[idx]}
+              className={`stop-item ${open ? 'open' : ''}`}
+            >
               <div className="stop-head">
                 <button
                   type="button"
                   className="stop-main"
                   aria-expanded={open}
-                  onClick={() => setOpenStop(open ? null : row.stopId)}
+                  onClick={() => {
+                    setOpenStop(open ? null : row.stopId)
+                    setOpenRowSeq(open ? null : row.seq)
+                  }}
                 >
                   <span className="stop-seq">{row.seq}</span>
                   <span className="stop-name">{row.name}</span>
@@ -365,13 +405,13 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
                   aria-label={`收藏:${row.name}`}
                   aria-pressed={faved}
                   onClick={() => {
-                    setFavSet(new Set(toggleFavorite(fav).map(favKey)))
+                    setFavs(toggleFavorite(fav))
                   }}
                 >
                   <span aria-hidden="true">{faved ? '★' : '☆'}</span>
                 </button>
               </div>
-              {open && <EtaPanel route={route} stopId={row.stopId} />}
+              {open && <EtaPanel route={dataRoute} stopId={row.stopId} />}
             </li>
           )
         })}

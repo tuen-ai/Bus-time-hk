@@ -3,13 +3,13 @@ import {
   getAllRoutes,
   indexRoutes,
   pickRouteAtStop,
+  routeFromQuery,
   routeVariants,
   type Route,
   type Co,
   type RouteQuery,
 } from './api/bus'
 import SearchView from './components/SearchView'
-import RouteStopsView from './components/RouteStopsView'
 import type { LegRouteKey } from './components/PlannerView'
 import WeatherBanner from './components/WeatherBanner'
 import AlertBanners from './components/AlertBanners'
@@ -20,7 +20,8 @@ import { loadGraph } from './lib/planGraph'
 import { friendlyError } from './lib/http'
 import { lazyRetry } from './lib/lazyRetry'
 import { lsDel, lsGet, lsSet } from './lib/ls'
-import { setMtrLast } from './lib/mtrFavs'
+// 輕量版:唔好為咗寫一個 key 將成份港鐵站表拉入首屏 bundle
+import { setMtrLast } from './lib/mtrFavsStore'
 import { routeIdentity } from './lib/search'
 import type { NearbyRow } from './lib/nearby'
 import type { Favorite } from './lib/store'
@@ -32,6 +33,9 @@ const loadPlanner = () => import('./components/PlannerView')
 const loadBackup = () => import('./components/BackupPanel')
 // 鐵路頁拉埋 Leaflet 落嚟 —— 揀咗先載
 const loadMtr = () => import('./components/MtrView')
+// 路線頁(站列 + ETA + 鬧鐘 + 交通消息)唔喺首屏:開咗 app 閒落嚟先預載,撳路線嗰陣多數已經喺度
+const loadRouteStops = () => import('./components/RouteStopsView')
+const RouteStopsView = lazyRetry(loadRouteStops)
 const NearbyView = lazyRetry(loadNearby)
 const PlannerView = lazyRetry(loadPlanner)
 const MtrView = lazyRetry(loadMtr)
@@ -49,20 +53,20 @@ const TABS: { id: Tab; icon: string; label: string }[] = [
   { id: 'plan', icon: '🧭', label: '規劃' },
 ]
 
-// 規劃圖(~1.5MB chunk)唔再每次開 app 都預載 —— 淨係有意圖(撳規劃 tab / 入到規劃頁)先載;慳數據模式唔預載
+// 規劃圖(~1.5MB chunk)唔再每次開 app 都預載 —— 規劃頁 / 附近(城巴、綠van)用到先載;慳數據模式唔預載。
+// 附近嗰邊由 NearbyView 揀 chip 時叫 lib/nearby 嘅 warmNearbyGraph(唔好喺度 import lib/nearby,會拉入首屏)
 const saveData = () => !!(navigator as { connection?: { saveData?: boolean } }).connection?.saveData
 const warmGraph = () => {
   if (!saveData()) void loadGraph().catch(() => {})
 }
 const ignore = () => {}
-/** 手指撳落就開始載嗰頁 chunk,放手(click)時多數已經載好 */
+/** 手指撳落就開始載嗰頁 chunk(細),放手(click)時多數已經載好。
+ *  規劃圖唔喺度載:手機 pointerdown 喺 touchstart 已經觸發,喺 tab 列開始嘅捲動都會中;
+ *  真係入到規劃頁先由 onPlanner effect 載 */
 const PREFETCH: Partial<Record<Tab, () => void>> = {
   nearby: () => void loadNearby().catch(ignore),
   mtr: () => void loadMtr().catch(ignore),
-  plan: () => {
-    void loadPlanner().catch(ignore)
-    warmGraph()
-  },
+  plan: () => void loadPlanner().catch(ignore),
 }
 
 const THEME_KEY = 'kmb.theme'
@@ -209,16 +213,37 @@ export default function App() {
   // co|route|bound|serviceType → Route[](GMB 同號跨區可能多於一條);收藏/附近/規劃 leg 都靠呢個對返
   const routeIndex = useMemo(() => indexRoutes(routes), [routes])
 
+  // 清單入面有邊幾間營辦商:載緊 = 一間都冇;某間攞唔到(例如九巴 timeout、冇快取)= 冇嗰間
+  const cosLoaded = useMemo(() => new Set(routes.map((r) => r.co)), [routes])
+  // 清單未到時用 key 砌嘅臨時路線(見 openByKey):嗰間營辦商嘅路線一到就換返真嗰條
+  const provisional = useRef<{ route: Route; q: RouteQuery & { stopId?: string } } | null>(null)
+
   // 由 key 對返 Route 再開:uid 優先 → GMB / 嶼巴同號多條就睇邊條經過個站 → 目的地 tiebreak;
-  // 嶼巴舊收藏 bound 反轉再試(規則同測試喺 api/bus.ts pickRouteAtStop)
+  // 嶼巴舊收藏 bound 反轉再試(規則同測試喺 api/bus.ts pickRouteAtStop)。
+  // 嗰間營辦商嘅路線未載好(第一次開 / 快取過咗 7 日 / 清咗快取 / 攞唔到)唔好冇反應:
+  // 用 key 本身砌條臨時路線即刻開;清單有嗰間但對唔到就照舊唔開
   const openByKey = (q: RouteQuery & { stopId?: string }, toSearch: boolean) => {
     const seq = ++openSeq.current
-    void pickRouteAtStop(routeIndex, q).then((r) => {
+    const coReady = cosLoaded.has(q.co)
+    void pickRouteAtStop(routeIndex, q).then((found) => {
+      const r = found ?? (coReady ? undefined : routeFromQuery(q))
       if (!r || seq !== openSeq.current) return
       if (toSearch) setTab('search')
       openRoute(r, q.stopId)
+      provisional.current = found ? null : { route: r, q }
     })
   }
+
+  // 清單到咗:仲睇緊臨時路線就靜靜換返真嗰條(補返起點、綠van 舊收藏嘅 uid、嶼巴新方向、變體 chip 揀中);
+  // 用家已經轉咗線 / 返咗出去就唔郁
+  useEffect(() => {
+    const p = provisional.current
+    if (!p || !cosLoaded.has(p.q.co)) return
+    provisional.current = null
+    void pickRouteAtStop(routeIndex, p.q).then((r) => {
+      if (r) setSelected((cur) => (cur === p.route ? r : cur))
+    })
+  }, [routeIndex, cosLoaded])
 
   const openNearby = (row: NearbyRow) =>
     openByKey(
@@ -315,6 +340,18 @@ export default function App() {
   }
 
   useEffect(loadRoutes, [])
+
+  // 首屏畫完、瀏覽器閒咗先預載路線頁 chunk(細,唔理慳數據:開路線本身就要);門口顯示模式用唔到
+  useEffect(() => {
+    if (showDisplay) return
+    const warm = () => void loadRouteStops().catch(ignore)
+    if (typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(warm, { timeout: 4000 })
+      return () => window.cancelIdleCallback(id)
+    }
+    const t = window.setTimeout(warm, 1500)
+    return () => clearTimeout(t)
+  }, [showDisplay])
 
   // 入到規劃頁(撳 tab / 「帶我去」/ 返回)先預熱規劃圖
   const onPlanner = tab === 'plan' && !selected && !showDisplay

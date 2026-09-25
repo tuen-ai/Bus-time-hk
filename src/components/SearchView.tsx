@@ -1,7 +1,7 @@
 // 搜尋分頁:營辦商 filter + 路線號 / 地名搜尋 + 首頁(推薦、公仔、收藏、集印卡)。
 // 路線清單由 App 載入(其他分頁都要用),呢度只負責搜尋同顯示。
 // query / filter 由 App 保管 —— 開路線再返嚟唔使重打。
-import { useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { Suspense, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import {
   coClass,
   coLabel,
@@ -12,15 +12,18 @@ import {
   type Route,
 } from '../api/bus'
 import { FAVS_CHANGED, getFavorites, type Favorite } from '../lib/store'
-import { getMtrFavs, MTRFAVS_CHANGED } from '../lib/mtrFavs'
+// 輕量版(唔帶站表):首屏淨係要知有冇港鐵收藏
+import { hasMtrFavs, MTRFAVS_CHANGED } from '../lib/mtrFavsStore'
 import { routeBadges } from '../lib/routeMeta'
-import { getStamps, unlocked } from '../lib/stamps'
 import { resultKeys, routeIdentity, searchRoutes } from '../lib/search'
+import { lazyRetry } from '../lib/lazyRetry'
 import Favorites from './Favorites'
-import MtrFavorites from './MtrFavorites'
 import SmartSuggest from './SmartSuggest'
 import StampCard from './StampCard'
-import { BearFace, MascotState, MascotWelcome, PandaFace } from './Mascots'
+import { MascotGreeting, MascotState, MascotWelcome } from './Mascots'
+
+// 港鐵收藏卡連埋成份綫站表(~20KB):有港鐵收藏先載,唔入首屏 bundle
+const MtrFavorites = lazyRetry(() => import('./MtrFavorites'))
 
 interface Props {
   routes: Route[]
@@ -50,29 +53,7 @@ function emptyText(query: string): string {
 }
 
 // 港鐵收藏都算收藏:有任何一種就用熟客排法(收藏排最前)
-const hasFavorites = () => getFavorites().length > 0 || getMtrFavs().length > 0
-
-/** 有收藏嘅熟客:細公仔 + 一句問候,唔好用成個大 hero 將收藏迫落去 */
-function HomeGreeting() {
-  const [hour] = useState(() => new Date().getHours())
-  const [un] = useState(() => unlocked(getStamps()))
-  const hi = hour < 5 ? '夜喇' : hour < 12 ? '早晨' : hour < 18 ? '午安' : '晚上好'
-  return (
-    <div className="home-greet">
-      <span className="home-greet-faces" aria-hidden="true">
-        <PandaFace className="mascot greet-face a" bow={un.includes('bow')} starEyes={un.includes('star')} />
-        <BearFace
-          className="mascot greet-face b"
-          knight={un.includes('knight')}
-          medal={un.includes('gold')}
-        />
-      </span>
-      <p className="home-greet-text">
-        {hi}!今日去邊度呢?<span aria-hidden="true"> 💕</span>
-      </p>
-    </div>
-  )
-}
+const hasFavorites = () => getFavorites().length > 0 || hasMtrFavs()
 
 export default function SearchView({
   routes,
@@ -101,10 +82,15 @@ export default function SearchView({
   // dq 未追上 query 時 matches 仲係上一個字嘅 → 唔好閃「搵唔到」
   const settled = dq === query
 
-  // 有冇收藏決定首頁排法(設定改次序 / 其他分頁改咗都會通知)
+  // 有冇收藏決定首頁排法(設定改次序 / 其他分頁改咗都會通知)。
+  // 港鐵收藏卡要自己一個 state:已經有巴士收藏再加第一個港鐵收藏,hasFavs 唔會變
   const [hasFavs, setHasFavs] = useState(hasFavorites)
+  const [hasMtr, setHasMtr] = useState(hasMtrFavs)
   useEffect(() => {
-    const onChange = () => setHasFavs(hasFavorites())
+    const onChange = () => {
+      setHasFavs(hasFavorites())
+      setHasMtr(hasMtrFavs())
+    }
     window.addEventListener(FAVS_CHANGED, onChange)
     window.addEventListener(MTRFAVS_CHANGED, onChange)
     window.addEventListener('storage', onChange)
@@ -129,6 +115,9 @@ export default function SearchView({
   }, [focusKey, onFocusDone])
 
   const inputRef = useRef<HTMLInputElement>(null)
+  // 移除咗最後一個港鐵收藏(成個區消失):焦點返去搜尋區,唔好跌落 body(唔 focus 輸入框,手機會彈鍵盤)
+  const searchRef = useRef<HTMLDivElement>(null)
+  const onMtrEmpty = () => searchRef.current?.focus({ preventScroll: true })
   const clear = () => {
     onQuery('')
     inputRef.current?.focus() // ✕ 會消失,焦點唔好跌去 body
@@ -158,7 +147,7 @@ export default function SearchView({
         })}
       </div>
 
-      <div className="search" role="search">
+      <div className="search" role="search" ref={searchRef} tabIndex={-1}>
         <input
           ref={inputRef}
           type="search"
@@ -191,10 +180,14 @@ export default function SearchView({
       )}
 
       {/* 有收藏:細問候 + 收藏排最前;新用戶先見大公仔 hero */}
-      {home && hasFavs && <HomeGreeting />}
+      {home && hasFavs && <MascotGreeting />}
       {favsOn && hasFavs && <Favorites onOpen={onOpenFavorite} />}
       {/* 港鐵收藏緊貼巴士收藏;唔使等巴士路線清單 */}
-      {favsOn && hasFavs && <MtrFavorites onOpen={onOpenMtr} />}
+      {favsOn && hasMtr && (
+        <Suspense fallback={null}>
+          <MtrFavorites onOpen={onOpenMtr} onEmpty={onMtrEmpty} />
+        </Suspense>
+      )}
       {home && <SmartSuggest routes={routes} onOpen={onOpen} />}
       {home && !hasFavs && <MascotWelcome title="今日去邊度呢? 💕" sub="輸入路線號碼,即刻睇到站時間~" />}
       {favsOn && !hasFavs && <Favorites onOpen={onOpenFavorite} />}

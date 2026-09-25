@@ -258,6 +258,18 @@ async function nearbyGmb(lat: number, lng: number): Promise<NearbyRow[]> {
   return sortRows([...best.values()])
 }
 
+/**
+ * 城巴 / 綠van 靠規劃圖(~440KB gzip)搵附近站:一揀咗呢兩個 chip / 開 tab 就開始載,同定位並行,
+ * 唔好等 GPS 返咗先開始。memo 咗,重複叫冇成本;慳數據模式都照載(查詢本身就要用);失敗唔理,查詢嗰陣會再試 + 出錯
+ */
+export function warmNearbyGraph(tab: NearbyTab): void {
+  // 經 then 叫:就算 loadGraph 同步出事都只係食咗,唔會拖冧 caller 個 effect
+  if (tab === 'ctb' || tab === 'gmb')
+    void Promise.resolve()
+      .then(loadGraph)
+      .catch(() => {})
+}
+
 export async function nearbyBuses(lat: number, lng: number, co: NearbyCo): Promise<NearbyRow[]> {
   const rows =
     co === 'ctb'
