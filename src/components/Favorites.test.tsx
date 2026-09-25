@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Eta, Route } from '../api/bus'
 import { getEta } from '../api/bus'
-import { setFavoriteWalk, type Favorite } from '../lib/store'
+import { getFavorites, setFavoriteWalk, toggleFavorite, type Favorite } from '../lib/store'
 import Favorites from './Favorites'
 
 // 兩個收藏一齊輪詢:測每張卡各自保留舊資料 / 報錯,同埋舊一轉遲返唔會蓋過新結果
@@ -16,8 +16,8 @@ const keyOf = (f: Favorite) => `${f.co}|${f.route}|${f.bound}|${f.serviceType}|$
 vi.mock('../lib/store', () => ({
   FAVS_CHANGED: 'kkcx:favs-changed',
   favKey: (f: Favorite) => keyOf(f),
-  getFavorites: () => favs,
-  toggleFavorite: () => favs,
+  getFavorites: vi.fn(() => favs),
+  toggleFavorite: vi.fn(() => favs),
   // 原地改 + 回新 array(同真嘢一樣),等畫面重畫
   setFavoriteWalk: vi.fn((key: string, mins: number | null) => {
     const f = favs.find((x) => keyOf(x) === key)
@@ -124,6 +124,65 @@ describe('Favorites', () => {
     render(<Favorites onOpen={() => {}} />)
     expect(screen.getByRole('button', { name: '移除收藏 1A 站甲' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '移除收藏 969 站乙' })).toBeTruthy()
+  })
+
+  describe('移除收藏:焦點唔好跌落 body', () => {
+    // 真嘢:移除咗就回新 array(畫面少一張卡)
+    const removeFav = () =>
+      vi.mocked(toggleFavorite).mockImplementationOnce((f) => favs.filter((x) => keyOf(x) !== keyOf(f)))
+    afterEach(() => {
+      vi.mocked(toggleFavorite).mockReset()
+      vi.mocked(getFavorites).mockReset()
+      vi.mocked(toggleFavorite).mockImplementation(() => favs)
+      vi.mocked(getFavorites).mockImplementation(() => favs)
+      document.querySelector('.topbar-home')?.remove()
+    })
+
+    it('移除第一張:焦點去下一張卡', () => {
+      mockEta.mockImplementation(() => new Promise(() => {}))
+      render(<Favorites onOpen={() => {}} />)
+      const star = screen.getByRole('button', { name: '移除收藏 1A 站甲' })
+      const next = card('站乙').querySelector('.fav-open')
+      star.focus()
+      removeFav()
+      fireEvent.click(star)
+      expect(screen.queryByText('站甲')).toBeNull()
+      expect(document.activeElement).toBe(next)
+    })
+
+    it('移除最後一張:焦點去上一張卡', () => {
+      mockEta.mockImplementation(() => new Promise(() => {}))
+      render(<Favorites onOpen={() => {}} />)
+      const star = screen.getByRole('button', { name: '移除收藏 969 站乙' })
+      const prev = card('站甲').querySelector('.fav-open')
+      star.focus()
+      removeFav()
+      fireEvent.click(star)
+      expect(document.activeElement).toBe(prev)
+    })
+
+    it('冇卡剩:焦點返首頁掣(唔去搜尋框,手機會彈鍵盤)', () => {
+      mockEta.mockImplementation(() => new Promise(() => {}))
+      const home = document.createElement('button')
+      home.className = 'topbar-home'
+      document.body.appendChild(home)
+      vi.mocked(getFavorites).mockReturnValueOnce([favs[0]])
+      vi.mocked(toggleFavorite).mockReturnValueOnce([])
+      render(<Favorites onOpen={() => {}} />)
+      const star = screen.getByRole('button', { name: '移除收藏 1A 站甲' })
+      star.focus()
+      fireEvent.click(star)
+      expect(screen.queryByRole('heading')).toBeNull()
+      expect(document.activeElement).toBe(home)
+    })
+
+    it('焦點唔喺 ★(例如 iOS 撳唔會 focus):唔好亂搬焦點', () => {
+      mockEta.mockImplementation(() => new Promise(() => {}))
+      render(<Favorites onOpen={() => {}} />)
+      removeFav()
+      fireEvent.click(screen.getByRole('button', { name: '移除收藏 1A 站甲' }))
+      expect(document.activeElement).toBe(document.body)
+    })
   })
 
   it('背景分頁返嚟、新資料未到:超過 5 分鐘嘅卡變返 skeleton,唔會顯示走咗嘅車', async () => {

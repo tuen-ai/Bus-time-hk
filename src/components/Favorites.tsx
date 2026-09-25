@@ -25,6 +25,16 @@ const WALK_PRESETS = [2, 5, 8, 12]
 
 type Result = { etas: Eta[] } | { error: string }
 
+/** 移除收藏前:焦點搬去下一張(冇就上一張)卡嘅 .fav-open;冇卡就返首頁掣(唔用搜尋框:手機會彈鍵盤) */
+function focusNeighbour(btn: HTMLElement) {
+  const card = btn.closest('.fav-card')
+  const target =
+    card?.nextElementSibling?.querySelector<HTMLElement>('.fav-open') ??
+    card?.previousElementSibling?.querySelector<HTMLElement>('.fav-open') ??
+    document.querySelector<HTMLElement>('.topbar-home')
+  target?.focus()
+}
+
 /**
  * 每張卡 ageSnapshot 一次(太舊嗰張變返 skeleton / 錯誤),已經唔再收藏嘅卡順手清走;
  * 全部冇變就回原本 object,唔使重畫
@@ -150,9 +160,11 @@ export default function Favorites({ onOpen }: { onOpen: (f: Favorite) => void })
               <button
                 className="star on"
                 aria-label={`移除收藏 ${f.route} ${f.stopName}`}
-                onClick={() => {
+                onClick={(e) => {
                   // 移除咗就收埋快揀:之後再加返收藏唔好自己彈開
                   if (open) setWalkOpen(null)
+                  // ★ 會連張卡一齊消失 → 焦點先搬去隔籬卡(其他卡有 key,DOM 唔會換),唔好跌落 body
+                  if (document.activeElement === e.currentTarget) focusNeighbour(e.currentTarget)
                   setFavs(toggleFavorite(f))
                 }}
               >

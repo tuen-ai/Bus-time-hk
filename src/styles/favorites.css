@@ -140,3 +140,16 @@
   background: var(--ok-fill);
   color: #fff;
 }
+/* 舊資料(網絡唔穩):唔好用綠 / 橙大字催人「搭呢班 / 最遲幾時出門」;同 stale pill 同附近 .is-stale .catch 一致 */
+.fav-card .eta-panel.stale .tag-catch {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  padding: 0 5px; /* 同 .tag-missed:border 頂咗 1px padding,大細唔變 */
+}
+.fav-card .eta-panel.stale .eta-leave {
+  background: var(--card);
+  border-style: dashed;
+  border-color: var(--line);
+  color: var(--muted);
+}

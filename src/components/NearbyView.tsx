@@ -9,6 +9,7 @@ import {
   readNearbyCache,
   readNearbyTab,
   writeNearbyCache,
+  warmNearbyGraph,
   writeNearbyTab,
   type LatLng,
   type NearbyCo,
@@ -16,7 +17,7 @@ import {
   type NearbyTab,
 } from '../lib/nearby'
 import { getPosition, describeGeoError, formatDistance, isGeoDenied } from '../lib/geo'
-import { catchPlanMins, walkFromDist } from '../lib/catchable'
+import { catchPlanMins, walkToStop } from '../lib/catchable'
 import { coClass, CO_COLOR, coLabel } from '../api/bus'
 import { MascotState } from './Mascots'
 import type { PlanTo } from './FitnessView'
@@ -166,6 +167,8 @@ export default function NearbyView({
   useEffect(() => {
     writeNearbyTab(tab)
     if (tab === 'fit') return
+    // 城巴 / 綠van 要規劃圖(~440KB gz):同 GPS 定位一齊開始下載
+    warmNearbyGraph(co)
     showCoNow(co)
     let alive = true
     void track(async () => {
@@ -256,7 +259,7 @@ export default function NearbyView({
   return (
     <div>
       <div className="nearby-bar">
-        <div className="nearby-cos" role="group" aria-label="揀交通工具">
+        <div className="nearby-cos" role="group" aria-label="揀交通工具或者健身室">
           {NEARBY_COS.map((c) => {
             const active = tab === c
             return (
@@ -279,15 +282,22 @@ export default function NearbyView({
             aria-pressed={tab === 'fit'}
             onClick={() => setTab('fit')}
           >
-            <span aria-hidden="true">🏋️</span> 24/7
+            <span aria-hidden="true">🏋️</span> 24/7<span className="sr-only"> Fitness 健身室</span>
           </button>
         </div>
         {tab !== 'fit' && (
-          <button className="nearby-relocate" aria-busy={busy} aria-disabled={busy} onClick={relocate}>
+          // 窄屏收埋字淨係得 ↻(讓位俾 chips),所以名要寫喺 aria-label
+          <button
+            className="nearby-relocate"
+            aria-label="重新定位"
+            aria-busy={busy}
+            aria-disabled={busy}
+            onClick={relocate}
+          >
             <span className="nearby-relocate-ic" aria-hidden="true">
               ↻
             </span>
-            重新定位
+            <span className="nearby-relocate-label">重新定位</span>
           </button>
         )}
       </div>
@@ -327,8 +337,9 @@ export default function NearbyView({
           <ul className={`nearby-list ${stale ? 'is-stale' : ''}`}>
             {rows.map((r, i) => {
               // 直線距離估步行(兜路 ×1.25);ETA 同距離都係估 → 「約」
-              const walk = walkFromDist(r.dist)
-              // 估唔到步行(距離 0 / 壞咗)就唔標趕唔切,同收藏冇設步行時間一樣
+              // 企喺站(≤ 60 米,GPS 誤差)當 0:「即將 / 1分」嗰班唔好劃咗做趕唔切
+              const walk = walkToStop(r.dist)
+              // 估唔到步行(喺站 / 距離壞咗)就唔標趕唔切,同收藏冇設步行時間一樣
               const { missed, catchIdx } = walk > 0 ? catchPlanMins(r.mins, walk) : NO_CATCH
               return (
                 <li key={`${r.co}-${r.route}-${r.dir}-${r.stopId}-${i}`}>
@@ -337,12 +348,15 @@ export default function NearbyView({
                     <span className="nearby-info">
                       <span className="nearby-dest">{r.dest ? `往 ${r.dest}` : coLabel(r.co)}</span>
                       <span className="muted small">
-                        {r.stopName} · {formatDistance(r.dist)}
+                        {/* 「·」前面用 NBSP、放喺 nowrap 外面:窄屏斷行只會斷喺「·」後面,唔會有行頭吊住個點 */}
+                        {r.stopName}
+                        {'\u00a0· '}
+                        <span className="nearby-dist">{formatDistance(r.dist)}</span>
                         {walk > 0 && (
                           <>
-                            {' '}
+                            {'\u00a0· '}
                             <span className="nearby-walk">
-                              · <span aria-hidden="true">🚶</span>
+                              <span aria-hidden="true">🚶</span>
                               <span className="sr-only">步行</span>約{walk}分
                             </span>
                           </>

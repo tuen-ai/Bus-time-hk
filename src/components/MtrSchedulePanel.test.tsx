@@ -77,6 +77,15 @@ describe('MtrSchedulePanel', () => {
     expect(err?.textContent).not.toMatch(/timed out/)
   })
 
+  it('舊 Safari / Chrome:timeout 拋普通 AbortError 都要出錯誤,唔好成格空白', async () => {
+    fetchSchedule.mockRejectedValue(new DOMException('The operation was aborted.', 'AbortError'))
+    render(<MtrSchedulePanel line="TWL" station="TST" color="#e2231a" />)
+    await flush()
+    const err = document.querySelector('.error')
+    expect(err?.textContent).toContain('網絡太慢')
+    expect(err?.textContent).toContain('15 秒後自動再試')
+  })
+
   describe('☆ 收藏方向', () => {
     beforeEach(() => localStorage.clear())
     afterEach(() => localStorage.clear())
@@ -98,7 +107,7 @@ describe('MtrSchedulePanel', () => {
       expect(down.getAttribute('aria-pressed')).toBe('true')
       expect(down.textContent).toBe('★')
       expect(up.getAttribute('aria-pressed')).toBe('false')
-      expect(getMtrFavs()).toEqual([{ line: 'TWL', sta: 'TST', dir: 'DOWN' }])
+      expect(getMtrFavs()).toEqual([{ line: 'TWL', sta: 'TST', dir: 'DOWN', destHint: 'CEN' }])
 
       fireEvent.click(down)
       expect(down.getAttribute('aria-pressed')).toBe('false')

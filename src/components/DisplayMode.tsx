@@ -1,6 +1,6 @@
 // 📺 門口顯示模式(iPad 橫擺 kiosk):
 // 大時鐘 + 是日勵志名句 + 天氣 + 收藏路線大字 ETA(10 秒刷新)+ 新聞輪播 + 雙公仔。
-// 19:00–07:00 自動轉深色;wake lock 防瞓;畫面鎖定 —— 長按 3 秒先退出,誤觸只會彈提示。
+// 19:00–07:00 自動轉深色;wake lock 防瞓;畫面鎖定 —— 長按 3 秒(鍵盤:撳住 Esc 3 秒)先退出,誤觸只會彈提示。
 import {
   useCallback,
   useEffect,
@@ -16,7 +16,8 @@ import { getWeather, type Weather } from '../api/weather'
 import { quoteForDisplay } from '../data/quotes'
 import { favToRoute } from '../lib/favRoute'
 import { fetchJson } from '../lib/http'
-import { weatherMood } from '../lib/weather'
+import { warnLevel, weatherMood } from '../lib/weather'
+import { topWarning } from '../lib/topWarning'
 import { mergeRow, msToNextMinute, rowView, type RowEta } from '../lib/kiosk'
 import { PandaFace, BearFace } from './Mascots'
 import { getStamps, unlocked } from '../lib/stamps'
@@ -183,6 +184,43 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
     [],
   )
 
+  // ⌨️ 鍵盤版長按:撳住 Esc 3 秒先退出,撳一下只彈提示(同手指一樣防誤觸)。
+  // 冇呢個,淨係用鍵盤 / switch 嘅人入咗嚟就出唔返去(返回鍵同 Esc 都食咗,reload 仲會返嚟)。
+  const exitRef = useRef(onExit)
+  useEffect(() => {
+    exitRef.current = onExit
+  })
+  useEffect(() => {
+    let t: number | null = null
+    const cancel = () => {
+      if (t != null) clearTimeout(t)
+      t = null
+    }
+    const down = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.repeat) return
+      reloadBumpRef.current?.() // 有人撳緊:自動更新再等多 60 秒
+      cancel() // 漏咗 keyup 嘅舊 timer 唔好留低
+      t = window.setTimeout(() => {
+        t = null
+        exitRef.current()
+      }, HOLD_MS)
+    }
+    const up = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || t == null) return
+      cancel()
+      showLockHint()
+    }
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    window.addEventListener('blur', cancel) // 撳住 Esc 期間轉咗視窗:keyup 會漏,唔好 3 秒後自己退出
+    return () => {
+      cancel()
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+      window.removeEventListener('blur', cancel)
+    }
+  }, [showLockHint])
+
   // 📦 新版就緒(SW 已經接手):閒置 60 秒自動 reload。顯示模式記喺 localStorage('kkcx.display'),
   // reload 完直接返嚟 kiosk。reloadOnce 10 分鐘最多一次,server 有事都唔會 reload 到停唔到。
   const updateReady = useSyncExternalStore(onUpdateReady, isUpdateReady)
@@ -204,6 +242,7 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
   }, [updateReady])
 
   // 鎖定嘅 kiosk 畫面:撳返回鍵唔會退出,亦唔會閂咗成個 app —— 只彈提示叫你長按 3 秒
+  // (useBackLayer 嘅 Esc 亦唔理 locked 層;鍵盤退出由上面撳住 Esc 負責)
   useBackLayer(true, onExit, { locked: true, onBlocked: showLockHint })
 
   // 名句一日一句:淨係日子變先重讀(唔使每次 render 讀 localStorage)
@@ -216,6 +255,10 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
   const night = isNight(now)
   const nowMs = now.getTime()
   const mood = weatherMood(wx)
+  // 得一粒 pill:揀最嚴重嗰個(顏色跟首頁天氣列),其餘講「+N」
+  const warns = wx?.warnings ?? []
+  const topWarn = topWarning(warns)
+  const moreWarns = warns.length - 1
 
   const clock = now.toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })
   const dateStr = `${mo + 1}月${d}日 星期${'日一二三四五六'[now.getDay()]}`
@@ -229,11 +272,11 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
       onPointerCancel={holdEnd}
       onContextMenu={(e) => e.preventDefault()}
     >
-      <p className="sr-only">門口顯示模式,長按畫面 3 秒退出</p>
+      <p className="sr-only">門口顯示模式,長按畫面 3 秒退出(鍵盤:撳住 Esc 3 秒)</p>
       <div role="status" aria-live="polite">
         {lockHint && (
           <div className="dm-lock">
-            <span aria-hidden="true">🔒 </span>已鎖定 · 長按 3 秒先會退出
+            <span aria-hidden="true">🔒 </span>已鎖定 · 長按畫面或者撳住 Esc 3 秒先會退出
           </div>
         )}
       </div>
@@ -262,10 +305,16 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
             {wx?.humidity != null && <>濕度 {Math.round(wx.humidity)}%</>}
             {mood.line && <> · {mood.line}</>}
           </div>
-          {wx?.warnings[0] && (
-            <div className="dm-warn">
+          {topWarn && (
+            <div className={`dm-warn w-${warnLevel(topWarn.code)}`}>
               <span aria-hidden="true">⚠️ </span>
-              {wx.warnings[0].name}
+              {topWarn.name}
+              {moreWarns > 0 && (
+                <>
+                  <span aria-hidden="true"> +{moreWarns}</span>
+                  <span className="sr-only">(仲有 {moreWarns} 個警告)</span>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -328,7 +377,7 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
           <span className="dm-upd">
             每 {ETA_MS / 1000} 秒自動更新
             {updatedAt && ` · 最後更新 ${updatedAt.toLocaleTimeString('zh-HK', { hour12: false })}`} ·{' '}
-            <span aria-hidden="true">🔒</span> 長按 3 秒退出
+            <span aria-hidden="true">🔒</span> 長按 / 撳住 Esc 3 秒退出
           </span>
         </div>
         <div className="dm-pair">

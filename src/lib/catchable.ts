@@ -13,10 +13,21 @@ export const WALK_MAX = 30
 
 const MIN_MS = 60_000
 
+/** 離站咁近當「企喺站」:GPS 誤差通常 5–50 米,唔好當要行 1 分鐘 */
+export const AT_STOP_M = 60
+
 /** 直線距離(米)→ 步行約幾多分鐘;向上取整,寧願早啲出門 */
 export function walkFromDist(m: number): number {
   if (!Number.isFinite(m) || m <= 0) return 0
   return Math.ceil((m * DETOUR) / WALK_MPM)
+}
+
+/**
+ * 附近用:離站 ≤ AT_STOP_M 當已經喺站(0 = 唔估步行、唔標趕唔切),遠啲先同 walkFromDist。
+ * 唔係嘅話 1 米都計 1 分 + 預留 1 分,企喺站都會將「即將 / 1分」嗰班劃咗做趕唔切。
+ */
+export function walkToStop(m: number): number {
+  return m > AT_STOP_M ? walkFromDist(m) : 0
 }
 
 /** 備份 / 舊資料讀返嚟嘅步行時間:唔係 1–30 嘅數字就當冇設定 */

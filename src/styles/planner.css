@@ -112,11 +112,17 @@
   border-color: var(--red);
   border-width: 2px;
 }
+/* 320px 第一張(多粒「最快」)擺唔落:成粒換行(車費 margin-left:auto 會企返右邊),唔好逐粒斷字 */
 .jhead {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: 8px;
+  row-gap: 4px;
   margin-bottom: 9px;
+}
+.jhead > * {
+  white-space: nowrap;
 }
 .jtime {
   font-size: 1.4rem;

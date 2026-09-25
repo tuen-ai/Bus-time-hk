@@ -78,8 +78,9 @@ export default function MtrSchedulePanel({
     window.addEventListener(MTRFAVS_CHANGED, onChange)
     return () => window.removeEventListener(MTRFAVS_CHANGED, onChange)
   }, [])
-  const dirProps = (dir: MtrDir) => {
-    const f: MtrFav = { line, sta: station, dir }
+  // destHint:收藏時記低當刻頭班車嘅目的地,首頁冇車時都分到兩個方向
+  const dirProps = (dir: MtrDir, dest?: string) => {
+    const f: MtrFav = { line, sta: station, dir, ...(dest ? { destHint: dest } : {}) }
     const starred = isMtrFav(f, favs)
     return {
       starred,
@@ -114,7 +115,9 @@ export default function MtrSchedulePanel({
         setSched(s)
         setError(null)
       } catch (e) {
-        if (ctrl.signal.aborted || (e as Error)?.name === 'AbortError') return
+        // 淨係自己 abort 嘅(換站 / 下一轉 / 閂咗)先唔理;舊 Safari / Chrome 嘅 12 秒 timeout 都係拋 AbortError,
+        // 嗰個要照出錯誤,唔係就冇班次、冇錯誤、冇「載入班次…」,成格空白
+        if (ctrl.signal.aborted) return
         // 英文原文(HTTP 500 / signal timed out)唔好直出,轉做廣東話;自己拋嘅中文訊息照出
         setError(friendlyError(e))
       } finally {
@@ -170,8 +173,8 @@ export default function MtrSchedulePanel({
         </div>
       )}
       {empty && <div className="muted pad">此站暫無班次(可能為總站方向)</div>}
-      <Direction trains={sched.up} color={color} {...dirProps('UP')} />
-      <Direction trains={sched.down} color={color} {...dirProps('DOWN')} />
+      <Direction trains={sched.up} color={color} {...dirProps('UP', sched.up[0]?.dest)} />
+      <Direction trains={sched.down} color={color} {...dirProps('DOWN', sched.down[0]?.dest)} />
       <div className="mtr-star-note" role="status">
         {starNote}
       </div>

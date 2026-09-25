@@ -24,6 +24,7 @@
   margin-bottom: 10px;
 }
 .nearby-cos {
+  position: relative; /* chip 入面嘅 .sr-only(absolute)要困喺捲軸區,唔係會撐闊成版(320px 多出 1px 橫捲) */
   flex: 1;
   min-width: 0;
   display: flex;
@@ -205,6 +206,8 @@ button.nearby-row:active,
 }
 
 /* ---- 🚶 步行估算 + 趕唔趕到 ---- */
+/* 「157 米」「🚶約3分」唔好斷開兩行 */
+.nearby-dist,
 .nearby-walk {
   white-space: nowrap;
 }
@@ -226,4 +229,34 @@ button.nearby-row:active,
 }
 .nearby-list.is-stale .nearby-next .catch {
   color: var(--muted);
+}
+
+/* ---- 細屏(320 SE / 360 Android)---- */
+/* ETA 唔縮唔斷行 → 窄屏將後面班次疊喺大字下面,讓返闊度俾站名 / 距離(唔係 3–4 個字就斷一行) */
+@media (max-width: 380px) {
+  .nearby-times {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0;
+  }
+}
+/* 「重新定位」收埋字淨係得 ↻(名喺 aria-label):chips 多咗 ~60px,
+   第 4 粒「24/7」唔會啱啱跌晒入淡出區睇唔到 */
+@media (max-width: 420px) {
+  .nearby-relocate-label {
+    display: none;
+  }
+  .nearby-relocate {
+    min-width: 44px;
+    justify-content: center;
+  }
+}
+/* 320 SE:再收窄 chip 左右 padding + 間距,「24/7」先有一截露出嚟(唔係全部跌晒入淡出區) */
+@media (max-width: 360px) {
+  .nearby-cos {
+    gap: 5px;
+  }
+  .nearby-cos .co-chip {
+    padding-inline: 10px;
+  }
 }

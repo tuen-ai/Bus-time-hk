@@ -14,7 +14,8 @@ import { useEffect, useRef } from 'react'
 //   pushState / go() 撞車。
 // - 深度存喺 history.state.kkcxNav,唔靠自己數,所以就算用戶前進/後退幾格都對得返。
 // - locked 層(門口顯示模式)撳返回唔會退出,只會補返一個 entry + 彈鎖定提示。
-// - 鍵盤 Esc = 關最上面嗰層(設定 / 路線 / 揀地點 / 小屏推送);locked 層同 escape:false 層唔理。
+// - 鍵盤 Esc = 關最上面嗰層(設定 / 路線 / 揀地點 / 小屏推送);locked 層同 escape:false 層唔理,
+//   撳住唔放嘅自動連發亦唔理(一下關一層)。
 //   直接 close(),之後照「app 自己閂層」路線 go(-1) 對齊 history。
 
 interface Layer {
@@ -88,6 +89,9 @@ function onPopState(e: PopStateEvent): void {
 function onKeyDown(e: KeyboardEvent): void {
   // Safari 取消輸入法選字嗰下 Esc:isComposing 係 false 但 keyCode 係 229
   if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing || e.keyCode === 229) return
+  // 撳住唔放嘅自動連發唔計:一下 = 關一層。門口顯示模式撳住 Esc 3 秒退出之後,
+  // 手指未放嘅連發唔好順手連底下路線頁都關埋
+  if (e.repeat) return
   const top = stack[stack.length - 1]
   if (!top || top.locked || !top.escape) return
   e.preventDefault()

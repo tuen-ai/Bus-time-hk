@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Eta } from '../api/bus'
 import {
+  AT_STOP_M,
   BUFFER_MIN,
   WALK_MPM,
   catchPlan,
@@ -8,6 +9,7 @@ import {
   catchPlanMs,
   validWalk,
   walkFromDist,
+  walkToStop,
 } from './catchable'
 import { WALK_MPM as JOURNEY_WALK_MPM } from './journey'
 
@@ -134,6 +136,24 @@ describe('walkFromDist', () => {
     expect(walkFromDist(0)).toBe(0)
     expect(walkFromDist(-5)).toBe(0)
     expect(walkFromDist(NaN)).toBe(0)
+  })
+})
+
+describe('walkToStop(附近:企喺站唔計步行)', () => {
+  it(`≤ ${AT_STOP_M} 米(GPS 誤差)當已經喺站 → 0`, () => {
+    expect(walkToStop(5)).toBe(0)
+    expect(walkToStop(30)).toBe(0)
+    expect(walkToStop(AT_STOP_M)).toBe(0)
+  })
+  it('遠過就同 walkFromDist 一樣', () => {
+    expect(walkToStop(AT_STOP_M + 1)).toBe(walkFromDist(AT_STOP_M + 1))
+    expect(walkToStop(80)).toBe(2)
+    expect(walkToStop(400)).toBe(7)
+  })
+  it('0 / 負數 / NaN → 0', () => {
+    expect(walkToStop(0)).toBe(0)
+    expect(walkToStop(-5)).toBe(0)
+    expect(walkToStop(NaN)).toBe(0)
   })
 })
 

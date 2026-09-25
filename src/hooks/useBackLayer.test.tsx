@@ -192,6 +192,28 @@ describe('useBackLayer', () => {
       expect(close).toHaveBeenCalledTimes(1)
     })
 
+    it('撳住唔放(自動連發)唔會一路關落去:顯示模式撳住 Esc 退出後唔好連底下嗰層都關埋', async () => {
+      const closeRoute = vi.fn()
+      const closeKiosk = vi.fn()
+      const { rerender } = renderHook(
+        ({ kiosk }) => {
+          useBackLayer(true, closeRoute)
+          useBackLayer(kiosk, closeKiosk, { locked: true })
+        },
+        { initialProps: { kiosk: true } },
+      )
+      await flush()
+      pressKey() // 開始撳住:鎖定層唔理
+      rerender({ kiosk: false }) // 3 秒到,DisplayMode 自己退出
+      await flush()
+      const ev = pressKey({ repeat: true }) // 手指仲未放
+      expect(ev.defaultPrevented).toBe(false)
+      expect(closeRoute).not.toHaveBeenCalled()
+      pressKey() // 放手再撳一下先關
+      expect(closeRoute).toHaveBeenCalledTimes(1)
+      expect(closeKiosk).not.toHaveBeenCalled()
+    })
+
     it('冇層開住 → Esc 乜都唔做', () => {
       expect(pressKey().defaultPrevented).toBe(false)
     })

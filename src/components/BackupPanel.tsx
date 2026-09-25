@@ -1,5 +1,5 @@
 // 設定面板(topbar ⚙️ 開):門口顯示模式 + 是日金句偏好 + 備份/還原。純本地,唔上傳。
-import { useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { exportBackup, importBackup } from '../lib/backup'
 import { zhErrorOr } from '../lib/errorText'
 import { trapTab } from '../lib/focusTrap'
@@ -21,6 +21,27 @@ export default function BackupPanel({
   const [msg, setMsg] = useState<string | null>(null)
   const [qp, setQp] = useState<QuotePref>(() => getQuotePref())
   const [favs, setFavs] = useState<Favorite[]>(() => getFavorites())
+  // 排序:撳完 ↑↓ 要將焦點放返喺同一個收藏嘅箭咀
+  const pendingFocus = useRef<{ k: string; dir: 'up' | 'down' } | null>(null)
+  const move = (f: Favorite, i: number, d: -1 | 1) => {
+    pendingFocus.current = { k: favKey(f), dir: d < 0 ? 'up' : 'down' }
+    setFavs(moveFavorite(i, d))
+  }
+  // ↓ 會用 insertBefore 搬走焦點所在嗰行(瀏覽器會 blur 到 body);去到頭尾箭咀 disabled 亦會甩焦點。
+  // 連撳幾下 ↓ 先唔會第二下撳落 body,讀屏亦唔會蕩失。去到頭尾就轉去同一行另一個箭咀。
+  useLayoutEffect(() => {
+    const p = pendingFocus.current
+    pendingFocus.current = null
+    if (!p || !cardRef.current) return
+    // 用 dataset 比,唔好將 favKey 砌入 CSS selector(入面有 | 等字元)
+    const row = Array.from(cardRef.current.querySelectorAll<HTMLElement>('.fav-order-row')).find(
+      (r) => r.dataset.k === p.k,
+    )
+    const btn =
+      row?.querySelector<HTMLButtonElement>(`[data-dir="${p.dir}"]:not(:disabled)`) ??
+      row?.querySelector<HTMLButtonElement>('[data-dir]:not(:disabled)')
+    btn?.focus()
+  }, [favs])
 
   const saveQp = (p: QuotePref) => {
     setQp(p)
@@ -67,7 +88,8 @@ export default function BackupPanel({
             </button>
             <p className="muted small">
               大字時鐘 + 收藏路線實時到站 + 是日名句 + 新聞。iPad 加到主畫面後開 App 會自動返去顯示模式;設定 →
-              螢幕顯示 → 自動鎖定揀「永不」+ 插住電, 就係一部門口報站機~畫面已鎖定,長按 3 秒先退出。
+              螢幕顯示 → 自動鎖定揀「永不」+ 插住電, 就係一部門口報站機~畫面已鎖定,長按畫面(或者撳住 Esc)3
+              秒先退出。
             </p>
             {favs.length > 1 && (
               <>
@@ -77,7 +99,11 @@ export default function BackupPanel({
                 </b>
                 <div className="fav-order">
                   {favs.map((f, i) => (
-                    <div className={`fav-order-row ${i >= 6 ? 'dim' : ''}`} key={favKey(f)}>
+                    <div
+                      className={`fav-order-row ${i >= 6 ? 'dim' : ''}`}
+                      key={favKey(f)}
+                      data-k={favKey(f)}
+                    >
                       <span className={`route-badge ${coClass(f.co)} fav-order-badge`}>{f.route}</span>
                       <span className="fav-order-name">
                         往 {f.dest} · {f.stopName}
@@ -86,7 +112,8 @@ export default function BackupPanel({
                         type="button"
                         className="fav-order-btn"
                         disabled={i === 0}
-                        onClick={() => setFavs(moveFavorite(i, -1))}
+                        data-dir="up"
+                        onClick={() => move(f, i, -1)}
                         aria-label={`${f.route} 往上移`}
                       >
                         ↑
@@ -95,7 +122,8 @@ export default function BackupPanel({
                         type="button"
                         className="fav-order-btn"
                         disabled={i === favs.length - 1}
-                        onClick={() => setFavs(moveFavorite(i, 1))}
+                        data-dir="down"
+                        onClick={() => move(f, i, 1)}
                         aria-label={`${f.route} 往下移`}
                       >
                         ↓
