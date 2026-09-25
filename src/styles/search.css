@@ -11,20 +11,36 @@
 .co-filter::-webkit-scrollbar {
   display: none;
 }
+/* 品牌色由 JSX 經 --co 傳入(唔好 inline 寫字色):
+   未揀 = 品牌色 40% 撈主題字色(深淺色都 ≥7:1);揀咗 = 品牌色實心 + 白字(≥4.5:1)+ ✓ */
 .co-chip {
+  --co-ink: color-mix(in srgb, var(--co, var(--muted)) 40%, var(--text));
   flex: 0 0 auto;
-  border: 1.5px solid;
+  /* 尺寸同 .variant-chip / .mtr-line-chip / .preset-chip 共用 --chip-*(44px 手指目標) */
+  border: var(--chip-border, 1.5px) solid var(--co, var(--line));
   background: var(--card);
+  color: var(--co-ink);
   border-radius: 999px;
-  padding: 7px 14px;
-  min-height: 38px;
-  font-size: 0.88rem;
+  padding: var(--chip-pad, 8px 14px);
+  min-height: var(--chip-h, 44px);
+  font-size: var(--chip-fs, 0.9rem);
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
 }
 .co-chip.on {
+  background: var(--co, var(--red));
+  border-color: var(--co, var(--red));
   color: #fff;
+}
+/* 揀咗唔止靠顏色:加個剔(讀屏已經有 aria-pressed,剔唔使讀) */
+.co-chip.on::before {
+  content: '✓ ';
+  content: '✓ ' / '';
+}
+/* 深色卡底:品牌色邊框得 1.7–3.8:1(「全部」最淡,唔夠 3:1)→ 改用淺啲嘅墨色描邊 */
+:root[data-theme='dark'] .co-chip {
+  border-color: var(--co-ink);
 }
 
 /* ---- Search ---- */
@@ -58,14 +74,31 @@
 }
 .search .clear {
   position: absolute;
-  right: 8px;
+  right: 6px;
   top: 50%;
   transform: translateY(-50%);
   border: none;
   background: var(--line);
   color: var(--muted);
-  width: 26px;
-  height: 26px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   cursor: pointer;
+}
+/* 隱形擴大撳嘅範圍到 44px,個圓唔使變大 */
+.search .clear::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+
+/* 載入路線失敗 + 重試 */
+.search-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+.search-error .preset-chip {
+  min-height: 44px;
 }

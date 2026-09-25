@@ -29,3 +29,8 @@
 .tab:active {
   color: var(--red-dark);
 }
+
+/* lazy 分頁載入中:留返位,頁尾唔會彈上彈落 */
+.tab-loading {
+  min-height: 50vh;
+}

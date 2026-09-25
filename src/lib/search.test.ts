@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseQuery, searchRoutes } from './search'
+import { compareRoutes, parseQuery, resultKeys, searchRoutes } from './search'
 import type { Route } from '../api/bus'
 
 const r = (co: Route['co'], route: string, dest: string, orig = '起點', st = '1'): Route => ({
@@ -84,5 +84,59 @@ describe('searchRoutes 查詢字', () => {
     expect(ids(searchRoutes(routes, '38', 'ctb'))).toEqual(['ctb|38'])
     // 查詢字講明嘅營辦商蓋過 chip
     expect(ids(searchRoutes(routes, '九巴38', 'ctb'))).toEqual(['kmb|38', 'kmb|38A'])
+  })
+})
+
+describe('compareRoutes(共用 Collator)', () => {
+  it('路線號 numeric 排序:1 < 1A < 2 < 38 < 38A < 118 < N1', () => {
+    const nums = ['118', '38A', 'N1', '2', '38', '1A', '1']
+    const sorted = nums.map((n) => r('kmb', n, 'x')).sort(compareRoutes)
+    expect(sorted.map((x) => x.route)).toEqual(['1', '1A', '2', '38', '38A', '118', 'N1'])
+  })
+
+  it('同路線號:營辦商 → 方向 → 班次', () => {
+    const a = { ...r('kmb', '1', 'x', 'y', '2'), bound: 'I' as const }
+    const b = { ...r('kmb', '1', 'x', 'y', '1'), bound: 'I' as const }
+    const c = r('kmb', '1', 'x', 'y', '1') // bound O
+    const d = r('ctb', '1', 'x')
+    expect([d, c, a, b].sort(compareRoutes)).toEqual([b, a, c, d])
+  })
+
+  it('同舊 localeCompare 比較結果一致', () => {
+    const old = (a: Route, b: Route) =>
+      a.route.localeCompare(b.route, undefined, { numeric: true }) ||
+      a.bound.localeCompare(b.bound) ||
+      a.service_type.localeCompare(b.service_type)
+    const sample = [
+      '1',
+      '10',
+      '100',
+      '1A',
+      '2X',
+      '38',
+      '38A',
+      '3B',
+      'A21',
+      'E23',
+      'N1',
+      'NA29',
+      '960P',
+      '98D',
+    ].map((n) => r('kmb', n, 'x'))
+    expect([...sample].sort(compareRoutes)).toEqual([...sample].sort(old))
+  })
+})
+
+describe('resultKeys', () => {
+  it('用路線身份做 key,重複行加 #n,唔會撞', () => {
+    const a = r('kmb', '1', 'x')
+    const keys = resultKeys([a, r('ctb', '1', 'x'), { ...a }, { ...a }])
+    expect(keys).toEqual(['kmb|1|O|1|', 'ctb|1|O|1|', 'kmb|1|O|1|#1', 'kmb|1|O|1|#2'])
+    expect(new Set(keys).size).toBe(keys.length)
+  })
+
+  it('清單移位時同一條線 key 唔變', () => {
+    const list = [r('kmb', '1', 'x'), r('kmb', '1A', 'x')]
+    expect(resultKeys(list.slice(1))[0]).toBe(resultKeys(list)[1])
   })
 })

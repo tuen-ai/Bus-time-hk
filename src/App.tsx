@@ -1,41 +1,96 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { getAllRoutes, routeKey, routeKeyOf, type Route, type Co, type RouteKeyLike } from './api/bus'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { getAllRoutes, indexRoutes, pickRoute, type Route, type Co, type RouteKeyLike } from './api/bus'
 import SearchView from './components/SearchView'
 import RouteStopsView from './components/RouteStopsView'
-import NearbyView from './components/NearbyView'
-
-// 鐵路頁拉埋 Leaflet 落嚟 —— 揀咗先載,搜尋首屏輕好多
-const MtrView = lazy(() => import('./components/MtrView'))
-import PlannerView, { type LegRouteKey } from './components/PlannerView'
+import type { LegRouteKey } from './components/PlannerView'
 import WeatherBanner from './components/WeatherBanner'
 import AlertBanners from './components/AlertBanners'
-import BackupPanel from './components/BackupPanel'
-import DisplayMode from './components/DisplayMode'
-// 藍牙小屏推送:只揀開先載(Web Bluetooth,唔加重首屏)
-const ClockPush = lazy(() => import('./components/ClockPush'))
 import { PandaLogo, MascotState } from './components/Mascots'
 import { recordUse } from './lib/usage'
 import { addStamp } from './lib/stamps'
 import { loadGraph } from './lib/planGraph'
+import { friendlyError } from './lib/http'
+import { lazyRetry } from './lib/lazyRetry'
+import { lsDel, lsGet, lsSet } from './lib/ls'
+import { routeIdentity } from './lib/search'
 import type { NearbyRow } from './lib/nearby'
 import type { Favorite } from './lib/store'
 import { useBackLayer } from './hooks/useBackLayer'
 
+// 首屏淨係要搜尋:其他分頁 / 設定 / 顯示模式揀咗先載(舊分頁跨部署 chunk 唔見咗會自動重載一次)
+const loadNearby = () => import('./components/NearbyView')
+const loadPlanner = () => import('./components/PlannerView')
+const loadBackup = () => import('./components/BackupPanel')
+// 鐵路頁拉埋 Leaflet 落嚟 —— 揀咗先載
+const loadMtr = () => import('./components/MtrView')
+const NearbyView = lazyRetry(loadNearby)
+const PlannerView = lazyRetry(loadPlanner)
+const MtrView = lazyRetry(loadMtr)
+const BackupPanel = lazyRetry(loadBackup)
+const DisplayMode = lazyRetry(() => import('./components/DisplayMode'))
+// 藍牙小屏推送:只揀開先載(Web Bluetooth,唔加重首屏)
+const ClockPush = lazyRetry(() => import('./components/ClockPush'))
+
 type Tab = 'search' | 'nearby' | 'mtr' | 'plan'
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'search', label: '🔍 搜尋' },
-  { id: 'nearby', label: '📍 附近' },
-  { id: 'mtr', label: '🚇 鐵路' },
-  { id: 'plan', label: '🧭 規劃' },
+const TABS: { id: Tab; icon: string; label: string }[] = [
+  { id: 'search', icon: '🔍', label: '搜尋' },
+  { id: 'nearby', icon: '📍', label: '附近' },
+  { id: 'mtr', icon: '🚇', label: '鐵路' },
+  { id: 'plan', icon: '🧭', label: '規劃' },
 ]
+
+// 規劃圖(2.3MB chunk)唔再每次開 app 都預載 —— 淨係有意圖(撳規劃 tab / 入到規劃頁)先載;慳數據模式唔預載
+const saveData = () => !!(navigator as { connection?: { saveData?: boolean } }).connection?.saveData
+const warmGraph = () => {
+  if (!saveData()) void loadGraph().catch(() => {})
+}
+const ignore = () => {}
+/** 手指撳落就開始載嗰頁 chunk,放手(click)時多數已經載好 */
+const PREFETCH: Partial<Record<Tab, () => void>> = {
+  nearby: () => void loadNearby().catch(ignore),
+  mtr: () => void loadMtr().catch(ignore),
+  plan: () => {
+    void loadPlanner().catch(ignore)
+    warmGraph()
+  },
+}
 
 const THEME_KEY = 'kmb.theme'
 // 未揀過就跟系統深色設定
 const initialDark = (): boolean => {
-  const saved = localStorage.getItem(THEME_KEY)
+  const saved = lsGet(THEME_KEY)
   if (saved === 'dark' || saved === 'light') return saved === 'dark'
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
+}
+
+// 📺 門口顯示模式:#display 直達 / localStorage 記住(iPad 重載都會自動返去)
+const DISPLAY_KEY = 'kkcx.display'
+const DISPLAY_HASH = '#display'
+/** 清走 URL 嘅 #display(保留 history.state)。唔好留喺 history:
+ *  退出時 useBackLayer go(-1) 返去嗰格如果仲係 #display,hashchange 會即刻彈返入顯示模式 */
+const stripDisplayHash = () => {
+  if (window.location.hash === DISPLAY_HASH) {
+    history.replaceState(history.state, '', window.location.pathname + window.location.search)
+  }
+}
+
+/** lazy 分頁載入中:頭 300ms 乜都唔出(快機唔會閃),慢先出熊貓 */
+function TabLoading() {
+  const [show, setShow] = useState(false)
+  useEffect(() => {
+    const t = window.setTimeout(() => setShow(true), 300)
+    return () => clearTimeout(t)
+  }, [])
+  return <div className="tab-loading">{show && <MascotState mood="busy" text="熊貓搬緊嘢過嚟…" />}</div>
+}
+
+/** 顯示模式 chunk 載入中:先頂住一層鎖定返回層,等 DisplayMode 自己嗰層接手。
+ *  由設定開顯示模式 → 閂設定同開呢層喺同一個 commit,history 深度唔變(唔會 go(-1) 完又 push 撞車);
+ *  載入中撳 Esc / 返回鍵亦唔會關咗底下睇唔到嘅路線頁 */
+function KioskHold() {
+  useBackLayer(true, ignore, { locked: true })
+  return <TabLoading />
 }
 
 export default function App() {
@@ -46,22 +101,25 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('search')
   const [initialStop, setInitialStop] = useState<string | undefined>()
   const [dark, setDark] = useState(initialDark)
+  // 搜尋字 / 營辦商 filter 放喺 App:開路線再撳返回,結果仲喺度
+  const [query, setQuery] = useState('')
+  const [coFilter, setCoFilter] = useState<Co | 'all'>('all')
+  // 由搜尋結果開路線 → 返嚟時焦點放返嗰張卡
+  const [returnFocus, setReturnFocus] = useState<string | null>(null)
+  const clearReturnFocus = useCallback(() => setReturnFocus(null), [])
 
   const [showBackup, setShowBackup] = useState(false)
-  // 📺 門口顯示模式:#display 直達 / localStorage 記住(iPad 重載都會自動返去)
   const [showDisplay, setShowDisplay] = useState(
-    () => window.location.hash === '#display' || localStorage.getItem('kkcx.display') === '1',
+    () => window.location.hash === DISPLAY_HASH || lsGet(DISPLAY_KEY) === '1',
   )
   const enterDisplay = () => {
-    localStorage.setItem('kkcx.display', '1')
+    lsSet(DISPLAY_KEY, '1')
     setShowBackup(false)
     setShowDisplay(true)
   }
   const exitDisplay = () => {
-    localStorage.removeItem('kkcx.display')
-    if (window.location.hash === '#display') {
-      history.replaceState(history.state, '', window.location.pathname + window.location.search)
-    }
+    lsDel(DISPLAY_KEY)
+    stripDisplayHash()
     setShowDisplay(false)
   }
 
@@ -72,16 +130,17 @@ export default function App() {
     setShowClock(true)
   }
 
-  // app 開住時 hash 轉做 #display(例如撳主畫面書籤)都要入到
+  // #display(開 app 時 / 開住時撳主畫面書籤)→ 轉做 localStorage 記住,再即刻清走 hash
   useEffect(() => {
-    const onHash = () => {
-      if (window.location.hash === '#display') {
-        localStorage.setItem('kkcx.display', '1')
-        setShowDisplay(true)
-      }
+    const take = () => {
+      if (window.location.hash !== DISPLAY_HASH) return
+      lsSet(DISPLAY_KEY, '1')
+      stripDisplayHash()
+      setShowDisplay(true)
     }
-    window.addEventListener('hashchange', onHash)
-    return () => window.removeEventListener('hashchange', onHash)
+    take()
+    window.addEventListener('hashchange', take)
+    return () => window.removeEventListener('hashchange', take)
   }, [])
   // 「帶我去」(例如 24/7 分店)→ 跳去規劃 tab 並預設終點
   const [planDest, setPlanDest] = useState<{ label: string; lat: number; lng: number } | null>(null)
@@ -100,39 +159,34 @@ export default function App() {
     addStamp()
   }
 
+  const openFromSearch = (r: Route, stopId?: string) => {
+    openRoute(r, stopId)
+    setReturnFocus(stopId ? null : routeIdentity(r))
+  }
+
   // 撳返回鍵(Android / 瀏覽器上一頁 / 邊緣滑動)時,逐層退返上一個畫面,唔好即刻閂咗成個 app。
+  // 鍵盤 Esc 都會關最上面嗰層(分頁唔算「疊上去」,Esc 唔會跳 tab)。
   // 註冊次序 = 畫面由淺到深;門口顯示模式由 DisplayMode 自己註冊(鎖定層)。
-  useBackLayer(tab !== 'search', () => setTab('search'))
+  useBackLayer(tab !== 'search', () => setTab('search'), { escape: false })
   useBackLayer(selected !== null, () => setSelected(null))
   useBackLayer(showBackup, () => setShowBackup(false))
   useBackLayer(showClock, () => setShowClock(false))
 
-  // co|route|bound|serviceType → Route[](GMB 同號跨區可能多於一條);收藏/附近/規劃 leg 都靠呢個對返
-  const routeIndex = useMemo(() => {
-    const m = new Map<string, Route[]>()
-    for (const r of routes) {
-      const k = routeKeyOf(r)
-      const arr = m.get(k)
-      if (arr) arr.push(r)
-      else m.set(k, [r])
-    }
-    return m
-  }, [routes])
+  // 設定 / 小屏推送閂返 → 焦點返去 ⚙️(鍵盤唔會跌去 body)
+  const gearRef = useRef<HTMLButtonElement>(null)
+  const overlayOpen = showBackup || showClock
+  const wasOverlay = useRef(false)
+  useEffect(() => {
+    if (wasOverlay.current && !overlayOpen && !showDisplay) gearRef.current?.focus({ preventScroll: true })
+    wasOverlay.current = overlayOpen
+  }, [overlayOpen, showDisplay])
 
-  const findRoute = (k: RouteKeyLike, dest?: string): Route | undefined => {
-    let cands = routeIndex.get(routeKey(k)) ?? []
-    // 嶼巴 2026-09 上游將回程 bound 由 O 改 I → 舊收藏用相反方向再試一次
-    if (!cands.length && k.co === 'nlb') {
-      cands = routeIndex.get(routeKey({ ...k, bound: k.bound === 'I' ? 'O' : 'I' })) ?? []
-    }
-    if (cands.length <= 1 || !dest) return cands[0]
-    // 用目的地名 tiebreak(兩邊字串來源唔同,寬鬆 includes 匹配)
-    return (
-      cands.find((x) => x.dest_tc === dest) ??
-      cands.find((x) => x.dest_tc.includes(dest) || dest.includes(x.dest_tc)) ??
-      cands[0]
-    )
-  }
+  // co|route|bound|serviceType → Route[](GMB 同號跨區可能多於一條);收藏/附近/規劃 leg 都靠呢個對返
+  const routeIndex = useMemo(() => indexRoutes(routes), [routes])
+
+  // 嶼巴舊收藏 bound 反轉再試、同 key 多條用目的地 tiebreak —— 規則同測試喺 api/bus.ts pickRoute
+  const findRoute = (k: RouteKeyLike, dest?: string): Route | undefined =>
+    pickRoute(routeIndex, { ...k, dest })
 
   const openNearby = (row: NearbyRow) => {
     const r = findRoute({ co: row.co, route: row.route, bound: row.dir, serviceType: row.serviceType })
@@ -159,14 +213,16 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? 'dark' : 'light'
-    localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light')
-    // 瀏覽器 UI(地址列/狀態欄)顏色跟主題
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#1a0f17' : '#ff4f95')
+    lsSet(THEME_KEY, dark ? 'dark' : 'light')
+    // 瀏覽器 UI(地址列/狀態欄)顏色跟主題 + topbar 漸變起點
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#1a0f17' : '#db2777')
   }, [dark])
 
-  // 量度 topbar 實際高度 → tabs sticky 貼喺佢正下方(iOS 瀏海 safe-area 令高度唔固定)
+  // 量度 topbar 實際高度 → tabs sticky 貼喺佢正下方(iOS 瀏海 safe-area 令高度唔固定)。
+  // 顯示模式時冇 topbar;退出後係新嘅 <header>,要重新量同觀察。
   const topbarRef = useRef<HTMLElement>(null)
   useEffect(() => {
+    if (showDisplay) return
     const el = topbarRef.current
     if (!el) return
     const apply = () => document.documentElement.style.setProperty('--topbar-h', `${el.offsetHeight}px`)
@@ -174,7 +230,7 @@ export default function App() {
     const ro = new ResizeObserver(apply)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [])
+  }, [showDisplay])
 
   // 捲落去就收細 topbar(慳返手機螢幕空間)
   const [compact, setCompact] = useState(false)
@@ -199,7 +255,8 @@ export default function App() {
         // SWR:舊 cache 即刻顯示,背景刷新完靜靜更新
         setRoutes(await getAllRoutes((fresh) => setRoutes(fresh)))
       } catch (e) {
-        setError(e instanceof Error ? e.message : '無法載入路線資料')
+        // 唔好直接顯示英文錯誤(例如 "Failed to fetch")
+        setError(`路線資料載入唔到:${friendlyError(e)}`)
       } finally {
         setLoading(false)
       }
@@ -208,60 +265,74 @@ export default function App() {
 
   useEffect(loadRoutes, [])
 
-  // 首屏著地後 idle 預載規劃圖(2.3MB chunk),第一次撳「搵路線」唔使等
+  // 入到規劃頁(撳 tab / 「帶我去」/ 返回)先預熱規劃圖
+  const onPlanner = tab === 'plan' && !selected && !showDisplay
   useEffect(() => {
-    const warm = () => void loadGraph().catch(() => {})
-    // Safari 冇 requestIdleCallback → setTimeout 後備
-    const hasIdle = typeof window.requestIdleCallback === 'function'
-    const id = hasIdle ? window.requestIdleCallback(warm, { timeout: 8000 }) : window.setTimeout(warm, 4000)
-    return () => {
-      if (hasIdle) window.cancelIdleCallback(id)
-      else clearTimeout(id)
-    }
-  }, [])
+    if (onPlanner) warmGraph()
+  }, [onPlanner])
 
   const variants = useMemo(
     () => (selected ? routes.filter((r) => r.route === selected.route && r.co === selected.co) : []),
     [routes, selected],
   )
 
+  // 門口顯示模式(kiosk):唔好喺底下繼續 render 成個 app —— 收藏 / 附近會照樣每 5 秒輪詢,
+  // 同顯示模式自己嘅輪詢加埋,請求數多三倍。AlertBanners 保留(落車鬧鐘 / 出門提醒照響)。
+  if (showDisplay) {
+    return (
+      <>
+        <Suspense fallback={<KioskHold />}>
+          <DisplayMode onExit={exitDisplay} />
+        </Suspense>
+        <AlertBanners />
+      </>
+    )
+  }
+
   const goHome = () => {
     setSelected(null)
     setTab('search')
+    setQuery('')
+    setCoFilter('all')
     window.scrollTo({ top: 0 })
   }
 
   return (
     <div className="app">
       <header ref={topbarRef} className={`topbar ${compact ? 'compact' : ''}`}>
-        <span className="topbar-deco" style={{ top: 8, left: '38%' }}>
-          ♡
-        </span>
-        <span className="topbar-deco" style={{ top: 30, left: '54%' }}>
-          ✦
-        </span>
-        <span className="topbar-deco" style={{ bottom: 8, left: '46%' }}>
-          ♡
-        </span>
-        <span className="topbar-deco" style={{ top: 14, left: '66%' }}>
-          🎀
-        </span>
-        <span className="topbar-deco" style={{ bottom: 10, left: '30%' }}>
-          ✨
+        {/* 純裝飾:放喺字嘅右邊空位,唔好壓住標題 / 副題 */}
+        <span className="topbar-decos" aria-hidden="true">
+          <span className="topbar-deco d1">♡</span>
+          <span className="topbar-deco d2">✦</span>
+          <span className="topbar-deco d3">🎀</span>
+          <span className="topbar-deco d4">✨</span>
+          <span className="topbar-deco d5">♡</span>
         </span>
         <div className="topbar-row">
           <h1>
-            <button className="topbar-home" onClick={goHome} aria-label="返回首頁">
+            <button className="topbar-home" onClick={goHome} aria-label="可可出行(返回首頁)">
               <PandaLogo />
               可可出行
             </button>
           </h1>
           <span className="topbar-btns">
-            <button className="theme-toggle" onClick={() => setShowBackup(true)} aria-label="備份與還原">
-              ⚙️
+            <button
+              ref={gearRef}
+              className="theme-toggle"
+              onPointerDown={() => void loadBackup().catch(ignore)}
+              onClick={() => setShowBackup(true)}
+              aria-label="設定"
+              aria-haspopup="dialog"
+            >
+              <span aria-hidden="true">⚙️</span>
             </button>
-            <button className="theme-toggle" onClick={() => setDark((d) => !d)} aria-label="切換深色模式">
-              {dark ? '☀️' : '🌙'}
+            <button
+              className="theme-toggle"
+              onClick={() => setDark((d) => !d)}
+              aria-label="深色模式"
+              aria-pressed={dark}
+            >
+              <span aria-hidden="true">{dark ? '☀️' : '🌙'}</span>
             </button>
           </span>
         </div>
@@ -277,52 +348,62 @@ export default function App() {
               key={t.id}
               className={tab === t.id ? 'tab on' : 'tab'}
               aria-current={tab === t.id ? 'page' : undefined}
+              onPointerDown={PREFETCH[t.id]}
               onClick={() => setTab(t.id)}
             >
-              {t.label}
+              <span aria-hidden="true">{t.icon}</span> {t.label}
             </button>
           ))}
         </nav>
       )}
 
       <main className="content">
-        {selected ? (
-          <RouteStopsView
-            route={selected}
-            variants={variants}
-            initialOpenStop={initialStop}
-            onSwitch={(r) => openRoute(r)}
-            onBack={() => setSelected(null)}
-          />
-        ) : tab === 'nearby' ? (
-          <NearbyView onOpen={openNearby} onPlanTo={planTo} />
-        ) : tab === 'mtr' ? (
-          <Suspense fallback={<MascotState mood="busy" text="載入鐵路資料…" />}>
-            <MtrView />
-          </Suspense>
-        ) : tab === 'plan' ? (
-          <PlannerView onOpenLeg={openLeg} initialDest={planDest} />
-        ) : (
-          <SearchView
-            routes={routes}
-            loading={loading}
-            error={error}
-            onRetry={loadRoutes}
-            onOpen={openRoute}
-            onOpenFavorite={openFavorite}
-          />
-        )}
+        <Suspense fallback={<TabLoading />}>
+          {selected ? (
+            <RouteStopsView
+              route={selected}
+              variants={variants}
+              initialOpenStop={initialStop}
+              onSwitch={(r) => openRoute(r)}
+              onBack={() => setSelected(null)}
+            />
+          ) : tab === 'nearby' ? (
+            <NearbyView onOpen={openNearby} onPlanTo={planTo} />
+          ) : tab === 'mtr' ? (
+            <Suspense fallback={<MascotState mood="busy" text="載入鐵路資料…" />}>
+              <MtrView />
+            </Suspense>
+          ) : tab === 'plan' ? (
+            <PlannerView onOpenLeg={openLeg} initialDest={planDest} />
+          ) : (
+            <SearchView
+              routes={routes}
+              loading={loading}
+              error={error}
+              onRetry={loadRoutes}
+              onOpen={openFromSearch}
+              onOpenFavorite={openFavorite}
+              query={query}
+              onQuery={setQuery}
+              coFilter={coFilter}
+              onCoFilter={setCoFilter}
+              focusKey={returnFocus}
+              onFocusDone={clearReturnFocus}
+            />
+          )}
+        </Suspense>
       </main>
 
       <AlertBanners />
       {showBackup && (
-        <BackupPanel
-          onClose={() => setShowBackup(false)}
-          onEnterDisplay={enterDisplay}
-          onEnterClock={enterClock}
-        />
+        <Suspense fallback={null}>
+          <BackupPanel
+            onClose={() => setShowBackup(false)}
+            onEnterDisplay={enterDisplay}
+            onEnterClock={enterClock}
+          />
+        </Suspense>
       )}
-      {showDisplay && <DisplayMode onExit={exitDisplay} />}
       {showClock && (
         <Suspense fallback={null}>
           <ClockPush onExit={() => setShowClock(false)} />

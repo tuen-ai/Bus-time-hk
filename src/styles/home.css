@@ -1,4 +1,30 @@
-/* 首頁:智能推薦、集印卡、的士估算 */
+/* 首頁:熟客問候、智能推薦、集印卡、的士估算 */
+/* ---- 熟客問候(有收藏:細公仔一行,收藏排最前) ---- */
+.home-greet {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 2px 12px;
+}
+.home-greet-faces {
+  display: flex;
+  flex-shrink: 0;
+}
+.home-greet .greet-face {
+  width: 42px;
+  height: 42px;
+  filter: drop-shadow(0 2px 5px rgba(244, 63, 142, 0.22));
+}
+.home-greet .greet-face + .greet-face {
+  margin-left: -6px;
+}
+.home-greet-text {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
 /* ---- 智能首頁推薦 ---- */
 .suggest {
   margin-bottom: 6px;

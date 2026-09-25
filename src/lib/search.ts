@@ -25,6 +25,20 @@ const halfWidth = (s: string): string =>
 
 const noSpace = (s: string): string => s.replace(/\s+/g, '')
 
+// 路線號 numeric 排序(38 < 38A < 118)。共用一個 Collator —— 每次 localeCompare 帶 options
+// 都要重新 set up ICU,排 1600 條九巴線慢廿幾倍,打字會 lag。
+const routeCollator = new Intl.Collator(undefined, { numeric: true })
+// bound(I/O)同 service_type(數字字串)係 ASCII,直接比較就夠
+const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0)
+
+/** 排序:路線號 → 同號九巴先 → 方向 → 班次 */
+export const compareRoutes = (a: Route, b: Route): number =>
+  // 路線號(numeric:38 排喺 38A 前,所以完全相符嘅永遠喺最前)
+  routeCollator.compare(a.route, b.route) ||
+  CO_RANK[a.co] - CO_RANK[b.co] ||
+  cmp(a.bound, b.bound) ||
+  cmp(a.service_type, b.service_type)
+
 export interface ParsedQuery {
   /** 路線號或地名(已去空格 / 全形 / 大楷化) */
   text: string
@@ -57,19 +71,28 @@ export function searchRoutes(routes: Route[], query: string, coFilter: Co | 'all
   const byNumber = text !== '' && /^[A-Z0-9]+$/.test(text)
   return routes
     .filter((r) => {
+      if (wantCo && r.co !== wantCo) return false
       if (!text) return true // 淨係打咗營辦商(例如「城巴」)→ 列晒佢嘅路線
       return byNumber
         ? r.route.toUpperCase().startsWith(text)
         : noSpace(r.dest_tc).includes(text) || noSpace(r.orig_tc).includes(text)
     })
-    .filter((r) => !wantCo || r.co === wantCo)
-    .sort(
-      (a, b) =>
-        // 路線號(numeric:38 排喺 38A 前,所以完全相符嘅永遠喺最前)
-        a.route.localeCompare(b.route, undefined, { numeric: true }) ||
-        CO_RANK[a.co] - CO_RANK[b.co] ||
-        a.bound.localeCompare(b.bound) ||
-        a.service_type.localeCompare(b.service_type),
-    )
+    .sort(compareRoutes)
     .slice(0, MAX_RESULTS)
+}
+
+/** 一條路線(連 GMB 分區 uid)嘅身份字串:結果卡 key + 返嚟時搵返張卡 */
+export const routeIdentity = (r: Route): string =>
+  `${r.co}|${r.route}|${r.bound}|${r.service_type}|${r.uid ?? ''}`
+
+/** 結果卡 React key:用路線身份(唔用 index),清單移位時卡可以重用;
+ *  上游偶然有完全重複嘅行,就加 #1、#2 分開 */
+export function resultKeys(routes: Route[]): string[] {
+  const seen = new Map<string, number>()
+  return routes.map((r) => {
+    const base = routeIdentity(r)
+    const n = seen.get(base) ?? 0
+    seen.set(base, n + 1)
+    return n ? `${base}#${n}` : base
+  })
 }

@@ -14,10 +14,13 @@ import { useEffect, useRef } from 'react'
 //   pushState / go() 撞車。
 // - 深度存喺 history.state.kkcxNav,唔靠自己數,所以就算用戶前進/後退幾格都對得返。
 // - locked 層(門口顯示模式)撳返回唔會退出,只會補返一個 entry + 彈鎖定提示。
+// - 鍵盤 Esc = 關最上面嗰層(設定 / 路線 / 揀地點 / 小屏推送);locked 層同 escape:false 層唔理。
+//   直接 close(),之後照「app 自己閂層」路線 go(-1) 對齊 history。
 
 interface Layer {
   close: () => void
   locked: boolean
+  escape: boolean
   onBlocked: () => void
 }
 
@@ -26,6 +29,8 @@ interface Options {
   locked?: boolean
   /** locked 層被撳返回時嘅提示 */
   onBlocked?: () => void
+  /** Esc 可唔可以關(預設 true;分頁呢類「唔係疊上去」嘅層可以設 false) */
+  escape?: boolean
 }
 
 const stack: Layer[] = []
@@ -79,7 +84,20 @@ function onPopState(e: PopStateEvent): void {
   for (let i = closing.length - 1; i >= 0; i--) closing[i].close()
 }
 
-if (typeof window !== 'undefined') window.addEventListener('popstate', onPopState)
+/** Esc → 關最上面一層。組件自己處理咗 Esc(preventDefault)或者輸入法選字中就唔郁 */
+function onKeyDown(e: KeyboardEvent): void {
+  // Safari 取消輸入法選字嗰下 Esc:isComposing 係 false 但 keyCode 係 229
+  if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing || e.keyCode === 229) return
+  const top = stack[stack.length - 1]
+  if (!top || top.locked || !top.escape) return
+  e.preventDefault()
+  top.close()
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('popstate', onPopState)
+  window.addEventListener('keydown', onKeyDown)
+}
 
 /** 測試用:清空 stack 同深度計數(module 狀態會跨 test 殘留) */
 export function _resetBackNavForTests(): void {
@@ -102,12 +120,14 @@ export function useBackLayer(active: boolean, close: () => void, opts: Options =
     blockedRef.current = opts.onBlocked
   })
   const locked = !!opts.locked
+  const escape = opts.escape ?? true
 
   useEffect(() => {
     if (!active) return
     const layer: Layer = {
       close: () => closeRef.current(),
       locked,
+      escape,
       onBlocked: () => blockedRef.current?.(),
     }
     stack.push(layer)
@@ -117,5 +137,5 @@ export function useBackLayer(active: boolean, close: () => void, opts: Options =
       if (i >= 0) stack.splice(i, 1)
       schedule()
     }
-  }, [active, locked])
+  }, [active, locked, escape])
 }

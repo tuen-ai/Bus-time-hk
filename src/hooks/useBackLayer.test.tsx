@@ -1,4 +1,5 @@
-import { act, cleanup, renderHook } from '@testing-library/react'
+import { act, cleanup, render, renderHook } from '@testing-library/react'
+import { lazy, Suspense, type ComponentType } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { _resetBackNavForTests, useBackLayer } from './useBackLayer'
 
@@ -11,6 +12,13 @@ const userBack = (d: number) =>
     history.replaceState({ kkcxNav: d }, '')
     window.dispatchEvent(new PopStateEvent('popstate', { state: { kkcxNav: d } }))
   })
+/** 模擬撳 Esc;回傳個 event 睇下有冇被 preventDefault */
+const pressKey = (init: KeyboardEventInit & { keyCode?: number } = {}) => {
+  const ev = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true, ...init })
+  if (init.keyCode != null) Object.defineProperty(ev, 'keyCode', { value: init.keyCode })
+  window.dispatchEvent(ev)
+  return ev
+}
 
 describe('useBackLayer', () => {
   let pushSpy: ReturnType<typeof vi.spyOn>
@@ -94,5 +102,98 @@ describe('useBackLayer', () => {
     await userBack(0)
     expect(closeB).toHaveBeenCalledTimes(1)
     expect(closeA).toHaveBeenCalledTimes(1)
+  })
+
+  it('lazy 顯示模式:Suspense fallback 先頂住鎖定層 → 閂設定 + 載 chunk 全程唔郁 history', async () => {
+    const Real = () => {
+      useBackLayer(true, () => {}, { locked: true })
+      return null
+    }
+    const Hold = () => {
+      useBackLayer(true, () => {}, { locked: true })
+      return null
+    }
+    let resolve!: (m: { default: ComponentType }) => void
+    const Lazy = lazy(() => new Promise<{ default: ComponentType }>((r) => (resolve = r)))
+    const Host = ({ settings, kiosk }: { settings: boolean; kiosk: boolean }) => {
+      useBackLayer(settings, () => {})
+      return kiosk ? (
+        <Suspense fallback={<Hold />}>
+          <Lazy />
+        </Suspense>
+      ) : null
+    }
+    const { rerender } = render(<Host settings kiosk={false} />)
+    await flush()
+    expect(pushSpy).toHaveBeenCalledTimes(1)
+    // 設定入面撳「門口顯示模式」:同一個 commit 閂設定、fallback 開鎖定層
+    rerender(<Host settings={false} kiosk />)
+    await flush()
+    // chunk 到咗:fallback 層換 DisplayMode 層,亦係同一個 commit
+    await act(async () => resolve({ default: Real }))
+    await flush()
+    expect(pushSpy).toHaveBeenCalledTimes(1)
+    expect(goSpy).not.toHaveBeenCalled()
+    expect(pressKey().defaultPrevented).toBe(false) // 鎖定層:Esc 唔關
+  })
+
+  describe('Esc 鍵', () => {
+    it('關最上面一層(唔郁下面),之後 go(-1) 對齊 history', async () => {
+      const closeA = vi.fn()
+      const closeB = vi.fn()
+      const { rerender } = renderHook(
+        ({ b }) => {
+          useBackLayer(true, closeA)
+          useBackLayer(b, closeB)
+        },
+        { initialProps: { b: true } },
+      )
+      await flush()
+      const ev = pressKey()
+      expect(closeB).toHaveBeenCalledTimes(1)
+      expect(closeA).not.toHaveBeenCalled()
+      expect(ev.defaultPrevented).toBe(true)
+      rerender({ b: false }) // app 收到 close 後閂咗
+      await flush()
+      expect(goSpy).toHaveBeenCalledWith(-1)
+    })
+
+    it('locked 層(顯示模式)同 escape:false 層(分頁)唔會被 Esc 關', async () => {
+      const closeTab = vi.fn()
+      const closeLocked = vi.fn()
+      const { rerender } = renderHook(
+        ({ locked }) => {
+          useBackLayer(true, closeTab, { escape: false })
+          useBackLayer(locked, closeLocked, { locked: true })
+        },
+        { initialProps: { locked: true } },
+      )
+      await flush()
+      expect(pressKey().defaultPrevented).toBe(false)
+      expect(closeLocked).not.toHaveBeenCalled()
+      rerender({ locked: false })
+      await flush()
+      pressKey()
+      expect(closeTab).not.toHaveBeenCalled()
+    })
+
+    it('其他鍵 / 組件已處理 / 輸入法選字中 → 唔關', async () => {
+      const close = vi.fn()
+      renderHook(() => useBackLayer(true, close))
+      await flush()
+      pressKey({ key: 'Enter' })
+      pressKey({ isComposing: true })
+      pressKey({ keyCode: 229 }) // Safari 取消選字
+      const handled = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true })
+      handled.preventDefault()
+      window.dispatchEvent(handled)
+      expect(close).not.toHaveBeenCalled()
+      pressKey()
+      expect(close).toHaveBeenCalledTimes(1)
+    })
+
+    it('冇層開住 → Esc 乜都唔做', () => {
+      expect(pressKey().defaultPrevented).toBe(false)
+    })
   })
 })
