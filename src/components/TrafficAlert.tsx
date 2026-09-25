@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { fetchTrafficNews, type Notice } from '../api/stn'
 import { routeDistricts, relevantNotices } from '../lib/stnMatch'
 
 export default function TrafficAlert({ stops }: { stops: { lat: number; lng: number }[] }) {
   const [notices, setNotices] = useState<Notice[]>([])
   const [open, setOpen] = useState(false)
+  const listId = useId()
 
   useEffect(() => {
     let alive = true
@@ -25,12 +26,22 @@ export default function TrafficAlert({ stops }: { stops: { lat: number; lng: num
 
   return (
     <div className="traffic-alert">
-      <button className="ta-head" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        🚧 沿途地區有 {relevant.length} 則交通消息 · 如受影響可考慮轉乘
-        <span className="chev">{open ? '▾' : '▸'}</span>
+      <button
+        type="button"
+        className="ta-head"
+        aria-expanded={open}
+        aria-controls={open ? listId : undefined}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span>
+          <span aria-hidden="true">🚧 </span>沿途地區有 {relevant.length} 則交通消息 · 如受影響可考慮轉乘
+        </span>
+        <span className="chev" aria-hidden="true">
+          {open ? '▾' : '▸'}
+        </span>
       </button>
       {open && (
-        <ul className="ta-list">
+        <ul className="ta-list" id={listId}>
           {relevant.slice(0, 6).map((n) => (
             <li key={n.id || n.detail} className="ta-item">
               {n.heading && <div className="ta-title">{n.heading}</div>}

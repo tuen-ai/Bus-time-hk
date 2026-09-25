@@ -87,6 +87,24 @@ export function predictBuses(
   return buses
 }
 
+/**
+ * 兩次推算結果一樣(架車停喺站等 / 冇車)就當冇變 —— 地圖唔使重畫。
+ * 位置差少過 ~0.1 米當一樣。
+ */
+export function sameBuses(a: PredictedBus[], b: PredictedBus[]): boolean {
+  if (a === b) return true
+  if (a.length !== b.length) return false
+  return a.every((x, i) => {
+    const y = b[i]
+    return (
+      x.seq === y.seq &&
+      x.minsToNext === y.minsToNext &&
+      Math.abs(x.lat - y.lat) < 1e-6 &&
+      Math.abs(x.lng - y.lng) < 1e-6
+    )
+  })
+}
+
 /** 由鏈嘅總距離/總時間估平均速度,再乘 prev→first 段長 */
 function estimateSegMs(chain: { dist: number; t: number }[], segLen: number): number {
   if (chain.length >= 2) {
