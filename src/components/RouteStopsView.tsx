@@ -23,7 +23,7 @@ import {
   describeGeoError,
   formatDistance,
   geoPermission,
-  getRecentFix,
+  getNearbyFix,
   isGeoDenied,
   type LatLngFix,
 } from '../lib/geo'
@@ -245,7 +245,7 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
     async (id: string, rows: StopRow[], force: boolean) => {
       setNearState({ id, v: { kind: 'locating' } })
       try {
-        const fix = await getRecentFix(force ? 30_000 : 120_000)
+        const fix = await getNearbyFix()
         if (routeIdRef.current !== id) return
         setUserPos(fix)
         const hit = nearestBoardingStop(rows, fix)

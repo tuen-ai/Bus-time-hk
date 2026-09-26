@@ -57,7 +57,16 @@ export interface LatLngFix {
 }
 
 // 最近一次成功定位(記憶體):連續開幾條線唔使次次等 GPS
-let lastFix: (LatLngFix & { at: number }) | null = null
+let lastFix: (LatLngFix & { at: number; accuracy: number }) | null = null
+const remember = (pos: GeolocationPosition): void => {
+  lastFix = {
+    lat: pos.coords.latitude,
+    lng: pos.coords.longitude,
+    accuracy: pos.coords.accuracy,
+    // 用位置本身嘅時間(快取位置可能舊咗);有啲機報未來時間就當而家,唔好令舊位置一直當新
+    at: Math.min(pos.timestamp || Date.now(), Date.now()),
+  }
+}
 
 export interface PositionOpts {
   /** 最舊接受幾耐之前嘅瀏覽器快取位置(ms),預設 10 分鐘。「附近」要而家嘅位置就畀細啲 */
@@ -78,15 +87,63 @@ export async function getPosition({ maxAgeMs = 600_000 }: PositionOpts = {}): Pr
     if (isGeoDenied(e)) throw e
     pos = await watch(35000, maxAgeMs)
   }
-  lastFix = { lat: pos.coords.latitude, lng: pos.coords.longitude, at: Date.now() }
+  remember(pos)
   return pos
 }
 
-/** maxAgeMs 內定過位就即刻用返;否則照 getPosition(同樣接受 maxAgeMs 內嘅瀏覽器快取) */
-export async function getRecentFix(maxAgeMs = 120_000): Promise<LatLngFix> {
-  if (lastFix && Date.now() - lastFix.at < maxAgeMs) return { lat: lastFix.lat, lng: lastFix.lng }
-  const p = await getPosition({ maxAgeMs })
-  return { lat: p.coords.latitude, lng: p.coords.longitude }
+// 「最近你嘅站」:幾耐內 / 幾準嘅記憶體定位可以直接用;高精度最多等幾耐;幾準就唔使再等
+const NEAR_REUSE_MS = 30_000
+const NEAR_REUSE_M = 50
+const NEAR_WAIT_MS = 5_000
+const NEAR_GOOD_M = 30
+
+/**
+ * 高精度定位(GPS)最多等 timeoutMs:精度去到 goodM 米內即刻返;時間到就返暫時最準嗰個(一個都冇 → null)。
+ * 拒絕權限即刻 reject;其他錯誤(暫時冇訊號)照等,可能之後有 fix。
+ */
+function bestFixWithin(timeoutMs: number, goodM: number): Promise<GeolocationPosition | null> {
+  return new Promise((resolve, reject) => {
+    let best: GeolocationPosition | null = null
+    let done = false
+    // watch id 放入 object:同步 callback 嗰陣 watchPosition 未返,id 仲未有
+    const w: { id?: number } = {}
+    const finish = (settle: () => void) => {
+      if (done) return
+      done = true
+      clearTimeout(timer)
+      if (w.id !== undefined) navigator.geolocation.clearWatch(w.id)
+      settle()
+    }
+    const timer = setTimeout(() => finish(() => resolve(best)), timeoutMs)
+    w.id = navigator.geolocation.watchPosition(
+      (pos) => {
+        if (!best || pos.coords.accuracy < best.coords.accuracy) best = pos
+        if (pos.coords.accuracy <= goodM) finish(() => resolve(pos))
+      },
+      (err) => {
+        if (isGeoDenied(err)) finish(() => reject(err))
+      },
+      { enableHighAccuracy: true, maximumAge: 10_000 },
+    )
+    // 有啲實作會喺 watchPosition 入面同步 callback:嗰陣清唔到,喺度補清
+    if (done) navigator.geolocation.clearWatch(w.id)
+  })
+}
+
+/**
+ * 「最近你嘅站」用嘅定位:要準 —— 旺角咁密,差 100 米就會揀錯隔籬站。
+ *  1. 30 秒內定過位而且夠準(≤ 50 米)→ 即刻用返(連續開幾條線唔使再等)
+ *  2. 高精度最多等 5 秒:去到 ≤ 30 米即刻用;時間到就用暫時最準嗰個
+ *  3. 5 秒都冇任何位置(室內等)→ 退返 getPosition(低精度 / 2 分鐘內快取,再唔得等 GPS)
+ */
+export async function getNearbyFix(): Promise<LatLngFix> {
+  if (lastFix && Date.now() - lastFix.at < NEAR_REUSE_MS && lastFix.accuracy <= NEAR_REUSE_M)
+    return { lat: lastFix.lat, lng: lastFix.lng }
+  if (!('geolocation' in navigator)) throw new Error('此裝置不支援定位')
+  const best = await bestFixWithin(NEAR_WAIT_MS, NEAR_GOOD_M)
+  if (best) remember(best)
+  const pos = best ?? (await getPosition({ maxAgeMs: 120_000 }))
+  return { lat: pos.coords.latitude, lng: pos.coords.longitude }
 }
 
 /** 測試用:清走記憶體定位 */

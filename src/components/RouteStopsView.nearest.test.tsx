@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import type { Route } from '../api/bus'
 import RouteStopsView from './RouteStopsView'
 import { getRouteStops } from '../api/bus'
-import { geoPermission, getRecentFix } from '../lib/geo'
+import { geoPermission, getNearbyFix } from '../lib/geo'
 import { autoNearestOn } from '../lib/autoNearest'
 
 // 同 RouteStopsView.test.tsx 一樣:站列用假資料,地圖 / ETA / 交通消息 / 鬧鐘 stub 走
@@ -37,7 +37,7 @@ vi.mock('./RouteMap', () => ({ default: () => null }))
 // 定位:淨係 mock 攞位置同權限,距離 / 錯誤字眼用真嘅
 vi.mock('../lib/geo', async (orig) => ({
   ...(await orig<typeof import('../lib/geo')>()),
-  getRecentFix: vi.fn(),
+  getNearbyFix: vi.fn(),
   geoPermission: vi.fn(),
 }))
 vi.mock('../lib/autoNearest', () => ({ autoNearestOn: vi.fn(() => true), setAutoNearest: vi.fn() }))
@@ -76,7 +76,7 @@ const scrollIntoView = vi.fn()
 beforeEach(() => {
   vi.mocked(getRouteStops).mockImplementation(async (r) => stopsOf(r))
   vi.mocked(geoPermission).mockResolvedValue('granted')
-  vi.mocked(getRecentFix).mockResolvedValue(at(0.0031)) // 富貴街旁邊
+  vi.mocked(getNearbyFix).mockResolvedValue(at(0.0031)) // 富貴街旁邊
   vi.mocked(autoNearestOn).mockReturnValue(true)
   Element.prototype.scrollIntoView = scrollIntoView
   window.scrollTo = vi.fn() as unknown as typeof window.scrollTo
@@ -109,7 +109,7 @@ describe('RouteStopsView 自動打開最近你嘅站', () => {
   })
 
   it('企喺尾站都唔會揀尾站(淨係落客),揀前一個上得車嘅站', async () => {
-    vi.mocked(getRecentFix).mockResolvedValue(at(0.009))
+    vi.mocked(getNearbyFix).mockResolvedValue(at(0.009))
     render(view(out))
     await screen.findByText('ETA o3')
     expect(expanded(4, '石圍角總站')).toBe('false')
@@ -119,13 +119,13 @@ describe('RouteStopsView 自動打開最近你嘅站', () => {
     render(view(out, 'o4'))
     await screen.findByText('ETA o4')
     await new Promise((r) => setTimeout(r, 20))
-    expect(getRecentFix).not.toHaveBeenCalled()
+    expect(getNearbyFix).not.toHaveBeenCalled()
     expect(screen.queryByText(/最近你/)).toBeNull()
   })
 
   it('等定位嗰陣用家自己撳咗站:唔會搶走', async () => {
     let resolve!: (v: { lat: number; lng: number }) => void
-    vi.mocked(getRecentFix).mockReturnValue(new Promise((r) => (resolve = r)))
+    vi.mocked(getNearbyFix).mockReturnValue(new Promise((r) => (resolve = r)))
     render(view(out))
     await screen.findByText(/搵緊離你最近嘅站/)
     fireEvent.click(screen.getByRole('button', { name: stopName(3, '櫸樹街') }))
@@ -137,7 +137,7 @@ describe('RouteStopsView 自動打開最近你嘅站', () => {
   })
 
   it('離呢條線太遠(>1 公里):唔自動打開,提示 + 撳「打開」先開', async () => {
-    vi.mocked(getRecentFix).mockResolvedValue(at(0.05)) // 約 5 公里外
+    vi.mocked(getNearbyFix).mockResolvedValue(at(0.05)) // 約 5 公里外
     render(view(out))
     await screen.findByText(
       (_, el) =>
@@ -153,10 +153,10 @@ describe('RouteStopsView 自動打開最近你嘅站', () => {
     vi.mocked(autoNearestOn).mockReturnValue(false)
     render(view(out))
     const btn = await screen.findByRole('button', { name: /搵最近我嘅站/ })
-    expect(getRecentFix).not.toHaveBeenCalled()
+    expect(getNearbyFix).not.toHaveBeenCalled()
     fireEvent.click(btn)
     await screen.findByText('ETA o2')
-    expect(getRecentFix).toHaveBeenCalledTimes(1)
+    expect(getNearbyFix).toHaveBeenCalledTimes(1)
   })
 
   it('拒絕咗定位權限:唔定位,亦唔出提示煩你', async () => {
@@ -164,16 +164,16 @@ describe('RouteStopsView 自動打開最近你嘅站', () => {
     render(view(out))
     await screen.findByRole('button', { name: stopName(1, '奧運站巴士總站') })
     await new Promise((r) => setTimeout(r, 20))
-    expect(getRecentFix).not.toHaveBeenCalled()
+    expect(getNearbyFix).not.toHaveBeenCalled()
     expect(screen.queryByRole('status', { name: '' })?.textContent ?? '').not.toMatch(/最近/)
     expect(screen.queryByRole('button', { name: /搵最近我嘅站/ })).toBeNull()
   })
 
   it('自動定位失敗:畀個掣再試;再試俾人拒絕就講點開返權限', async () => {
-    vi.mocked(getRecentFix).mockRejectedValue(Object.assign(new Error('定位逾時'), { code: 3 }))
+    vi.mocked(getNearbyFix).mockRejectedValue(Object.assign(new Error('定位逾時'), { code: 3 }))
     render(view(out))
     const btn = await screen.findByRole('button', { name: /搵最近我嘅站/ })
-    vi.mocked(getRecentFix).mockRejectedValue({ code: 1 })
+    vi.mocked(getNearbyFix).mockRejectedValue({ code: 1 })
     fireEvent.click(btn)
     await screen.findByText(/定位權限被拒絕/)
   })
@@ -183,9 +183,9 @@ describe('RouteStopsView 自動打開最近你嘅站', () => {
     await screen.findByText('ETA o2')
     // 撳返埋個站 → 冇站打開 → 轉去返程
     fireEvent.click(screen.getByRole('button', { name: stopName(2, '富貴街') }))
-    vi.mocked(getRecentFix).mockResolvedValue(at(0.0062))
+    vi.mocked(getNearbyFix).mockResolvedValue(at(0.0062))
     rerender(view(back))
     await screen.findByText('ETA i2')
-    expect(getRecentFix).toHaveBeenCalledTimes(2)
+    expect(getNearbyFix).toHaveBeenCalledTimes(2)
   })
 })
