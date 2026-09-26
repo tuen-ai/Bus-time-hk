@@ -489,7 +489,7 @@ export default function App() {
         <a href="https://github.com/hkbus/hk-bus-crawling" target="_blank" rel="noreferrer">
           HK Bus Crawling
         </a>{' '}
-        (GPL-2.0) · 地圖 © OpenStreetMap contributors
+        (GPL-2.0) · 地圖 © 地政總署 · 道路推算 © OpenStreetMap contributors
         <br />
         天氣:香港天文台 (HKO) · 港鐵/輕鐵:© 港鐵公司 MTR
         <br />

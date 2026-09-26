@@ -1,12 +1,13 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, TileLayer, Polyline, CircleMarker, Marker, useMap } from 'react-leaflet'
+import { MapContainer, Polyline, CircleMarker, Marker, useMap } from 'react-leaflet'
 import type { LatLngBoundsExpression, PathOptions } from 'leaflet'
 import type { Feature, LineString } from 'geojson'
 import { getRouteEta, type Route } from '../api/bus'
 import { loadRouteLine, lineFromOsrm, lineFromStops } from '../lib/geometry'
 import { snapStops, predictBuses, sameBuses, type SnappedStop, type PredictedBus } from '../lib/busPredict'
 import { busIcon } from '../lib/mapIcons'
-import { TILE_URL, TILE_ATTRIB, TOUCH_MAP_HINT, isTouchMap } from '../lib/mapConfig'
+import { TOUCH_MAP_HINT, isTouchMap } from '../lib/mapConfig'
+import BaseTiles from './BaseTiles'
 import { getWeather } from '../api/weather'
 import { nearestDistrict, rainLevel, rainLabel, type RainLevel } from '../lib/weather'
 import { fetchTrafficNews } from '../api/stn'
@@ -275,7 +276,7 @@ export default function RouteMap({ route, stops, focusStopId, userPos }: Props) 
           scrollWheelZoom={false}
           dragging={!touch}
         >
-          <TileLayer url={TILE_URL} attribution={TILE_ATTRIB} />
+          <BaseTiles />
           <MapFocus bounds={bounds} focus={focus} />
           <Polyline positions={positions} pathOptions={LINE_STYLE} />
           <StopMarkers stops={stops} focusStopId={focusStopId} />

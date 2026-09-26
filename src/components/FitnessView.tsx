@@ -1,9 +1,10 @@
 // 附近 24/7 Fitness 分店:地圖 + 距離排序清單 + 一撳「帶我去」入行程規劃。
 // 分店資料 build-time 由 OpenStreetMap bake(© OSM contributors,ODbL)。
 import { useEffect, useMemo, useState } from 'react'
-import { MapContainer, TileLayer, Marker, CircleMarker, useMap } from 'react-leaflet'
+import { MapContainer, Marker, CircleMarker, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { TILE_URL, TILE_ATTRIB, TOUCH_MAP_HINT, isTouchMap } from '../lib/mapConfig'
+import { TOUCH_MAP_HINT, isTouchMap } from '../lib/mapConfig'
+import BaseTiles from './BaseTiles'
 import { prefersReducedMotion } from '../lib/motion'
 import { getPosition, describeGeoError, distanceMeters, formatDistance } from '../lib/geo'
 import { MascotState } from './Mascots'
@@ -98,7 +99,7 @@ export default function FitnessView({ onPlanTo }: { onPlanTo: (t: PlanTo) => voi
           dragging={!touch}
           attributionControl={false}
         >
-          <TileLayer url={TILE_URL} attribution={TILE_ATTRIB} />
+          <BaseTiles />
           <FlyTo target={focus} />
           {me && (
             <CircleMarker

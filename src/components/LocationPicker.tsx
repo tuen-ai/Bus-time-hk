@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet'
-import { TILE_URL, TILE_ATTRIB } from '../lib/mapConfig'
+import { MapContainer, useMap, useMapEvents } from 'react-leaflet'
+import BaseTiles from './BaseTiles'
 import type { GeoPlace } from '../api/geocode'
 import { usePlaceSearch } from '../hooks/usePlaceSearch'
 
@@ -144,7 +144,7 @@ export default function LocationPicker({ title, initial, onConfirm, onCancel }: 
 
       <div className="map-stage">
         <MapContainer center={[center.lat, center.lng]} zoom={16} className="map" scrollWheelZoom>
-          <TileLayer url={TILE_URL} attribution={TILE_ATTRIB} />
+          <BaseTiles />
           <CenterTracker
             onMove={(lat, lng) => {
               setCenter({ lat, lng })

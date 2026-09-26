@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { MapContainer, TileLayer, Polyline, CircleMarker, useMap } from 'react-leaflet'
+import { MapContainer, Polyline, CircleMarker, useMap } from 'react-leaflet'
 import type { LatLngBoundsExpression } from 'leaflet'
 import { MTR_LINES, getLine } from '../lib/mtrData'
-import { TILE_URL, TILE_ATTRIB, TOUCH_MAP_HINT, isTouchMap } from '../lib/mapConfig'
+import { TOUCH_MAP_HINT, isTouchMap } from '../lib/mapConfig'
+import BaseTiles from './BaseTiles'
 import { prefersReducedMotion, scrollBehavior } from '../lib/motion'
 import { getMtrLast, setMtrLast, type MtrLast } from '../lib/mtrFavs'
 import { useWheelZoomOnFocus } from '../hooks/useWheelZoomOnFocus'
@@ -103,7 +104,7 @@ export default function MtrView() {
             scrollWheelZoom={false}
             dragging={!touch}
           >
-            <TileLayer url={TILE_URL} attribution={TILE_ATTRIB} />
+            <BaseTiles />
             <MapFocus bounds={positions} focus={focus} />
             <Polyline positions={positions} pathOptions={{ color, weight: 5, opacity: 0.85 }} />
             {geoStops.map((s) => {

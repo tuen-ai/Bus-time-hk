@@ -17,7 +17,7 @@
 }
 
 /* ---- 深色模式地圖 ----
-   CARTO 淺色底圖反色 + 轉返色相(水仍然係藍、公園仍然係綠);只郁 tile pane,
+   地政總署淺色底圖(連地名標籤)反色 + 轉返色相(水仍然係藍、公園仍然係綠);只郁 tile pane,
    路線、站點、巴士、雨點都喺其他 pane,顏色唔變。 */
 :root[data-theme='dark'] .leaflet-container {
   background: var(--bg);
@@ -47,6 +47,13 @@
 }
 :root[data-theme='dark'] .leaflet-control-attribution a {
   color: var(--accent-text);
+}
+/* 地政總署 logo(條款要求喺地圖面顯示);唔喺 tile pane,深色模式唔會被反色 */
+.landsd-logo {
+  width: 18px;
+  height: 18px;
+  margin-left: 4px;
+  vertical-align: middle;
 }
 
 /* ---- Variant (direction / service type) selector ---- */

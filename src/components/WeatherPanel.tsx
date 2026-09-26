@@ -1,10 +1,11 @@
 // 展開式天氣 + 路況面板:詳細天氣、全港路況地圖(TSM 車速)、特別交通消息。
 import { useEffect, useState } from 'react'
-import { MapContainer, TileLayer, Polyline } from 'react-leaflet'
+import { MapContainer, Polyline } from 'react-leaflet'
 import type { Weather } from '../api/weather'
 import { fetchTsm, type TsmData, type TsmLevel } from '../api/tsm'
 import { fetchTrafficNews, type Notice } from '../api/stn'
-import { TILE_URL, TILE_ATTRIB, TOUCH_MAP_HINT, isTouchMap } from '../lib/mapConfig'
+import { TOUCH_MAP_HINT, isTouchMap } from '../lib/mapConfig'
+import BaseTiles from './BaseTiles'
 import { usePolling } from '../hooks/usePolling'
 
 const LEVEL_COLOR: Record<TsmLevel, string> = {
@@ -92,7 +93,7 @@ export default function WeatherPanel({ w, id }: { w: Weather; id?: string }) {
               dragging={!touch}
               attributionControl={false}
             >
-              <TileLayer url={TILE_URL} attribution={TILE_ATTRIB} />
+              <BaseTiles />
               {tsm.segs.map((s) => (
                 <Polyline
                   key={s.id}
