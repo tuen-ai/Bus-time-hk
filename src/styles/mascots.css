@@ -80,3 +80,189 @@
   display: flex;
   gap: 8px;
 }
+
+/* ---- 公仔小動作:眨眼、耳仔、揮手、跳、Zzz ----
+   全部純 CSS(唔使 JS 逐格計);「減少動態效果」由 base.css 統一停。
+   transform-box: fill-box → transform-origin 以該部件自己為準 */
+.m-live .m-open,
+.m-live .m-shut,
+.m-live .m-blink,
+.m-live .m-ear,
+.m-live .m-wave,
+.m-live .m-zzz {
+  transform-box: fill-box;
+}
+.m-live .m-shut {
+  opacity: 0;
+  animation: m-shut 5.2s infinite;
+}
+.m-live .m-open {
+  animation: m-open 5.2s infinite;
+}
+.m-live .m-blink {
+  transform-origin: center;
+  animation: m-blink 5.2s infinite;
+}
+/* 兩隻公仔唔好同一刻眨眼 */
+.b.m-live .m-open,
+.b.m-live .m-shut,
+.b.m-live .m-blink,
+.m-live + .m-live .m-blink {
+  animation-delay: -1.9s;
+}
+@keyframes m-open {
+  0%,
+  92%,
+  97%,
+  100% {
+    opacity: 1;
+  }
+  93.5%,
+  95.5% {
+    opacity: 0;
+  }
+}
+@keyframes m-shut {
+  0%,
+  92%,
+  97%,
+  100% {
+    opacity: 0;
+  }
+  93.5%,
+  95.5% {
+    opacity: 1;
+  }
+}
+@keyframes m-blink {
+  0%,
+  92%,
+  97%,
+  100% {
+    transform: scaleY(1);
+  }
+  93.5%,
+  95.5% {
+    transform: scaleY(0.12);
+  }
+}
+.m-live .m-ear {
+  transform-origin: 50% 100%;
+  animation: m-ear 4.4s ease-in-out infinite;
+}
+.m-live .m-ear.r {
+  animation-name: m-ear-r;
+}
+@keyframes m-ear {
+  0%,
+  22%,
+  100% {
+    transform: rotate(0);
+  }
+  8% {
+    transform: rotate(-10deg);
+  }
+  15% {
+    transform: rotate(5deg);
+  }
+}
+@keyframes m-ear-r {
+  0%,
+  22%,
+  100% {
+    transform: rotate(0);
+  }
+  8% {
+    transform: rotate(10deg);
+  }
+  15% {
+    transform: rotate(-5deg);
+  }
+}
+/* 揮手:一出現揮幾下,之後每 8 秒再打一次招呼 */
+.m-live .m-wave.r {
+  transform-origin: 18% 8%;
+  animation: m-wave-r 8s ease-in-out 0.5s infinite;
+}
+.m-live .m-wave.l {
+  transform-origin: 82% 8%;
+  animation: m-wave-l 8s ease-in-out 0.8s infinite;
+}
+@keyframes m-wave-r {
+  0%,
+  26%,
+  100% {
+    transform: rotate(0);
+  }
+  5%,
+  13% {
+    transform: rotate(-140deg);
+  }
+  9%,
+  17% {
+    transform: rotate(-110deg);
+  }
+  21% {
+    transform: rotate(-135deg);
+  }
+}
+@keyframes m-wave-l {
+  0%,
+  26%,
+  100% {
+    transform: rotate(0);
+  }
+  5%,
+  13% {
+    transform: rotate(140deg);
+  }
+  9%,
+  17% {
+    transform: rotate(110deg);
+  }
+  21% {
+    transform: rotate(135deg);
+  }
+}
+.m-live .m-zzz {
+  animation: m-zzz 2.8s ease-in-out infinite;
+}
+@keyframes m-zzz {
+  0% {
+    opacity: 0;
+    transform: translate(-2px, 4px);
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(4px, -8px);
+  }
+}
+/* 全身版(歡迎頁)比例高啲 */
+.mascot.body {
+  width: 112px;
+  height: 136px;
+}
+/* 車就到:公仔跳(壓扁 → 拉長) */
+.hop .dm-mascot,
+.mascot.hop {
+  transform-origin: 50% 100%;
+  animation: m-hop 0.7s ease-in-out infinite;
+}
+.hop .dm-mascot + .dm-mascot {
+  animation-delay: 0.18s;
+}
+@keyframes m-hop {
+  0%,
+  100% {
+    transform: translateY(0) scale(1.06, 0.92);
+  }
+  40% {
+    transform: translateY(-22%) scale(0.95, 1.06);
+  }
+  70% {
+    transform: translateY(0) scale(1.04, 0.95);
+  }
+}

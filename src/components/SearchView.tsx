@@ -204,6 +204,7 @@ export default function SearchView({
             type="button"
             data-rid={routeIdentity(r)}
             className="route-card"
+            style={{ '--i': Math.min(i, 8) } as CSSProperties}
             onClick={() => onOpen(r)}
           >
             <span className={`route-badge ${coClass(r.co)}`}>{r.route}</span>

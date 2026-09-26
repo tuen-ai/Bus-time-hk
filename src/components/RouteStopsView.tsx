@@ -354,7 +354,7 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
   const hasFare = !!fares && fares.length > 0
 
   return (
-    <div>
+    <div className="route-page">
       <button type="button" className="back-btn route-back" onClick={onBack}>
         <span aria-hidden="true">‹ </span>返回
       </button>

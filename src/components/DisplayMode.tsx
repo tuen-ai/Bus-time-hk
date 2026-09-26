@@ -255,6 +255,13 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
   const night = isNight(now)
   const nowMs = now.getTime()
   const mood = weatherMood(wx)
+  // 有車 1 分鐘內到:公仔跳起提你(夜晚都會醒);否則夜晚眼瞓
+  const busSoon = favs.some((f) => {
+    const m0 = rowView(etas[favKey(f)], nowMs).mins[0]
+    return m0 != null && m0 <= 1
+  })
+  const sleepy = night && !busSoon
+  const pairCls = `dm-pair${busSoon ? ' hop' : ''}`
   // 得一粒 pill:揀最嚴重嗰個(顏色跟首頁天氣列),其餘講「+N」
   const warns = wx?.warnings ?? []
   const topWarn = topWarning(warns)
@@ -380,15 +387,22 @@ export default function DisplayMode({ onExit }: { onExit: () => void }) {
             <span aria-hidden="true">🔒</span> 長按 / 撳住 Esc 3 秒退出
           </span>
         </div>
-        <div className="dm-pair">
+        <div className={pairCls}>
           <PandaFace
             className="dm-mascot"
             bow={un.includes('bow')}
             starEyes={un.includes('star')}
+            cap={un.includes('cap')}
             umbrella={mood.umbrella}
             sweat={mood.hot}
+            sleepy={sleepy}
           />
-          <BearFace className="dm-mascot" knight={un.includes('knight')} medal={un.includes('gold')} />
+          <BearFace
+            className="dm-mascot"
+            knight={un.includes('knight')}
+            medal={un.includes('gold')}
+            sleepy={sleepy}
+          />
         </div>
       </div>
     </div>

@@ -137,3 +137,43 @@
     animation: none;
   }
 }
+
+/* ---- 打開站:面板展開 + 班次逐行滑入;就到嘅分鐘輕輕跳 ---- */
+.eta-panel {
+  animation: panel-in 0.26s var(--ease) backwards;
+}
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+.eta-row {
+  animation: row-in 0.3s var(--ease) backwards;
+}
+.eta-row:nth-child(2) {
+  animation-delay: 60ms;
+}
+.eta-row:nth-child(3) {
+  animation-delay: 120ms;
+}
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+}
+.eta-mins.soon {
+  display: inline-block;
+  transform-origin: left center;
+  animation: soon-pulse 1.6s ease-in-out infinite;
+}
+@keyframes soon-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}

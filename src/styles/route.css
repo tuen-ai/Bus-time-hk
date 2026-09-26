@@ -283,3 +283,49 @@
 .near-chip:hover {
   border-color: var(--accent-text);
 }
+
+/* ---- UI 動畫(減少動態效果時 base.css 會停) ---- */
+/* 搜尋結果逐張彈入;只用 backwards,完咗唔會蓋住 :active 嘅縮一縮 */
+.route-card {
+  animation: card-in 0.32s var(--ease) backwards;
+  animation-delay: calc(var(--i, 0) * 35ms);
+}
+.route-card:active {
+  transform: scale(0.97);
+}
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
+/* 開路線頁:由右邊滑入 */
+.route-page {
+  animation: page-in 0.28s var(--ease) backwards;
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+/* 「最近你」chip:彈出 + 一圈光 */
+.near-chip {
+  animation:
+    chip-pop 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) backwards,
+    chip-ring 1.2s ease-out 0.3s;
+}
+@keyframes chip-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+@keyframes chip-ring {
+  from {
+    box-shadow: 0 0 0 0 rgba(255, 95, 162, 0.45);
+  }
+  to {
+    box-shadow: 0 0 0 14px rgba(255, 95, 162, 0);
+  }
+}

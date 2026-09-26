@@ -5,17 +5,95 @@ import { getWeather, type Weather } from '../api/weather'
 import { getStamps, unlocked } from '../lib/stamps'
 import { weatherMood } from '../lib/weather'
 
+const INK = '#2e2a2c'
+
 interface PandaProps {
   className?: string
   bow?: boolean // 🎀 3 日解鎖
   starEyes?: boolean // ✨ 7 日解鎖
+  cap?: boolean // 🧢 5 日解鎖(原創車長帽)
   umbrella?: boolean // ☔ 落雨自動
   sweat?: boolean // 🥵 酷熱自動
+  sleepy?: boolean // 🌙 門口顯示模式夜晚
 }
 
-export function PandaFace({ className = 'mascot', bow, starEyes, umbrella, sweat }: PandaProps) {
+/** 原創粉紅車長帽 + 細巴士徽章(冇任何營辦商標誌);dx 用嚟對齊臉 / 全身兩種座標 */
+function CaptainCap({ dx = 0 }: { dx?: number }) {
   return (
-    <svg className={className} viewBox="0 0 100 100" aria-hidden="true">
+    <g transform={`translate(${dx} 0)`}>
+      <path d="M30 26 Q60 -2 90 26 L92 32 Q60 24 28 32 Z" fill="#ff5fa2" />
+      <path d="M26 31 Q60 22 94 31 Q96 37 88 37 Q60 30 32 37 Q24 37 26 31 Z" fill="#c2185b" />
+      <rect x="51" y="11" width="18" height="11" rx="3" fill="#fff" />
+      <rect x="53.5" y="13" width="5" height="4" rx="1" fill="#ff5fa2" />
+      <rect x="61" y="13" width="5" height="4" rx="1" fill="#ff5fa2" />
+    </g>
+  )
+}
+
+/** 眼瞓嘅 Zzz(CSS 飄上去) */
+function Zzz({ x, y }: { x: number; y: number }) {
+  return (
+    <g className="m-zzz" fill="#ff8fc0" fontWeight="900" fontFamily="sans-serif">
+      <text x={x} y={y} fontSize="12">
+        z
+      </text>
+      <text x={x + 8} y={y - 10} fontSize="16">
+        Z
+      </text>
+    </g>
+  )
+}
+
+/** 熊貓個頭(100×100 座標):眨眼 / 耳仔郁由 CSS 做(.m-open / .m-shut / .m-ear) */
+function PandaHead({ bow, starEyes, cap, umbrella, sweat, sleepy }: Omit<PandaProps, 'className'>) {
+  return (
+    <>
+      <ellipse className="m-ear l" cx="24" cy="20" rx="13" ry="15" fill={INK} />
+      <ellipse className="m-ear r" cx="76" cy="20" rx="13" ry="15" fill={INK} />
+      <circle cx="50" cy="55" r="38" fill="#fff" stroke={INK} strokeWidth="3" />
+      <ellipse cx="35" cy="50" rx="10" ry="13" fill={INK} />
+      <ellipse cx="65" cy="50" rx="10" ry="13" fill={INK} />
+      {!sleepy && (
+        <g className="m-open">
+          {starEyes ? (
+            <>
+              <path
+                d="M35 44 l1.6 3.4 3.7.4 -2.8 2.5 .9 3.6 -3.4-1.9 -3.4 1.9 .9-3.6 -2.8-2.5 3.7-.4z"
+                fill="#ffe27a"
+              />
+              <path
+                d="M65 44 l1.6 3.4 3.7.4 -2.8 2.5 .9 3.6 -3.4-1.9 -3.4 1.9 .9-3.6 -2.8-2.5 3.7-.4z"
+                fill="#ffe27a"
+              />
+            </>
+          ) : (
+            <>
+              <circle cx="37" cy="47" r="3.4" fill="#fff" />
+              <circle cx="67" cy="47" r="3.4" fill="#fff" />
+            </>
+          )}
+        </g>
+      )}
+      <g className={sleepy ? undefined : 'm-shut'}>
+        <path d="M30 49 q5 4 10 0" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round" />
+        <path d="M60 49 q5 4 10 0" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round" />
+      </g>
+      {sweat && <path d="M76 38 q-3 6 0 8 q3.5 2 4.5 -2 q0.5 -3.5 -4.5 -6z" fill="#8ecbff" />}
+      <ellipse cx="24" cy="68" rx="8" ry="6" fill="#ffb3d1" />
+      <ellipse cx="76" cy="68" rx="8" ry="6" fill="#ffb3d1" />
+      {sleepy ? (
+        <ellipse cx="50" cy="70" rx="3" ry="3.6" fill="none" stroke={INK} strokeWidth="2.4" />
+      ) : (
+        <path d="M43 68 q7 7 14 0" stroke={INK} strokeWidth="3" fill="none" strokeLinecap="round" />
+      )}
+      {cap && !umbrella && <CaptainCap dx={-10} />}
+      {bow && (
+        <g>
+          <path d="M66 10 l11 -6 v12 z" fill="#ff5fa2" />
+          <path d="M78 10 l11 6 v-12 z" fill="#ff5fa2" />
+          <circle cx="77.5" cy="10" r="3.4" fill="#ff8fc0" />
+        </g>
+      )}
       {umbrella && (
         <g>
           <path
@@ -27,39 +105,15 @@ export function PandaFace({ className = 'mascot', bow, starEyes, umbrella, sweat
           <path d="M50 4 v10" stroke="#f43f8e" strokeWidth="2.5" strokeLinecap="round" />
         </g>
       )}
-      <ellipse cx="24" cy="20" rx="13" ry="15" fill="#2e2a2c" />
-      <ellipse cx="76" cy="20" rx="13" ry="15" fill="#2e2a2c" />
-      <circle cx="50" cy="55" r="38" fill="#fff" stroke="#2e2a2c" strokeWidth="3" />
-      <ellipse cx="35" cy="50" rx="10" ry="13" fill="#2e2a2c" />
-      <ellipse cx="65" cy="50" rx="10" ry="13" fill="#2e2a2c" />
-      {starEyes ? (
-        <>
-          <path
-            d="M35 44 l1.6 3.4 3.7.4 -2.8 2.5 .9 3.6 -3.4-1.9 -3.4 1.9 .9-3.6 -2.8-2.5 3.7-.4z"
-            fill="#ffe27a"
-          />
-          <path
-            d="M65 44 l1.6 3.4 3.7.4 -2.8 2.5 .9 3.6 -3.4-1.9 -3.4 1.9 .9-3.6 -2.8-2.5 3.7-.4z"
-            fill="#ffe27a"
-          />
-        </>
-      ) : (
-        <>
-          <circle cx="37" cy="47" r="3.4" fill="#fff" />
-          <circle cx="67" cy="47" r="3.4" fill="#fff" />
-        </>
-      )}
-      {sweat && <path d="M76 38 q-3 6 0 8 q3.5 2 4.5 -2 q0.5 -3.5 -4.5 -6z" fill="#8ecbff" />}
-      <ellipse cx="24" cy="68" rx="8" ry="6" fill="#ffb3d1" />
-      <ellipse cx="76" cy="68" rx="8" ry="6" fill="#ffb3d1" />
-      <path d="M43 68 q7 7 14 0" stroke="#2e2a2c" strokeWidth="3" fill="none" strokeLinecap="round" />
-      {bow && (
-        <g>
-          <path d="M66 10 l11 -6 v12 z" fill="#ff5fa2" />
-          <path d="M78 10 l11 6 v-12 z" fill="#ff5fa2" />
-          <circle cx="77.5" cy="10" r="3.4" fill="#ff8fc0" />
-        </g>
-      )}
+      {sleepy && <Zzz x={80} y={30} />}
+    </>
+  )
+}
+
+export function PandaFace({ className = 'mascot', ...p }: PandaProps) {
+  return (
+    <svg className={`${className} m-live`} viewBox="0 0 100 100" aria-hidden="true">
+      <PandaHead {...p} />
     </svg>
   )
 }
@@ -68,26 +122,43 @@ interface BearProps {
   className?: string
   knight?: boolean // ⚔️ 14 日解鎖(原創太空騎士,非任何電影角色)
   medal?: boolean // 🏅 30 日解鎖
+  card?: boolean // 💳 10 日解鎖(原創可可卡,全身版先見到)
+  sweat?: boolean
+  sleepy?: boolean
 }
 
-export function BearFace({ className = 'mascot', knight, medal }: BearProps) {
+function BearHead({ knight, medal, sweat, sleepy }: Omit<BearProps, 'className' | 'card'>) {
   return (
-    <svg className={className} viewBox="0 0 100 100" aria-hidden="true">
-      <ellipse cx="24" cy="22" rx="14" ry="14" fill="#a9723f" />
-      <ellipse cx="76" cy="22" rx="14" ry="14" fill="#a9723f" />
-      <circle cx="24" cy="22" r="7" fill="#c89466" />
-      <circle cx="76" cy="22" r="7" fill="#c89466" />
+    <>
+      <g className="m-ear l">
+        <ellipse cx="24" cy="22" rx="14" ry="14" fill="#a9723f" />
+        <circle cx="24" cy="22" r="7" fill="#c89466" />
+      </g>
+      <g className="m-ear r">
+        <ellipse cx="76" cy="22" rx="14" ry="14" fill="#a9723f" />
+        <circle cx="76" cy="22" r="7" fill="#c89466" />
+      </g>
       {knight && <path d="M14 40 Q10 8 50 8 Q90 8 86 40 q-6 -14 -36 -14 q-30 0 -36 14z" fill="#5b4a36" />}
       <circle cx="50" cy="55" r="38" fill="#c89466" />
       <ellipse cx="50" cy="64" rx="20" ry="16" fill="#f0d8bd" />
-      <circle cx="36" cy="48" r="5" fill="#2e2a2c" />
-      <circle cx="64" cy="48" r="5" fill="#2e2a2c" />
-      <circle cx="37.5" cy="46.5" r="1.6" fill="#fff" />
-      <circle cx="65.5" cy="46.5" r="1.6" fill="#fff" />
-      <ellipse cx="50" cy="58" rx="5" ry="3.5" fill="#2e2a2c" />
-      <path d="M44 64 q6 5 12 0" stroke="#2e2a2c" strokeWidth="2.6" fill="none" strokeLinecap="round" />
+      {sleepy ? (
+        <>
+          <path d="M31 48 q5 4 10 0" stroke={INK} strokeWidth="2.6" fill="none" strokeLinecap="round" />
+          <path d="M59 48 q5 4 10 0" stroke={INK} strokeWidth="2.6" fill="none" strokeLinecap="round" />
+        </>
+      ) : (
+        <g className="m-blink">
+          <circle cx="36" cy="48" r="5" fill={INK} />
+          <circle cx="64" cy="48" r="5" fill={INK} />
+          <circle cx="37.5" cy="46.5" r="1.6" fill="#fff" />
+          <circle cx="65.5" cy="46.5" r="1.6" fill="#fff" />
+        </g>
+      )}
+      <ellipse cx="50" cy="58" rx="5" ry="3.5" fill={INK} />
+      <path d="M44 64 q6 5 12 0" stroke={INK} strokeWidth="2.6" fill="none" strokeLinecap="round" />
       <ellipse cx="28" cy="60" rx="6.5" ry="4.5" fill="#ff9ec4" />
       <ellipse cx="72" cy="60" rx="6.5" ry="4.5" fill="#ff9ec4" />
+      {sweat && <path d="M78 34 q-3 6 0 8 q3.5 2 4.5 -2 q0.5 -3.5 -4.5 -6z" fill="#8ecbff" />}
       {knight && (
         <g>
           <rect x="88" y="52" width="4" height="9" rx="1.5" fill="#777" />
@@ -101,6 +172,62 @@ export function BearFace({ className = 'mascot', knight, medal }: BearProps) {
           <circle cx="50" cy="93" r="6" fill="#ffd34d" stroke="#e0a800" strokeWidth="1.5" />
         </g>
       )}
+      {sleepy && <Zzz x={80} y={30} />}
+    </>
+  )
+}
+
+export function BearFace({ className = 'mascot', card: _card, ...p }: BearProps) {
+  return (
+    <svg className={`${className} m-live`} viewBox="0 0 100 100" aria-hidden="true">
+      <BearHead {...p} />
+    </svg>
+  )
+}
+
+/** 全身熊貓(歡迎頁):身體 + 揮手(.m-wave,入畫面揮兩下) */
+export function PandaBody({ className = 'mascot body', ...p }: PandaProps) {
+  return (
+    <svg className={`${className} m-live`} viewBox="-10 -10 140 170" aria-hidden="true">
+      <ellipse cx="60" cy="152" rx="28" ry="5" fill="rgba(0,0,0,.1)" />
+      <ellipse cx="46" cy="143" rx="11" ry="8" fill={INK} />
+      <ellipse cx="74" cy="143" rx="11" ry="8" fill={INK} />
+      <ellipse cx="60" cy="116" rx="30" ry="28" fill="#fff" stroke={INK} strokeWidth="3" />
+      <ellipse cx="60" cy="121" rx="15" ry="13" fill="#fff4f8" />
+      <ellipse cx="29" cy="116" rx="9" ry="15" transform="rotate(20 29 116)" fill={INK} />
+      <g className="m-wave r">
+        <ellipse cx="91" cy="116" rx="9" ry="15" transform="rotate(-20 91 116)" fill={INK} />
+      </g>
+      <g transform="translate(10 0)">
+        <PandaHead {...p} cap={false} />
+      </g>
+      {p.cap && !p.umbrella && <CaptainCap />}
+    </svg>
+  )
+}
+
+/** 全身啡熊:左手揮手;解鎖咗可可卡就拎住張卡 */
+export function BearBody({ className = 'mascot body', card, ...p }: BearProps) {
+  return (
+    <svg className={`${className} m-live`} viewBox="-10 -10 140 170" aria-hidden="true">
+      <ellipse cx="60" cy="152" rx="28" ry="5" fill="rgba(0,0,0,.1)" />
+      <ellipse cx="46" cy="143" rx="11" ry="8" fill="#8f5d31" />
+      <ellipse cx="74" cy="143" rx="11" ry="8" fill="#8f5d31" />
+      <ellipse cx="60" cy="116" rx="30" ry="28" fill="#c89466" />
+      <ellipse cx="60" cy="121" rx="17" ry="15" fill="#f0d8bd" />
+      <g className="m-wave l">
+        <ellipse cx="29" cy="116" rx="9" ry="15" transform="rotate(20 29 116)" fill="#a9723f" />
+      </g>
+      <ellipse cx="91" cy="116" rx="9" ry="15" transform="rotate(-20 91 116)" fill="#a9723f" />
+      {card && (
+        <g transform="rotate(12 96 128)">
+          <rect x="86" y="122" width="22" height="14" rx="3" fill="#ff8fc0" stroke="#fff" strokeWidth="1.5" />
+          <path d="M94 127 q2 -2.5 3 0 q1 -2.5 3 0 q0 2 -3 4 q-3 -2 -3 -4z" fill="#fff" />
+        </g>
+      )}
+      <g transform="translate(10 0)">
+        <BearHead {...p} />
+      </g>
     </svg>
   )
 }
@@ -181,14 +308,20 @@ export function MascotWelcome({ title, sub }: { title: string; sub: string }) {
         🌸
       </span>
       <div className="mascot-pair">
-        <PandaFace
-          className="mascot a"
+        <PandaBody
+          className="mascot body a"
           bow={un.includes('bow')}
           starEyes={un.includes('star')}
+          cap={un.includes('cap')}
           umbrella={mood.umbrella}
           sweat={mood.sweat}
         />
-        <BearFace className="mascot b" knight={un.includes('knight')} medal={un.includes('gold')} />
+        <BearBody
+          className="mascot body b"
+          knight={un.includes('knight')}
+          medal={un.includes('gold')}
+          card={un.includes('card')}
+        />
       </div>
       <div className="welcome-title">{title}</div>
       <div className="welcome-sub">{sub}</div>
@@ -215,6 +348,7 @@ export function MascotGreeting() {
           className="mascot greet-face a"
           bow={un.includes('bow')}
           starEyes={un.includes('star')}
+          cap={un.includes('cap')}
           umbrella={mood.umbrella}
           sweat={mood.sweat}
         />

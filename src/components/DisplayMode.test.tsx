@@ -102,6 +102,28 @@ describe('DisplayMode', () => {
     })
   })
 
+  describe('公仔', () => {
+    it('有車 1 分鐘內到:公仔跳;車走咗就停', async () => {
+      localStorage.setItem('kmb.favorites', JSON.stringify([FAV]))
+      getEta.mockResolvedValue([eta(T0 + 50_000)])
+      render(<DisplayMode onExit={() => {}} />)
+      await flush()
+      const pair = () => document.querySelector('.dm-pair') as HTMLElement
+      expect(pair().classList.contains('hop')).toBe(true)
+      expect(document.querySelector('.m-zzz')).toBeNull() // 朝早 8 點唔眼瞓
+      getEta.mockResolvedValue([eta(T0 + 20 * 60_000)])
+      await advance(10_000)
+      expect(pair().classList.contains('hop')).toBe(false)
+    })
+
+    it('夜晚冇車就到:眼瞓(Zzz)', async () => {
+      vi.setSystemTime(new Date(2026, 8, 25, 22, 0)) // 本地時間(isNight 用 getHours)
+      render(<DisplayMode onExit={() => {}} />)
+      await flush()
+      expect(document.querySelectorAll('.dm-pair .m-zzz')).toHaveLength(2)
+    })
+  })
+
   describe('ETA rows', () => {
     it('counts down, dims after failed refreshes, and keeps 最後更新 at the last success', async () => {
       localStorage.setItem('kmb.favorites', JSON.stringify([FAV]))

@@ -9,7 +9,9 @@ const KEY = 'kkcx.stamps'
 
 export const MILESTONES = [
   { at: 3, id: 'bow', label: '蝴蝶結熊貓', emoji: '🎀' },
+  { at: 5, id: 'cap', label: '車長帽熊貓', emoji: '🧢' },
   { at: 7, id: 'star', label: '星星眼熊貓', emoji: '✨' },
+  { at: 10, id: 'card', label: '可可卡啡熊', emoji: '💳' },
   { at: 14, id: 'knight', label: '太空騎士熊', emoji: '⚔️' },
   { at: 30, id: 'gold', label: '金牌熊貓', emoji: '🏅' },
 ] as const
