@@ -27,6 +27,8 @@ interface Props {
   route: Route
   stops: MapStop[]
   focusStopId?: string
+  /** 用家位置(自動搵最近站時先有):地圖上面一粒藍點 */
+  userPos?: { lat: number; lng: number }
 }
 
 const ETA_REFRESH_MS = 30_000
@@ -37,6 +39,7 @@ const LINE_STYLE: PathOptions = { color: '#b91c1c', weight: 5, opacity: 0.85 }
 const STOP_STYLE: PathOptions = { color: '#fff', weight: 2, fillColor: '#b91c1c', fillOpacity: 1 }
 const STOP_STYLE_ON: PathOptions = { ...STOP_STYLE, fillColor: '#f59e0b' }
 const PLACEHOLDER_STYLE = { display: 'grid', placeItems: 'center' } as const
+const USER_STYLE: PathOptions = { color: '#fff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }
 
 // 揀咗站就 zoom 去該站;否則 fit 成條路線(減少動態效果就唔好飛)
 function MapFocus({
@@ -132,7 +135,7 @@ function disclaimerOf(co: Route['co']): string {
   return '🚌 此營辦商未提供全線到站,只顯示路線同車站'
 }
 
-export default function RouteMap({ route, stops, focusStopId }: Props) {
+export default function RouteMap({ route, stops, focusStopId, userPos }: Props) {
   const [line, setLine] = useState<Feature<LineString> | null>(null)
   const [source, setSource] = useState<'real' | 'osrm' | 'straight'>('real')
   const [etaBySeq, setEtaBySeq] = useState<Map<number, number> | null>(null)
@@ -276,6 +279,9 @@ export default function RouteMap({ route, stops, focusStopId }: Props) {
           <MapFocus bounds={bounds} focus={focus} />
           <Polyline positions={positions} pathOptions={LINE_STYLE} />
           <StopMarkers stops={stops} focusStopId={focusStopId} />
+          {userPos && (
+            <CircleMarker center={[userPos.lat, userPos.lng]} radius={7} pathOptions={USER_STYLE} />
+          )}
           {etaBySeq && etaBySeq.size > 0 && snapped.length > 0 && (
             <BusLayer line={line} snapped={snapped} etaBySeq={etaBySeq} />
           )}

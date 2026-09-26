@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getRouteStops, coLabel, coClass, routeKeyOf, sameRoute, type Route } from '../api/bus'
 import { getFavorites, sameFav, toggleFavorite, type Favorite } from '../lib/store'
 import EtaPanel from './EtaPanel'
@@ -11,8 +11,23 @@ import { getAlarm, startAlarm, stopAlarm, subscribeAlarm } from '../lib/alarm'
 import { primeAudio, askNotify } from '../lib/chime'
 import { friendlyError } from '../lib/http'
 import { zhErrorOr } from '../lib/errorText'
-import { pickCounterpartStop, pickReverseVariant, type StopHint } from '../lib/stopMatch'
+import {
+  AUTO_NEAREST_MAX_M,
+  nearestBoardingStop,
+  pickCounterpartStop,
+  pickReverseVariant,
+  type StopHint,
+} from '../lib/stopMatch'
 import { scrollBehavior } from '../lib/motion'
+import {
+  describeGeoError,
+  formatDistance,
+  geoPermission,
+  getRecentFix,
+  isGeoDenied,
+  type LatLngFix,
+} from '../lib/geo'
+import { autoNearestOn } from '../lib/autoNearest'
 
 // 地圖(Leaflet)按需載入,搜尋首屏唔使孭住成個地圖庫
 const RouteMap = lazyRetry(() => import('./RouteMap'))
@@ -35,6 +50,19 @@ interface Props {
 
 /** 載完嘅站列 / 錯誤,連埋屬於邊條線(換線嗰下唔會用錯舊線嘅站) */
 type Loaded = { id: string; rows: StopRow[] } | { id: string; error: string }
+
+/** 「最近你嘅站」:搵緊 / 已經打開 / 太遠淨係提示 / 畀個掣自己撳(設定閂咗或者定位失敗) */
+interface NearStop {
+  stopId: string
+  seq: string
+  name: string
+  d: number
+}
+type Near =
+  | { kind: 'locating' }
+  | ({ kind: 'opened' } & NearStop)
+  | ({ kind: 'far' } & NearStop)
+  | { kind: 'offer'; error?: string }
 
 const NO_STOPS: StopRow[] = []
 const routeIdOf = (r: Route): string => `${routeKeyOf(r)}|${r.uid ?? ''}`
@@ -91,7 +119,16 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
   const [alarmStopId, setAlarmStopId] = useState<string | null>(getAlarm()?.stopId ?? null)
   const headRef = useRef<HTMLHeadingElement>(null)
   const scrolledFor = useRef<string | null>(null)
+  // 最近你嘅站:狀態連埋屬於邊條線;每條線自動搵一次;搵到先捲(等打開咗嗰行 render 咗)
+  const [nearState, setNearState] = useState<{ id: string; v: Near } | null>(null)
+  const [userPos, setUserPos] = useState<LatLngFix | null>(null)
+  const nearTried = useRef<string | null>(null)
+  const pendingScroll = useRef(false)
+  // 定位返嚟嗰陣要知「而家」睇緊邊條線、用家有冇自己揀咗站(async 入面唔可以靠 closure)
+  const routeIdRef = useRef(routeId)
+  const openStopRef = useRef<string | null>(openStop)
 
+  const near = nearState && nearState.id === routeId ? nearState.v : null
   const current = loaded && loaded.id === routeId ? loaded : null
   const stops = current && 'rows' in current ? current.rows : NO_STOPS
   const error = current && 'error' in current ? current.error : null
@@ -190,6 +227,75 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
       document.getElementById(openDomId)?.scrollIntoView?.({ block: 'center', behavior: scrollBehavior() })
     })
   }, [stops, openDomId, routeId])
+
+  useEffect(() => {
+    routeIdRef.current = routeId
+    openStopRef.current = openStop
+  }, [routeId, openStop])
+
+  // 打開某個站並捲過去(自動 / 撳「最近你」提示都用)
+  const openNearStop = useCallback((n: NearStop) => {
+    pendingScroll.current = true
+    setOpenStop(n.stopId)
+    setOpenRowSeq(n.seq)
+  }, [])
+
+  // 定位 → 揀最近、上得車嘅站。force = 用家撳掣(照開,唔理遠近同有冇揀咗站)
+  const locateNearest = useCallback(
+    async (id: string, rows: StopRow[], force: boolean) => {
+      setNearState({ id, v: { kind: 'locating' } })
+      try {
+        const fix = await getRecentFix(force ? 30_000 : 120_000)
+        if (routeIdRef.current !== id) return
+        setUserPos(fix)
+        const hit = nearestBoardingStop(rows, fix)
+        // 等定位嗰陣用家自己揀咗站:唔好搶
+        if (!hit || (!force && openStopRef.current != null)) {
+          setNearState(null)
+          return
+        }
+        const row = rows[hit.index]
+        const n: NearStop = { stopId: row.stopId, seq: row.seq, name: row.name, d: hit.distance }
+        if (force || hit.distance <= AUTO_NEAREST_MAX_M) {
+          openNearStop(n)
+          setNearState({ id, v: { kind: 'opened', ...n } })
+        } else {
+          setNearState({ id, v: { kind: 'far', ...n } })
+        }
+      } catch (e) {
+        if (routeIdRef.current !== id) return
+        // 自動嗰次俾人拒絕定位就收聲(唔好次次開線都煩);其他情況畀個掣再試
+        if (!force && isGeoDenied(e)) setNearState(null)
+        else setNearState({ id, v: { kind: 'offer', error: force ? describeGeoError(e) : undefined } })
+      }
+    },
+    [openNearStop],
+  )
+
+  // 由搜尋開線(冇預選站、冇由對面方向帶站過嚟):站列一載完就自動打開離你最近嘅站
+  useEffect(() => {
+    if (stops.length === 0 || nearTried.current === routeId) return
+    nearTried.current = routeId
+    if (openStop) return
+    if (!autoNearestOn()) {
+      setNearState({ id: routeId, v: { kind: 'offer' } })
+      return
+    }
+    const id = routeId
+    void geoPermission().then((perm) => {
+      if (perm === 'denied' || routeIdRef.current !== id) return
+      void locateNearest(id, stops, false)
+    })
+  }, [routeId, stops, openStop, locateNearest])
+
+  // 自動 / 手動打開咗最近嘅站:等嗰行 render 咗先捲到畫面中間
+  useEffect(() => {
+    if (!pendingScroll.current || !openDomId) return
+    pendingScroll.current = false
+    requestAnimationFrame(() => {
+      document.getElementById(openDomId)?.scrollIntoView?.({ block: 'center', behavior: scrollBehavior() })
+    })
+  }, [openDomId])
 
   const sortedVariants = useMemo(
     () =>
@@ -314,6 +420,50 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
         </div>
       )}
 
+      {near && (
+        <div className="near-hint" role="status">
+          {near.kind === 'locating' && (
+            <span className="muted small">
+              <span aria-hidden="true">📍 </span>搵緊離你最近嘅站…
+            </span>
+          )}
+          {near.kind === 'opened' && (
+            <button type="button" className="near-chip" onClick={() => openNearStop(near)}>
+              <span aria-hidden="true">📍 </span>最近你:{near.name} · 約 {formatDistance(near.d)}
+            </button>
+          )}
+          {near.kind === 'far' && (
+            <>
+              <span className="muted small">
+                <span aria-hidden="true">📍 </span>你附近冇呢條線嘅站(最近:{near.name} ·{' '}
+                {formatDistance(near.d)})
+              </span>
+              <button
+                type="button"
+                className="preset-chip"
+                style={CHIP44_STYLE}
+                onClick={() => openNearStop(near)}
+              >
+                打開
+              </button>
+            </>
+          )}
+          {near.kind === 'offer' && (
+            <>
+              <button
+                type="button"
+                className="preset-chip"
+                style={CHIP44_STYLE}
+                onClick={() => void locateNearest(routeId, stops, true)}
+              >
+                <span aria-hidden="true">📍 </span>搵最近我嘅站
+              </button>
+              {near.error && <span className="muted small">{near.error}</span>}
+            </>
+          )}
+        </div>
+      )}
+
       {loading && (
         <div className="muted pad" role="status">
           載入車站…
@@ -355,7 +505,12 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
             </div>
           }
         >
-          <RouteMap route={dataRoute} stops={mapStops} focusStopId={openStop ?? undefined} />
+          <RouteMap
+            route={dataRoute}
+            stops={mapStops}
+            focusStopId={openStop ?? undefined}
+            userPos={userPos ?? undefined}
+          />
         </Suspense>
       )}
 

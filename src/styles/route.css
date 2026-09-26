@@ -254,3 +254,32 @@
 .bell {
   opacity: 0.7;
 }
+
+/* 📍 最近你嘅站(自動打開 / 太遠提示 / 手動掣) */
+.near-hint {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin: 2px 0 10px;
+  min-height: 24px;
+}
+.near-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--accent-text);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+.near-chip:hover {
+  border-color: var(--accent-text);
+}

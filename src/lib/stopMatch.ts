@@ -58,6 +58,36 @@ export function pickCounterpartStop(stops: StopLike[], hint: StopHint, maxM = MA
   return (bestSame ?? bestAny)?.id ?? null
 }
 
+/** 自動打開最近站嘅上限:再遠即係你唔喺呢條線附近,淨係提示唔自動跳 */
+export const AUTO_NEAREST_MAX_M = 1000
+
+export interface NearestStop {
+  /** 站列入面第幾行(循環線同一個站出現兩次,要知係邊行) */
+  index: number
+  stopId: string
+  /** 米 */
+  distance: number
+}
+
+/**
+ * 離 pos 最近、上得車嘅站。最後一個站淨係落客(冇車由佢開出)唔計;循環線尾站同頭站一樣,
+ * 咁就揀頭站(開出嗰個)。冇座標嘅站跳過;距離一樣揀站序較前。冇合適就 null。
+ */
+export function nearestBoardingStop(
+  stops: StopLike[],
+  pos: { lat: number; lng: number },
+): NearestStop | null {
+  if (!hasCoord(pos.lat, pos.lng)) return null
+  const last = stops.length > 1 ? stops.length - 1 : -1
+  let best: NearestStop | null = null
+  stops.forEach((s, i) => {
+    if (i === last || !hasCoord(s.lat, s.lng)) return
+    const d = distanceMeters(pos.lat, pos.lng, s.lat, s.lng)
+    if (!best || d < best.distance) best = { index: i, stopId: s.stopId, distance: d }
+  })
+  return best
+}
+
 type VariantLike = Pick<Route, 'co' | 'bound' | 'service_type' | 'orig_tc' | 'dest_tc' | 'uid'>
 
 /**

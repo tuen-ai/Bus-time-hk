@@ -51,6 +51,14 @@ function watch(timeoutMs: number, maxAgeMs: number): Promise<GeolocationPosition
   })
 }
 
+export interface LatLngFix {
+  lat: number
+  lng: number
+}
+
+// 最近一次成功定位(記憶體):連續開幾條線唔使次次等 GPS
+let lastFix: (LatLngFix & { at: number }) | null = null
+
 export interface PositionOpts {
   /** 最舊接受幾耐之前嘅瀏覽器快取位置(ms),預設 10 分鐘。「附近」要而家嘅位置就畀細啲 */
   maxAgeMs?: number
@@ -63,11 +71,39 @@ export interface PositionOpts {
  */
 export async function getPosition({ maxAgeMs = 600_000 }: PositionOpts = {}): Promise<GeolocationPosition> {
   if (!('geolocation' in navigator)) throw new Error('此裝置不支援定位')
+  let pos: GeolocationPosition
   try {
-    return await once({ enableHighAccuracy: false, timeout: 9000, maximumAge: maxAgeMs })
+    pos = await once({ enableHighAccuracy: false, timeout: 9000, maximumAge: maxAgeMs })
   } catch (e) {
     if (isGeoDenied(e)) throw e
-    return await watch(35000, maxAgeMs)
+    pos = await watch(35000, maxAgeMs)
+  }
+  lastFix = { lat: pos.coords.latitude, lng: pos.coords.longitude, at: Date.now() }
+  return pos
+}
+
+/** maxAgeMs 內定過位就即刻用返;否則照 getPosition(同樣接受 maxAgeMs 內嘅瀏覽器快取) */
+export async function getRecentFix(maxAgeMs = 120_000): Promise<LatLngFix> {
+  if (lastFix && Date.now() - lastFix.at < maxAgeMs) return { lat: lastFix.lat, lng: lastFix.lng }
+  const p = await getPosition({ maxAgeMs })
+  return { lat: p.coords.latitude, lng: p.coords.longitude }
+}
+
+/** 測試用:清走記憶體定位 */
+export function _resetGeoForTests(): void {
+  lastFix = null
+}
+
+/**
+ * 定位權限狀態,用嚟決定可唔可以喺背景自動定位(拒絕咗就唔好再試,免得煩)。
+ * 舊 iOS 冇 Permissions API → 'unknown'(照試,第一次會問)。
+ */
+export async function geoPermission(): Promise<PermissionState | 'unknown'> {
+  try {
+    const st = await navigator.permissions?.query({ name: 'geolocation' as PermissionName })
+    return st?.state ?? 'unknown'
+  } catch {
+    return 'unknown'
   }
 }
 

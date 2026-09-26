@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { Route } from '../api/bus'
-import { MATCH_RADIUS_M, normStopName, pickCounterpartStop, pickReverseVariant } from './stopMatch'
+import {
+  AUTO_NEAREST_MAX_M,
+  MATCH_RADIUS_M,
+  nearestBoardingStop,
+  normStopName,
+  pickCounterpartStop,
+  pickReverseVariant,
+} from './stopMatch'
 
 // 0.001 度緯度 ≈ 111 米
 const LAT = 22.3
@@ -107,5 +114,47 @@ describe('pickReverseVariant', () => {
     expect(pickReverseVariant(here, [here, otherArea])).toBeNull()
     const mine = g('I', 'u1', '坑口', '西貢')
     expect(pickReverseVariant(here, [otherArea, mine, here])).toBe(mine)
+  })
+})
+
+describe('nearestBoardingStop', () => {
+  const me = { lat: LAT, lng: LNG }
+
+  it('揀最近嘅站,回傳站列位置同距離', () => {
+    const stops = [at('a', '甲', 900), at('b', '乙', 120), at('c', '丙', -400), at('z', '總站', 2000)]
+    const hit = nearestBoardingStop(stops, me)
+    expect(hit?.stopId).toBe('b')
+    expect(hit?.index).toBe(1)
+    expect(hit?.distance).toBeGreaterThan(110)
+    expect(hit?.distance).toBeLessThan(130)
+  })
+
+  it('最後一個站淨係落客,唔計(企喺總站都揀前一個)', () => {
+    const stops = [at('a', '甲', 800), at('b', '乙', 300), at('end', '總站', 0)]
+    expect(nearestBoardingStop(stops, me)?.stopId).toBe('b')
+  })
+
+  it('循環線:頭尾同一個站 → 揀頭站(開出嗰行)', () => {
+    const stops = [at('loop', '總站', 0), at('m', '中途', 700), at('loop', '總站', 0)]
+    expect(nearestBoardingStop(stops, me)?.index).toBe(0)
+  })
+
+  it('得一個站照揀;冇座標(城巴站資料攞唔到 = 0)跳過', () => {
+    expect(nearestBoardingStop([at('only', '獨站', 50)], me)?.stopId).toBe('only')
+    const stops = [
+      { stopId: 'x', name: '冇座標', lat: 0, lng: 0 },
+      at('y', '有座標', 600),
+      at('end', '總站', 900),
+    ]
+    expect(nearestBoardingStop(stops, me)?.stopId).toBe('y')
+  })
+
+  it('冇站 / 位置無效 → null', () => {
+    expect(nearestBoardingStop([], me)).toBeNull()
+    expect(nearestBoardingStop([at('a', '甲', 10), at('b', '乙', 20)], { lat: NaN, lng: LNG })).toBeNull()
+  })
+
+  it('自動打開上限係 1 公里', () => {
+    expect(AUTO_NEAREST_MAX_M).toBe(1000)
   })
 })
