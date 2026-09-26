@@ -1,0 +1,20 @@
+{
+  "name": "kkcx-video",
+  "private": true,
+  "type": "module",
+  "description": "可可出行公仔 / UI 動畫預覽片(Remotion)。唔屬於 app build,要自己喺呢個資料夾 npm install。",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts KokoPreview out/koko-preview.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.529",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.529"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.31",
+    "typescript": "7.0.2"
+  }
+}

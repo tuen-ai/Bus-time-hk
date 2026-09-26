@@ -7,7 +7,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import globals from 'globals'
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'node_modules/**', 'public/geom/**', 'public/tsm/**'] },
+  { ignores: ['dist/**', 'node_modules/**', 'public/geom/**', 'public/tsm/**', 'video/**'] },
 
   // ---- app 原始碼 ----
   {
