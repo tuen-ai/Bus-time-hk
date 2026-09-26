@@ -14,7 +14,7 @@ import { useEffect, useRef } from 'react'
 //   pushState / go() 撞車。
 // - 深度存喺 history.state.kkcxNav,唔靠自己數,所以就算用戶前進/後退幾格都對得返。
 // - locked 層(門口顯示模式)撳返回唔會退出,只會補返一個 entry + 彈鎖定提示。
-// - 鍵盤 Esc = 關最上面嗰層(設定 / 路線 / 揀地點 / 小屏推送);locked 層同 escape:false 層唔理,
+// - 鍵盤 Esc = 關最上面嗰層(設定 / 路線 / 揀地點);locked 層同 escape:false 層唔理,
 //   撳住唔放嘅自動連發亦唔理(一下關一層)。
 //   直接 close(),之後照「app 自己閂層」路線 go(-1) 對齊 history。
 

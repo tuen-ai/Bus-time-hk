@@ -41,8 +41,6 @@ const PlannerView = lazyRetry(loadPlanner)
 const MtrView = lazyRetry(loadMtr)
 const BackupPanel = lazyRetry(loadBackup)
 const DisplayMode = lazyRetry(() => import('./components/DisplayMode'))
-// 藍牙小屏推送:只揀開先載(Web Bluetooth,唔加重首屏)
-const ClockPush = lazyRetry(() => import('./components/ClockPush'))
 
 type Tab = 'search' | 'nearby' | 'mtr' | 'plan'
 
@@ -136,13 +134,6 @@ export default function App() {
     setShowDisplay(false)
   }
 
-  // 🖥️ 藍牙小屏推送(SKD-CLOCK)
-  const [showClock, setShowClock] = useState(false)
-  const enterClock = () => {
-    setShowBackup(false)
-    setShowClock(true)
-  }
-
   // #display(開 app 時 / 開住時撳主畫面書籤)→ 轉做 localStorage 記住,再即刻清走 hash
   useEffect(() => {
     const take = () => {
@@ -199,11 +190,10 @@ export default function App() {
   useBackLayer(tab !== 'search', () => setTab('search'), { escape: false })
   useBackLayer(selected !== null, () => setSelected(null))
   useBackLayer(showBackup, () => setShowBackup(false))
-  useBackLayer(showClock, () => setShowClock(false))
 
-  // 設定 / 小屏推送閂返 → 焦點返去 ⚙️(鍵盤唔會跌去 body)
+  // 設定閂返 → 焦點返去 ⚙️(鍵盤唔會跌去 body)
   const gearRef = useRef<HTMLButtonElement>(null)
-  const overlayOpen = showBackup || showClock
+  const overlayOpen = showBackup
   const wasOverlay = useRef(false)
   useEffect(() => {
     if (wasOverlay.current && !overlayOpen && !showDisplay) gearRef.current?.focus({ preventScroll: true })
@@ -485,16 +475,7 @@ export default function App() {
       <AlertBanners />
       {showBackup && (
         <Suspense fallback={null}>
-          <BackupPanel
-            onClose={() => setShowBackup(false)}
-            onEnterDisplay={enterDisplay}
-            onEnterClock={enterClock}
-          />
-        </Suspense>
-      )}
-      {showClock && (
-        <Suspense fallback={null}>
-          <ClockPush onExit={() => setShowClock(false)} />
+          <BackupPanel onClose={() => setShowBackup(false)} onEnterDisplay={enterDisplay} />
         </Suspense>
       )}
 

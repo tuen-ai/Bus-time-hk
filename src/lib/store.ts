@@ -78,7 +78,7 @@ const FAV_KEY = 'kmb.favorites'
 
 type FavKeyLike = Pick<Favorite, 'co' | 'route' | 'bound' | 'serviceType' | 'stopId' | 'uid'>
 
-/** 收藏唯一身份(React key / ETA map / 步行時間 / 藍牙揀選)。冇 uid 嘅舊收藏 key 同以前一字不差 */
+/** 收藏唯一身份(React key / ETA map / 步行時間 / 顯示排序)。冇 uid 嘅舊收藏 key 同以前一字不差 */
 export const favKey = (f: FavKeyLike) =>
   `${f.co}|${f.route}|${f.bound}|${f.serviceType}|${f.stopId}${f.uid ? `|${f.uid}` : ''}`
 

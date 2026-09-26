@@ -1,5 +1,5 @@
 // 港鐵收藏(綫 + 站 + 方向)同鐵路頁「上次揀嘅綫 / 站」:純本機 localStorage,入備份。
-// 刻意唔塞入巴士收藏(store.ts 嘅 Co / favKey / 顯示模式 / 藍牙小屏都靠嗰邊),自己一個細 store。
+// 刻意唔塞入巴士收藏(store.ts 嘅 Co / favKey / 顯示模式都靠嗰邊),自己一個細 store。
 // 呢個檔要 import 站表(mtrData)驗證 → 首屏唔好直接用;首頁 / App 用 mtrFavsStore(輕)。
 import type { StationSchedule, TrainArrival } from '../api/mtr'
 import { getLine, stationNameTc } from './mtrData'

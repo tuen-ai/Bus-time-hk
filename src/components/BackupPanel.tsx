@@ -11,11 +11,9 @@ import { autoNearestOn, setAutoNearest } from '../lib/autoNearest'
 export default function BackupPanel({
   onClose,
   onEnterDisplay,
-  onEnterClock,
 }: {
   onClose: () => void
   onEnterDisplay?: () => void
-  onEnterClock?: () => void
 }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
@@ -205,18 +203,6 @@ export default function BackupPanel({
                   maxLength={20}
                   onChange={(e) => saveQp({ mode: 'custom', q: qp.q, by: e.target.value })}
                 />
-              </>
-            )}
-            {onEnterClock && (
-              <>
-                <hr style={{ border: 'none', borderTop: '1px solid var(--line)' }} />
-                <button className="primary-btn full" onClick={onEnterClock}>
-                  <span aria-hidden="true">🖥️ </span>推送去藍牙小屏(SKD-CLOCK)
-                </button>
-                <p className="muted small">
-                  將收藏路線到站畫成圖,推去你部藍牙 e-ink 小屏,每分鐘自動更新。 用桌面/安卓 Chrome 或 Edge
-                  開至連到(iPhone/iPad 需要 Bluefy 瀏覽器)。
-                </p>
               </>
             )}
             <hr style={{ border: 'none', borderTop: '1px solid var(--line)' }} />

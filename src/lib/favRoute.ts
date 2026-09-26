@@ -1,4 +1,4 @@
-// 收藏 → Route / ETA 分鐘:以前 Favorites、DisplayMode、ClockPush 各自抄一份,已經開始唔一致。
+// 收藏 → Route / ETA 分鐘:以前 Favorites、DisplayMode 各自抄一份,已經開始唔一致。
 import type { Eta, Route } from '../api/bus'
 import type { Favorite } from './store'
 import { minutesUntil } from './time'
