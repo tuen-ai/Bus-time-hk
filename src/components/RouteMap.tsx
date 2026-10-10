@@ -138,16 +138,19 @@ function disclaimerOf(co: Route['co']): string {
 
 export default function RouteMap({ route, stops, focusStopId, userPos }: Props) {
   const [line, setLine] = useState<Feature<LineString> | null>(null)
-  const [source, setSource] = useState<'real' | 'osrm' | 'straight'>('real')
+  const [source, setSource] = useState<'real' | 'osrm' | 'straight'>('straight')
   const [etaBySeq, setEtaBySeq] = useState<Map<number, number> | null>(null)
   // 手機 / 平板(手指為主):單指留畀頁面捲動,兩隻手指先移動 / 縮放地圖;MapContainer 只睇第一次 render
   const [touch] = useState(isTouchMap)
 
-  // 載入路線幾何(真實 → fallback 直線)
+  // 即時站對站直線:地圖唔使等幾何就出得
+  const provisional = useMemo(() => lineFromStops(stops), [stops])
+
+  // 背景升級路線幾何(真實 → OSRM);失敗就繼續用 provisional
   useEffect(() => {
     let alive = true
     ;(async () => {
-      // 三層後備:真實幾何 → OSRM 道路 snap → 站對站直線
+      // 真實幾何 → OSRM 道路 snap;失敗唔 setLine,留 null 用 provisional
       const real = await loadRouteLine(route.co, route.route, route.bound, route.service_type)
       if (!alive) return
       if (real) {
@@ -155,24 +158,24 @@ export default function RouteMap({ route, stops, focusStopId, userPos }: Props) 
         setSource('real')
         return
       }
-      // 輕鐵唔好用 OSRM(行車道路)snap,直接站對站直線
+      // 輕鐵唔好用 OSRM(行車道路)snap
       const osrm = route.co === 'lrt' ? null : await lineFromOsrm(stops)
       if (!alive) return
       if (osrm) {
         setLine(osrm)
         setSource('osrm')
-      } else {
-        setLine(lineFromStops(stops))
-        setSource('straight')
       }
+      // else: leave line null → displayLine uses provisional
     })()
     return () => {
       alive = false
     }
   }, [route, stops])
 
+  const displayLine = line ?? provisional
+
   // 線一準備好就 snap 各站(只計一次)
-  const snapped = useMemo<SnappedStop[]>(() => (line ? snapStops(line, stops) : []), [line, stops])
+  const snapped = useMemo<SnappedStop[]>(() => (displayLine ? snapStops(displayLine, stops) : []), [displayLine, stops])
 
   // 每 30 秒 fetch route-eta → 建立 seq→到站時間(只有九巴有全線 ETA;背景分頁暫停)
   const etaSeq = useRef(0)
@@ -201,8 +204,11 @@ export default function RouteMap({ route, stops, focusStopId, userPos }: Props) 
   )
 
   const positions = useMemo<[number, number][]>(
-    () => (line ? line.geometry.coordinates.map((c) => [c[1], c[0]] as [number, number]) : []),
-    [line],
+    () =>
+      displayLine
+        ? displayLine.geometry.coordinates.map((c) => [c[1], c[0]] as [number, number])
+        : [],
+    [displayLine],
   )
   const bounds = useMemo<LatLngBoundsExpression | null>(
     () => (positions.length ? positions : null),
@@ -252,8 +258,8 @@ export default function RouteMap({ route, stops, focusStopId, userPos }: Props) 
   const disclaimer = disclaimerOf(route.co)
   const touchHint = touch ? ` · ${TOUCH_MAP_HINT}` : ''
 
-  // 未有線:佔返地圖一樣高,下面站列唔會突然跳(Safari 冇 scroll anchoring)
-  if (!line)
+  // 未有線(少過 2 個站):佔返地圖一樣高,下面站列唔會突然跳(Safari 冇 scroll anchoring)
+  if (!displayLine)
     return (
       <div className="route-map-wrap">
         <div className="map muted" style={PLACEHOLDER_STYLE} role="status">
@@ -284,7 +290,7 @@ export default function RouteMap({ route, stops, focusStopId, userPos }: Props) 
             <CircleMarker center={[userPos.lat, userPos.lng]} radius={7} pathOptions={USER_STYLE} />
           )}
           {etaBySeq && etaBySeq.size > 0 && snapped.length > 0 && (
-            <BusLayer line={line} snapped={snapped} etaBySeq={etaBySeq} />
+            <BusLayer line={displayLine} snapped={snapped} etaBySeq={etaBySeq} />
           )}
         </MapContainer>
         {incidents > 0 && (
