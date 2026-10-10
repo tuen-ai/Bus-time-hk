@@ -17,8 +17,8 @@ import { fetchWithTimeout } from './http'
 const BAKED_BASE = `${import.meta.env.BASE_URL}geom`
 const WAYPOINT_BASE = 'https://hkbus.github.io/route-waypoints'
 const OSRM_BASE = 'https://router.project-osrm.org/route/v1/driving'
-// 幾何只係錦上添花:慢過 10 秒就用後備,唔好令地圖一直等
-const GEOM_TIMEOUT_MS = 10_000
+// 地圖已經用直線先出:幾何慢過 4 秒就放棄,唔好再等
+const GEOM_TIMEOUT_MS = 4_000
 
 const maps: Record<Co, Record<string, string>> = {
   kmb: kmbMap as Record<string, string>,
@@ -58,7 +58,11 @@ export async function loadRouteLine(
       transient = true
       return null
     })
-  const line = (await tryUrl(`${BAKED_BASE}/${key}.json`)) ?? (await tryUrl(`${WAYPOINT_BASE}/${key}.json`))
+  const [baked, remote] = await Promise.all([
+    tryUrl(`${BAKED_BASE}/${key}.json`),
+    tryUrl(`${WAYPOINT_BASE}/${key}.json`),
+  ])
+  const line = baked ?? remote
   // 斷線 / 逾時攞唔到唔好記死 null(否則成個 session 都得直線),下次開地圖再試
   if (line || !transient) cache.set(key, line)
   return line
