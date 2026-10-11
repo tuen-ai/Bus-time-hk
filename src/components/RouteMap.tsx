@@ -175,7 +175,10 @@ export default function RouteMap({ route, stops, focusStopId, userPos }: Props) 
   const displayLine = line ?? provisional
 
   // 線一準備好就 snap 各站(只計一次)
-  const snapped = useMemo<SnappedStop[]>(() => (displayLine ? snapStops(displayLine, stops) : []), [displayLine, stops])
+  const snapped = useMemo<SnappedStop[]>(
+    () => (displayLine ? snapStops(displayLine, stops) : []),
+    [displayLine, stops],
+  )
 
   // 每 30 秒 fetch route-eta → 建立 seq→到站時間(只有九巴有全線 ETA;背景分頁暫停)
   const etaSeq = useRef(0)
@@ -204,10 +207,7 @@ export default function RouteMap({ route, stops, focusStopId, userPos }: Props) 
   )
 
   const positions = useMemo<[number, number][]>(
-    () =>
-      displayLine
-        ? displayLine.geometry.coordinates.map((c) => [c[1], c[0]] as [number, number])
-        : [],
+    () => (displayLine ? displayLine.geometry.coordinates.map((c) => [c[1], c[0]] as [number, number]) : []),
     [displayLine],
   )
   const bounds = useMemo<LatLngBoundsExpression | null>(
