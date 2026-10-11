@@ -25,12 +25,12 @@ on:
 
 jobs:
   probe:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version-file: .nvmrc
       - run: node scripts/probe-live.mjs ${{ inputs.routes }}
       - if: ${{ inputs.tiles }}
         run: node scripts/probe-tiles.mjs --dump

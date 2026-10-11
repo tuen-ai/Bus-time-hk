@@ -21,20 +21,20 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
 
       - run: npm ci
 
-      # 壞 code 唔好部署:lint + 單元測試(typecheck 喺 npm run build 入面)
-      - name: Lint + unit tests
-        run: npm run lint && npm test
+      # 壞 code 唔好部署:lint + 格式 + 單元測試(typecheck 喺 npm run build 入面,tsc -b)
+      - name: Lint + format check + unit tests
+        run: npm run lint && npm run format:check && npm test
 
       # 預先抓取路線幾何到 public/geom(same-origin);失敗不致命
       - name: Bake route geometry
@@ -53,7 +53,7 @@ jobs:
         run: echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
       - name: Restore fitness cache
         id: fitness-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: public/fitness.json
           key: fitness-${{ steps.week.outputs.week }}
@@ -70,23 +70,23 @@ jobs:
       - run: npm run build
 
       # 自動啟用 Pages(若尚未啟用)
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
         with:
           enablement: true
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
   deploy:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
         continue-on-error: true
 
       # Pages 後端間中「Deployment failed, try again later」—— 等 90 秒重試一次
@@ -96,4 +96,4 @@ jobs:
 
       - id: deployment-retry
         if: steps.deployment.outcome == 'failure'
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
