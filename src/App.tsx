@@ -13,6 +13,7 @@ import SearchView from './components/SearchView'
 import type { LegRouteKey } from './components/PlannerView'
 import WeatherBanner from './components/WeatherBanner'
 import AlertBanners from './components/AlertBanners'
+import LiveClock from './components/LiveClock'
 import { PandaLogo, MascotState } from './components/Mascots'
 import { recordUse } from './lib/usage'
 import { addStamp } from './lib/stamps'
@@ -392,6 +393,7 @@ export default function App() {
               可可出行
             </button>
           </h1>
+          <LiveClock />
           <span className="topbar-btns">
             <button
               ref={gearRef}
