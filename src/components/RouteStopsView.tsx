@@ -28,6 +28,8 @@ import {
   type LatLngFix,
 } from '../lib/geo'
 import { autoNearestOn } from '../lib/autoNearest'
+import { shareOrCopy, shareTitle, shareUrl } from '../lib/shareLink'
+import { showToast } from '../lib/toast'
 
 // 地圖(Leaflet)按需載入,搜尋首屏唔使孭住成個地圖庫
 const RouteMap = lazyRetry(() => import('./RouteMap'))
@@ -341,6 +343,21 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
     onSwitch(v)
   }
 
+  // 📤 分享條線 / 個站:手機彈系統分享,桌面抄連結
+  const share = async (row?: StopRow) => {
+    const q = {
+      co: route.co,
+      route: route.route,
+      bound: route.bound,
+      serviceType: route.service_type,
+      uid: route.uid,
+      stopId: row?.stopId,
+    }
+    const res = await shareOrCopy(shareTitle({ ...q, dest: route.dest_tc }, row?.name), shareUrl(q))
+    if (res === 'copied') showToast('已複製連結')
+    else if (res === 'failed') showToast('複製唔到連結')
+  }
+
   const retry = () => {
     setLoaded(null)
     setReloadKey((k) => k + 1)
@@ -377,27 +394,34 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
           {/* 路線清單未載好時由收藏 / 附近開入嚟嘅臨時路線冇起點:唔好出淨係「由 」 */}
           {route.orig_tc && <div className="muted small">由 {route.orig_tc}</div>}
         </div>
-        {(hasFare || reverse) && (
-          <div style={SIDE_STYLE}>
-            {hasFare && (
-              <div className="fare-badge" title="全程車費(成人八達通)">
-                {fmtFare(fares[0])}
-              </div>
-            )}
-            {reverse && (
-              <button
-                type="button"
-                className="preset-chip"
-                style={CHIP44_STYLE}
-                onClick={() => switchTo(reverse)}
-                aria-label={`返程:往 ${reverse.dest_tc}`}
-                title={`轉去返程(往 ${reverse.dest_tc})`}
-              >
-                <span aria-hidden="true">⇄ </span>返程
-              </button>
-            )}
-          </div>
-        )}
+        <div style={SIDE_STYLE}>
+          {hasFare && (
+            <div className="fare-badge" title="全程車費(成人八達通)">
+              {fmtFare(fares[0])}
+            </div>
+          )}
+          {reverse && (
+            <button
+              type="button"
+              className="preset-chip"
+              style={CHIP44_STYLE}
+              onClick={() => switchTo(reverse)}
+              aria-label={`返程:往 ${reverse.dest_tc}`}
+              title={`轉去返程(往 ${reverse.dest_tc})`}
+            >
+              <span aria-hidden="true">⇄ </span>返程
+            </button>
+          )}
+          <button
+            type="button"
+            className="preset-chip share-chip"
+            onClick={() => void share()}
+            aria-label={`分享路線:${coLabel(route.co)} ${route.route} 往 ${route.dest_tc}`}
+            title="分享呢條線嘅連結"
+          >
+            <span aria-hidden="true">📤 </span>分享
+          </button>
+        </div>
       </div>
 
       {sortedVariants.length > 1 && (
@@ -567,6 +591,19 @@ export default function RouteStopsView({ route, variants, initialOpenStop, onSwi
                 </button>
               </div>
               {open && <EtaPanel route={dataRoute} stopId={row.stopId} />}
+              {open && (
+                <div className="stop-share">
+                  <button
+                    type="button"
+                    className="preset-chip share-chip"
+                    onClick={() => void share(row)}
+                    aria-label={`分享車站:${row.name}`}
+                    title="分享呢個站嘅到站連結"
+                  >
+                    <span aria-hidden="true">📤 </span>分享呢個站
+                  </button>
+                </div>
+              )}
             </li>
           )
         })}

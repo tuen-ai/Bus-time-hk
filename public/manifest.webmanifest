@@ -16,5 +16,46 @@
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "附近車站",
+      "short_name": "附近",
+      "description": "睇你附近嘅巴士 / 綠van 到站",
+      "url": "./#tab=nearby",
+      "icons": [
+        {
+          "src": "./icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "我嘅收藏",
+      "short_name": "收藏",
+      "description": "收藏路線即時到站",
+      "url": "./#tab=favs",
+      "icons": [
+        {
+          "src": "./icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "行程規劃",
+      "short_name": "規劃",
+      "description": "點對點搭車路線",
+      "url": "./#tab=plan",
+      "icons": [
+        {
+          "src": "./icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
   ]
 }
