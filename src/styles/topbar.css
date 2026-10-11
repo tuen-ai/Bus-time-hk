@@ -122,3 +122,80 @@
   position: relative;
   z-index: 1;
 }
+
+/* 實時香港時間(LiveClock):放喺標題同掣中間;數字等寬,秒數跳都唔會左右郁 */
+.live-clock {
+  margin-left: auto;
+  margin-right: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px rgba(90, 10, 45, 0.28);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.live-clock time {
+  display: contents;
+}
+.live-clock-time {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.live-clock-date {
+  font-size: var(--fs-xs);
+  opacity: 0.9;
+  transition:
+    max-height 0.25s var(--ease),
+    opacity 0.2s;
+  max-height: 16px;
+  overflow: hidden;
+}
+/* 捲落去收細頂欄:淨係留時間 */
+.topbar.compact .live-clock-date {
+  max-height: 0;
+  opacity: 0;
+}
+/* 上排嘅 ♡ / ✦ 本來放喺標題右邊空位,而家個位俾咗時鐘 —— 收埋,唔好疊喺數字後面 */
+.topbar-deco.d1,
+.topbar-deco.d2 {
+  display: none;
+}
+.topbar-home {
+  white-space: nowrap;
+}
+/* 窄機:時鐘細少少,唔好逼到標題斷行 */
+@media (max-width: 360px) {
+  .live-clock {
+    margin-right: 6px;
+  }
+  .live-clock-time {
+    font-size: 0.95rem;
+    letter-spacing: 0;
+  }
+}
+/* 好窄(<= 340px,例如 iPhone SE 1代):標題同掣都收細少少,騰位俾時鐘 */
+@media (max-width: 340px) {
+  .topbar {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .topbar h1 {
+    font-size: 1.12rem;
+  }
+  .topbar-home {
+    gap: 6px;
+  }
+  .topbar-btns {
+    gap: 4px;
+  }
+  .live-clock {
+    margin-right: 4px;
+  }
+  .live-clock-time {
+    font-size: 0.9rem;
+  }
+}
