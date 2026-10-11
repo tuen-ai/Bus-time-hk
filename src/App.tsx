@@ -14,6 +14,9 @@ import type { LegRouteKey } from './components/PlannerView'
 import WeatherBanner from './components/WeatherBanner'
 import AlertBanners from './components/AlertBanners'
 import LiveClock from './components/LiveClock'
+import Toast from './components/Toast'
+import { parseHash, type RouteLink } from './lib/shareLink'
+import { showToast } from './lib/toast'
 import { PandaLogo, MascotState } from './components/Mascots'
 import { recordUse } from './lib/usage'
 import { addStamp } from './lib/stamps'
@@ -118,6 +121,11 @@ export default function App() {
   const [coFilter, setCoFilter] = useState<Co | 'all'>('all')
   // 由搜尋結果開路線 → 返嚟時焦點放返嗰張卡
   const [returnFocus, setReturnFocus] = useState<string | null>(null)
+  // 由分享連結開嘅臨時路線:清單到咗都對唔到 → 提示 + 返首頁(唔好留喺一個冇站嘅空頁);async 入面要知而家睇緊邊條
+  const selectedRef = useRef(selected)
+  useEffect(() => {
+    selectedRef.current = selected
+  }, [selected])
   const clearReturnFocus = useCallback(() => setReturnFocus(null), [])
 
   const [showBackup, setShowBackup] = useState(false)
@@ -207,21 +215,27 @@ export default function App() {
   // 清單入面有邊幾間營辦商:載緊 = 一間都冇;某間攞唔到(例如九巴 timeout、冇快取)= 冇嗰間
   const cosLoaded = useMemo(() => new Set(routes.map((r) => r.co)), [routes])
   // 清單未到時用 key 砌嘅臨時路線(見 openByKey):嗰間營辦商嘅路線一到就換返真嗰條
-  const provisional = useRef<{ route: Route; q: RouteQuery & { stopId?: string } } | null>(null)
+  const provisional = useRef<{ route: Route; q: RouteQuery & { stopId?: string }; link?: boolean } | null>(
+    null,
+  )
 
   // 由 key 對返 Route 再開:uid 優先 → GMB / 嶼巴同號多條就睇邊條經過個站 → 目的地 tiebreak;
   // 嶼巴舊收藏 bound 反轉再試(規則同測試喺 api/bus.ts pickRouteAtStop)。
   // 嗰間營辦商嘅路線未載好(第一次開 / 快取過咗 7 日 / 清咗快取 / 攞唔到)唔好冇反應:
   // 用 key 本身砌條臨時路線即刻開;清單有嗰間但對唔到就照舊唔開
-  const openByKey = (q: RouteQuery & { stopId?: string }, toSearch: boolean) => {
+  const openByKey = (q: RouteQuery & { stopId?: string }, toSearch: boolean, link = false) => {
     const seq = ++openSeq.current
     const coReady = cosLoaded.has(q.co)
     void pickRouteAtStop(routeIndex, q).then((found) => {
       const r = found ?? (coReady ? undefined : routeFromQuery(q))
-      if (!r || seq !== openSeq.current) return
+      if (seq !== openSeq.current) return
+      if (!r) {
+        if (link) showToast('搵唔到連結入面嘅路線')
+        return
+      }
       if (toSearch) setTab('search')
       openRoute(r, q.stopId)
-      provisional.current = found ? null : { route: r, q }
+      provisional.current = found ? null : { route: r, q, link }
     })
   }
 
@@ -233,6 +247,10 @@ export default function App() {
     provisional.current = null
     void pickRouteAtStop(routeIndex, p.q).then((r) => {
       if (r) setSelected((cur) => (cur === p.route ? r : cur))
+      else if (p.link && selectedRef.current === p.route) {
+        setSelected(null)
+        showToast('搵唔到連結入面嘅路線')
+      }
     })
   }, [routeIndex, cosLoaded])
 
@@ -263,6 +281,41 @@ export default function App() {
       },
       false,
     )
+
+  // 分享連結 / 主畫面捷徑(#r=… / #tab=…):開 app 時同開住時(hashchange)都接;讀完即刻清走 hash,
+  // 唔好留喺 history(返回鍵退到嗰格會再開一次)。#display 由上面嗰個 effect 處理
+  const openLink = (link: RouteLink) => openByKey(link, true, true)
+  const openLinkRef = useRef(openLink)
+  useEffect(() => {
+    openLinkRef.current = openLink
+  })
+  useEffect(() => {
+    const take = () => {
+      const p = parseHash(window.location.hash)
+      if (!p) return
+      history.replaceState(history.state, '', window.location.pathname + window.location.search)
+      if (p.kind === 'invalid') {
+        showToast('連結唔啱,返咗首頁')
+        return
+      }
+      // 門口顯示模式係鎖定嘅:連結唔好偷偷退出(要長按 3 秒先出到)
+      if (lsGet(DISPLAY_KEY) === '1') return
+      if (p.kind === 'route') {
+        openLinkRef.current(p.link)
+        return
+      }
+      openSeq.current++
+      setSelected(null)
+      setTab(p.tab === 'favs' ? 'search' : p.tab)
+      if (p.tab === 'favs') {
+        // 等首頁 render 完先捲去收藏(冇收藏就留喺頂)
+        requestAnimationFrame(() => document.querySelector('.favs')?.scrollIntoView?.({ block: 'start' }))
+      }
+    }
+    take()
+    window.addEventListener('hashchange', take)
+    return () => window.removeEventListener('hashchange', take)
+  }, [])
 
   const openFavorite = (f: Favorite) =>
     openByKey(
@@ -362,6 +415,7 @@ export default function App() {
           <DisplayMode onExit={exitDisplay} />
         </Suspense>
         <AlertBanners />
+        <Toast />
       </>
     )
   }
@@ -475,6 +529,7 @@ export default function App() {
       </main>
 
       <AlertBanners />
+      <Toast />
       {showBackup && (
         <Suspense fallback={null}>
           <BackupPanel onClose={() => setShowBackup(false)} onEnterDisplay={enterDisplay} />
