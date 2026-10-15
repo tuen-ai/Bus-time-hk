@@ -266,3 +266,32 @@
     transform: translateY(0) scale(1.04, 0.95);
   }
 }
+
+/* ---- 長草顏團子(預覽,DangoGif)----
+   素材係白底動圖:淺色主題用 multiply 溶入粉紅底;深色主題做一張白色圓角貼紙。
+   固定闊高(inline style),載入前後唔會推郁版面;「減少動態效果」由 <picture> 換靜態圖 */
+.dango-sticker {
+  display: inline-block;
+  flex-shrink: 0;
+  line-height: 0;
+}
+.dango-sticker img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+  user-select: none;
+}
+:root[data-theme='dark'] .dango-sticker {
+  background: #fff;
+  border-radius: 24%;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+  padding: 4%;
+  box-sizing: border-box;
+}
+:root[data-theme='dark'] .dango-sticker img {
+  mix-blend-mode: normal;
+}
+.home-greet .dango-sticker {
+  border-radius: 30%;
+}

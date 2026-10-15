@@ -7,6 +7,7 @@ import { QUOTES, getQuotePref, setQuotePref, quoteOfToday, type QuotePref } from
 import { getFavorites, moveFavorite, favKey, type Favorite } from '../lib/store'
 import { coClass } from '../api/bus'
 import { autoNearestOn, setAutoNearest } from '../lib/autoNearest'
+import { getMascotSet, setMascotSet } from '../lib/mascotPref'
 
 export default function BackupPanel({
   onClose,
@@ -21,6 +22,7 @@ export default function BackupPanel({
   const [qp, setQp] = useState<QuotePref>(() => getQuotePref())
   const [favs, setFavs] = useState<Favorite[]>(() => getFavorites())
   const [autoNear, setAutoNear] = useState(autoNearestOn)
+  const [dango, setDango] = useState(() => getMascotSet() === 'dango')
   // 排序:撳完 ↑↓ 要將焦點放返喺同一個收藏嘅箭咀
   const pendingFocus = useRef<{ k: string; dir: 'up' | 'down' } | null>(null)
   const move = (f: Favorite, i: number, d: -1 | 1) => {
@@ -222,6 +224,24 @@ export default function BackupPanel({
                 <span className="muted small">
                   由搜尋開一條線,會用你嘅位置搵呢條線離你最近、上得車嘅站,自動打開睇到站時間(1
                   公里內先會自動跳)。位置只喺你部機用,唔會上傳。
+                </span>
+              </span>
+            </label>
+            <label className="set-toggle">
+              <input
+                type="checkbox"
+                checked={dango}
+                onChange={(e) => {
+                  setDango(e.target.checked)
+                  setMascotSet(e.target.checked ? 'dango' : 'classic')
+                }}
+              />
+              <span>
+                <b className="small">
+                  <span aria-hidden="true">🌱 </span>公仔換做長草顏團子(預覽)
+                </b>
+                <span className="muted small">
+                  首頁問候、載入中、搵唔到嘢、規劃頁歡迎會用團子動圖。素材未有就照用熊貓啡熊。
                 </span>
               </span>
             </label>

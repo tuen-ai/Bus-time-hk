@@ -14,3 +14,6 @@ tsconfig.tsbuildinfo
 
 # CI-baked route geometry (downloaded at build time)
 public/geom
+
+# 長草顏團子素材:第三方版權,只供本機預覽(node scripts/fetch-kaodango.mjs),唔好 commit
+public/mascots/

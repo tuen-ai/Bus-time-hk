@@ -11,6 +11,7 @@ const BACKUP_KEYS = [
   'kkcx.mtrFavs', // 港鐵收藏(綫 + 站 + 方向)
   'kkcx.mtr.last', // 鐵路頁上次揀嘅綫 / 站
   'kkcx.autoNearest', // 開路線自動打開最近你嘅站(開 / 關)
+  'kkcx.mascot', // 公仔款式(熊貓啡熊 / 長草顏團子)
 ] as const
 
 interface BackupFile {

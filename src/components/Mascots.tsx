@@ -1,7 +1,9 @@
 // 原創 kawaii 公仔(熊貓 🐼 + 啡熊 🐻)—— 自家設計,非任何受版權保護角色。
+// 另有長草顏團子預覽(DangoGif):第三方角色,素材唔入 git,見 docs/MASCOT-CREDITS.md。
 // 支援配件(蝴蝶結/星星眼/太空騎士/獎牌 —— 儲印仔解鎖)同天氣反應(遮/汗)。
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { getWeather, type Weather } from '../api/weather'
+import { dangoAssetsMissing, markDangoMissing, useMascotSet } from '../lib/mascotPref'
 import { getStamps, unlocked } from '../lib/stamps'
 import { weatherMood } from '../lib/weather'
 
@@ -232,6 +234,48 @@ export function BearBody({ className = 'mascot body', card, ...p }: BearProps) {
   )
 }
 
+// ---- 長草顏團子(預覽)----
+// 第三方角色,素材唔入 git:public/mascots/ 由 scripts/fetch-kaodango.mjs 下載(見 docs/MASCOT-CREDITS.md)。
+// 檔案唔喺度(例如正式部署)→ onError 退返原創熊貓 / 啡熊,唔會出爛圖。
+export type DangoPose = 'wave' | 'dance' | 'cry' | 'sleepy'
+const DANGO_BASE = `${import.meta.env.BASE_URL}mascots/kaodango-`
+
+/** 團子動圖:lazy + async decode、固定闊高(唔推郁版面);「減少動態效果」用靜態圖 */
+export function DangoGif({
+  pose,
+  size,
+  className = 'dango',
+  fallback,
+}: {
+  pose: DangoPose
+  size: number
+  className?: string
+  fallback: ReactNode
+}) {
+  const [failed, setFailed] = useState(dangoAssetsMissing)
+  if (failed) return <>{fallback}</>
+  return (
+    <span className={`dango-sticker ${className}`} style={{ width: size, height: size }} aria-hidden="true">
+      <picture>
+        <source media="(prefers-reduced-motion: reduce)" srcSet={`${DANGO_BASE}${pose}-still.png`} />
+        <img
+          src={`${DANGO_BASE}${pose}.webp`}
+          alt=""
+          width={size}
+          height={size}
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onError={() => {
+            markDangoMissing()
+            setFailed(true)
+          }}
+        />
+      </picture>
+    </span>
+  )
+}
+
 /** 細版單一公仔(topbar logo) */
 export function PandaLogo({ className = 'topbar-logo' }: { className?: string }) {
   return <PandaFace className={className} />
@@ -258,9 +302,15 @@ export function PandaSad({ className = 'mascot sm' }: { className?: string }) {
 
 /** 狀態小插圖:busy(郁動熊貓)/ sad(喊喊熊貓)+ 一句話 */
 export function MascotState({ mood, text }: { mood: 'busy' | 'sad'; text: string }) {
+  const set = useMascotSet()
+  const classic = mood === 'sad' ? <PandaSad /> : <PandaFace className="mascot sm a" />
   return (
     <div className="mascot-state" role="status">
-      {mood === 'sad' ? <PandaSad /> : <PandaFace className="mascot sm a" />}
+      {set === 'dango' ? (
+        <DangoGif pose={mood === 'sad' ? 'cry' : 'dance'} size={88} fallback={classic} />
+      ) : (
+        classic
+      )}
       <div className="mascot-state-text">{text}</div>
     </div>
   )
@@ -290,6 +340,7 @@ function useMascotMood() {
 export function MascotWelcome({ title, sub }: { title: string; sub: string }) {
   const un = unlocked(getStamps())
   const mood = useMascotMood()
+  const set = useMascotSet()
   return (
     <div className="welcome">
       <span className="welcome-float" aria-hidden="true" style={{ top: 30, left: 14 }}>
@@ -308,20 +359,16 @@ export function MascotWelcome({ title, sub }: { title: string; sub: string }) {
         🌸
       </span>
       <div className="mascot-pair">
-        <PandaBody
-          className="mascot body a"
-          bow={un.includes('bow')}
-          starEyes={un.includes('star')}
-          cap={un.includes('cap')}
-          umbrella={mood.umbrella}
-          sweat={mood.sweat}
-        />
-        <BearBody
-          className="mascot body b"
-          knight={un.includes('knight')}
-          medal={un.includes('gold')}
-          card={un.includes('card')}
-        />
+        {set === 'dango' ? (
+          <DangoGif
+            pose="wave"
+            size={132}
+            className="dango a"
+            fallback={<ClassicPair un={un} mood={mood} />}
+          />
+        ) : (
+          <ClassicPair un={un} mood={mood} />
+        )}
       </div>
       <div className="welcome-title">{title}</div>
       <div className="welcome-sub">{sub}</div>
@@ -333,6 +380,47 @@ export function MascotWelcome({ title, sub }: { title: string; sub: string }) {
   )
 }
 
+type Mood = ReturnType<typeof mascotMood>
+
+/** 原創一對(歡迎頁全身版) */
+function ClassicPair({ un, mood }: { un: string[]; mood: Mood }) {
+  return (
+    <>
+      <PandaBody
+        className="mascot body a"
+        bow={un.includes('bow')}
+        starEyes={un.includes('star')}
+        cap={un.includes('cap')}
+        umbrella={mood.umbrella}
+        sweat={mood.sweat}
+      />
+      <BearBody
+        className="mascot body b"
+        knight={un.includes('knight')}
+        medal={un.includes('gold')}
+        card={un.includes('card')}
+      />
+    </>
+  )
+}
+
+/** 原創一對(首頁問候細版) */
+function ClassicGreetFaces({ un, mood }: { un: string[]; mood: Mood }) {
+  return (
+    <>
+      <PandaFace
+        className="mascot greet-face a"
+        bow={un.includes('bow')}
+        starEyes={un.includes('star')}
+        cap={un.includes('cap')}
+        umbrella={mood.umbrella}
+        sweat={mood.sweat}
+      />
+      <BearFace className="mascot greet-face b" knight={un.includes('knight')} medal={un.includes('gold')} />
+    </>
+  )
+}
+
 const GREET_MOOD_STYLE = { marginTop: 2 } as const
 
 /** 首頁有收藏嘅熟客:細公仔 + 一句問候(唔好用成個大 hero 將收藏迫落去);天氣提示(帶遮 / 打風 / 好熱)照出 */
@@ -340,23 +428,21 @@ export function MascotGreeting() {
   const [hour] = useState(() => new Date().getHours())
   const [un] = useState(() => unlocked(getStamps()))
   const mood = useMascotMood()
+  const set = useMascotSet()
   const hi = hour < 5 ? '夜喇' : hour < 12 ? '早晨' : hour < 18 ? '午安' : '晚上好'
   return (
     <div className="home-greet">
       <span className="home-greet-faces" aria-hidden="true">
-        <PandaFace
-          className="mascot greet-face a"
-          bow={un.includes('bow')}
-          starEyes={un.includes('star')}
-          cap={un.includes('cap')}
-          umbrella={mood.umbrella}
-          sweat={mood.sweat}
-        />
-        <BearFace
-          className="mascot greet-face b"
-          knight={un.includes('knight')}
-          medal={un.includes('gold')}
-        />
+        {set === 'dango' ? (
+          <DangoGif
+            pose={hour < 5 || hour >= 23 ? 'sleepy' : 'wave'}
+            size={48}
+            className="dango greet"
+            fallback={<ClassicGreetFaces un={un} mood={mood} />}
+          />
+        ) : (
+          <ClassicGreetFaces un={un} mood={mood} />
+        )}
       </span>
       <div>
         <p className="home-greet-text">
